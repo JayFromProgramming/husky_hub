@@ -205,9 +205,9 @@ def draw(screen):
     cpu_averages.append(psutil.cpu_percent())
     if len(cpu_averages) > 10:
         cpu_averages.pop(0)
-    cpu_average = statistics.fmean(cpu_averages)
+    cpu_average = statistics.mean(cpu_averages)
     sys_info = sys_info_font.render(f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1-(avail/total))*100, 2)).zfill(5)}%,"
-                                    f" Temp {None if not py else psutil.sensors_temperatures()}°C", True, pallet_one)
+                                    f" Temp {None if not py else round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)}°C", True, pallet_one)
 
     screen.blit(sys_info, (240, 455))
     if display_mode == "init":

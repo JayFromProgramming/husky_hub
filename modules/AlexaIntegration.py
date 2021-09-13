@@ -34,7 +34,7 @@ class RoutineButton:
             self.color = [64, 64, 64]
 
         self.button = pygame.Rect(x, y, 75, 60)
-        text = font2.render(self.action["name"], True, pallet_two)
+        text = font2.render(self.action["name"], True, pallet_three)
 
         pygame.draw.rect(screen, self.color, self.button)
         screen.blit(text, text.get_rect(center=self.button.center))
@@ -64,7 +64,7 @@ class RoutineTile:
         for button in self.action_buttons:
             if button.button.collidepoint(mouse_pos):
                 button.run = True
-                button.color = [200, 200, 0]
+                button.color = [64, 64, 200]
                 # return self.routine_actions[str(count)]["request"]
             count += 1
 
@@ -125,6 +125,7 @@ class AlexaIntegration:
                     button.run = False
                     button.color_changed = True
                     button.last_run = time.time()
+            time.sleep(0.05)
 
     def run_routine(self, request):
         query = str(request).format(access_token=self.api_token, secret_token=self.api_secret)
@@ -133,7 +134,7 @@ class AlexaIntegration:
             r = requests.get(url=query)
         except requests.exceptions.ConnectionError:
             return False
-        print(f"Code: {r.status_code}, Response: {r.json()}")
+        # print(f"Code: {r.status_code}, Response: {r.json()}")
         if r.status_code == 200 and r.json()['status'] == "success":
             return True
         else:

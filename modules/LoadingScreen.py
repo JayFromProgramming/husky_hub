@@ -33,8 +33,8 @@ class LoadingScreen:
     def load_weather(self):
         """"""
         self.loading_status_strings.append("Loading weather data from OpenWeatherMap.org")
-        # self.weather_api.update_current_weather()
-        # self.weather_api.update_future_weather()
+        self.weather_api.update_current_weather()
+        self.weather_api.update_future_weather()
         self.loading_status_strings.append("Loaded weather data from OpenWeatherMap.org")
 
     def _load_icon(self, icon):
