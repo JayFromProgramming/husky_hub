@@ -1,0 +1,108 @@
+INFO: 2021-09-06 12:24:28,699 - Starting piWeather, OnPi:False
+ERROR: 2021-09-06 12:25:50,848 - Attempted to create stream for cam 1, failed because ('NoneType' object has no attribute 'play')
+ERROR: 2021-09-06 12:25:54,412 - Attempted to create stream for cam 0, failed because ('NoneType' object has no attribute 'play')
+INFO: 2021-09-06 12:36:38,197 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 12:36:39,828 - Uncaught Error
+Type:<class 'AttributeError'>
+Value:'NoneType' object has no attribute 'draw_to'
+Traceback: None
+INFO: 2021-09-06 12:36:39,829 - Attempting to restart from uncaught error...
+INFO: 2021-09-06 12:36:39,829 - Starting piWeather, OnPi:False
+INFO: 2021-09-06 12:37:42,203 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 12:38:03,869 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 12:38:05,170 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 12:39:22,644 - Uncaught Error
+Type:<class 'AttributeError'>
+Value:'CampusCams' object has no attribute 'stream'
+Traceback: None
+INFO: 2021-09-06 12:39:22,644 - Attempting to restart from uncaught error...
+INFO: 2021-09-06 12:39:22,644 - Starting piWeather, OnPi:False
+INFO: 2021-09-06 12:43:23,085 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 12:43:43,013 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 12:43:58,689 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 12:44:15,377 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 12:44:35,509 - Starting piWeather, OnPi:False
+INFO: 2021-09-06 12:45:23,683 - Cam 3: URLError (HTTP Error 403: Forbidden)
+INFO: 2021-09-06 12:48:37,185 - Cam 3: Incomplete read
+INFO: 2021-09-06 12:53:20,583 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 12:53:50,610 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 12:53:52,148 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 12:54:36,396 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 12:54:37,314 - Starting piWeather, OnPi:False
+INFO: 2021-09-06 12:54:38,904 - Cam 0: Incomplete read
+CRITICAL: 2021-09-06 12:54:42,425 - Uncaught Error
+Type:<class 'AttributeError'>
+Value:'NoneType' object has no attribute 'set_width'
+Traceback: None
+INFO: 2021-09-06 12:54:42,425 - Attempting to restart from uncaught error...
+INFO: 2021-09-06 12:54:42,425 - Starting piWeather, OnPi:False
+INFO: 2021-09-06 12:58:14,075 - Starting piWeather, OnPi:False
+INFO: 2021-09-06 12:58:21,388 - Cam 2: Incomplete read
+INFO: 2021-09-06 12:59:34,994 - Cam 3: URLError (HTTP Error 403: Forbidden)
+INFO: 2021-09-06 13:04:45,156 - Cam 3: Incomplete read
+INFO: 2021-09-06 13:05:46,231 - Cam 0: Incomplete read
+INFO: 2021-09-06 14:47:48,077 - Starting piWeather, OnPi:False
+INFO: 2021-09-06 14:48:09,455 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:48:09,609 - Uncaught Error
+Type:<class 'AttributeError'>
+Value:'Win32Window' object has no attribute 'fill'
+Traceback: None
+INFO: 2021-09-06 14:48:09,609 - Attempting to restart from uncaught error...
+INFO: 2021-09-06 14:48:41,052 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:48:41,188 - Uncaught Error
+Type:<class 'NameError'>
+Value:name 'pygame' is not defined
+Traceback: None
+INFO: 2021-09-06 14:48:41,188 - Attempting to restart from uncaught error...
+INFO: 2021-09-06 14:49:12,971 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:51:07,325 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 14:51:08,338 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:51:42,328 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 14:51:43,432 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:54:18,327 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 14:54:19,375 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:54:32,327 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 14:54:33,454 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:55:59,324 - Uncaught Error
+Type:<class 'KeyboardInterrupt'>
+Value:
+Traceback: None
+INFO: 2021-09-06 14:56:00,465 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:56:11,635 - Uncaught Error
+Type:<class 'TypeError'>
+Value:draw() missing 1 required positional argument: 'screen'
+Traceback: None
+INFO: 2021-09-06 14:56:11,635 - Attempting to restart from uncaught error...
+INFO: 2021-09-06 14:58:04,703 - Starting piWeather, OnPi:False
+CRITICAL: 2021-09-06 14:58:12,242 - Uncaught Error
+Type:<class 'TypeError'>
+Value:draw() missing 1 required positional argument: 'screen'
+Traceback: None
+INFO: 2021-09-06 14:58:12,242 - Attempting to restart from uncaught error...

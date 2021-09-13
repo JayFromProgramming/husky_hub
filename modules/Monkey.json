@@ -1,0 +1,68 @@
+{
+  "room_lights": {
+    "title": "Lights",
+    "description": "Set brightness",
+    "actions": {
+      "0": {
+        "name": "Off",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightsoff"
+      },
+      "1": {
+        "name": "Low",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightslow"
+      },
+      "2": {
+        "name": "Med",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightsmed"
+      },
+      "3": {
+        "name": "High",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightson"
+      }
+    }
+  },
+   "room_lights_color": {
+    "title": "Lights",
+    "description": "Set color",
+    "actions": {
+      "0": {
+        "name": "White",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-white"
+      },
+      "1": {
+        "name": "Red",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-red"
+      },
+      "2": {
+        "name": "Green",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-green"
+      },
+      "3": {
+        "name": "Blue",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-blue"
+      }
+    }
+  },
+  "big_wind": {
+    "title": "Big wind",
+    "description": "",
+    "actions": {
+      "0": {
+        "name": "Off",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-off"
+      },
+      "1": {
+        "name": "Intake",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-in"
+      },
+      "2": {
+        "name": "Exhaust",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-out"
+      },
+      "3": {
+        "name": "All On",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-on"
+      }
+    }
+  }
+}
