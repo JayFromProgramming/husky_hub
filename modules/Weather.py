@@ -48,6 +48,7 @@ pallet_four = (0, 0, 0)
 
 refresh_forecast = True
 screen_dimmed = False
+raincheck = False
 
 fps = 18
 forecast = []
@@ -89,10 +90,18 @@ sys.excepthook = uncaught
 
 
 def update(dt):
-    global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast
+    global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, raincheck
     # Go through events that are passed to the script by the window.
-    if display_mode == "room_control":
+    if room_control.queued_routine:
         room_control.run_queued()
+
+    # print(weatherAPI.current_weather.status if weatherAPI.current_weather else None)
+    if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not raincheck:
+        log.info("Shutting off big wind due to rain")
+        room_control.run_routine(
+            "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-off")
+        raincheck = True
+
     for event in pygame.event.get():
         # We need to handle these events. Initially the only one you'll want to care
         # about is the QUIT event, because if you don't handle it, your game will crash
@@ -114,10 +123,12 @@ def update(dt):
 
             if home_button.collidepoint(mouse_pos) and display_mode != "home":
                 webcams.focus(None)
+                webcams.page = 0
                 display_mode = "home"
 
-            elif room_button.collidepoint(mouse_pos):
+            elif room_button.collidepoint(mouse_pos) and display_mode == "home":
                 webcams.focus(None)
+                webcams.page = 0
                 display_mode = "room_control"
 
             elif display_mode == "webcams":

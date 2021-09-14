@@ -67,6 +67,7 @@ class RoutineTile:
                 button.run = True
                 button.color = [64, 64, 200]
                 # return self.routine_actions[str(count)]["request"]
+                return True
             count += 1
 
         return None
@@ -97,7 +98,7 @@ class AlexaIntegration:
     def __init__(self, log):
         """"""
         self.routines = []
-        self.queued_routine = None
+        self.queued_routine = False
         self.clear_time = time.time()
         if os.path.isfile(api_file):
             with open(api_file) as f:
@@ -126,7 +127,7 @@ class AlexaIntegration:
                     button.run = False
                     button.color_changed = True
                     button.last_run = time.time()
-            time.sleep(0.05)
+                    self.queued_routine = False
 
     def run_routine(self, request):
         query = str(request).format(access_token=self.api_token, secret_token=self.api_secret)
@@ -151,8 +152,11 @@ class AlexaIntegration:
 
     def check_click(self, mouse_pos):
         for routine in self.routines:
-            if routine.check_collide(mouse_pos):
-                return routine.check_collide(mouse_pos)
+            val = routine.check_collide(mouse_pos)
+            print(val)
+            if val:
+                self.queued_routine = True
+                return val
 
     def draw_routine(self, screen):
         scroll = 40
