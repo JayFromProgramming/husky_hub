@@ -32,6 +32,7 @@ class RoutineButton:
 
         if time.time() > self.last_run + 1.5 and self.color_changed:
             self.color = [64, 64, 64]
+            self.color_changed = False
 
         self.button = pygame.Rect(x, y, 75, 60)
         text = font2.render(self.action["name"], True, pallet_three)
@@ -133,6 +134,8 @@ class AlexaIntegration:
         try:
             r = requests.get(url=query)
         except requests.exceptions.ConnectionError:
+            return False
+        except requests.exceptions.MissingSchema:
             return False
         # print(f"Code: {r.status_code}, Response: {r.json()}")
         if r.status_code == 200 and r.json()['status'] == "success":

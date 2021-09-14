@@ -25,9 +25,9 @@ if py:
     # os.system("export DISPLAY=:0")
     os.chdir("/home/pi/Downloads/modules")
     log.basicConfig(filename="../weatherLogs.txt",
-                    level=log.DEBUG, format="%(levelname)s: %(asctime)s - %(message)s")
+                    level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
 else:
-    log.basicConfig(filename="../weatherLogs.txt", level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
+    log.basicConfig(filename="../weatherLogs.txt", level=log.DEBUG, format="%(levelname)s: %(asctime)s - %(message)s")
 
 no_image = pygame.image.load(os.path.join(f"Assets/No_image.png"))
 husky = pygame.image.load(os.path.join(f"Assets/Husky.png"))
@@ -91,7 +91,8 @@ sys.excepthook = uncaught
 def update(dt):
     global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast
     # Go through events that are passed to the script by the window.
-    room_control.run_queued()
+    if display_mode == "room_control":
+        room_control.run_queued()
     for event in pygame.event.get():
         # We need to handle these events. Initially the only one you'll want to care
         # about is the QUIT event, because if you don't handle it, your game will crash
@@ -203,13 +204,13 @@ def draw(screen):
     total = psutil.virtual_memory()[0]
     avail = psutil.virtual_memory()[1]
     cpu_averages.append(psutil.cpu_percent())
-    if len(cpu_averages) > 10:
+    if len(cpu_averages) > 30:
         cpu_averages.pop(0)
     cpu_average = statistics.mean(cpu_averages)
     sys_info = sys_info_font.render(f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1-(avail/total))*100, 2)).zfill(5)}%,"
                                     f" Temp {None if not py else round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)}°C", True, pallet_one)
-
     screen.blit(sys_info, (240, 455))
+
     if display_mode == "init":
 
         loading_screen.draw_progress(screen, (100, 300), 600)

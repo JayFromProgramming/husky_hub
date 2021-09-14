@@ -26,26 +26,26 @@
     "description": "Set color",
     "actions": {
       "0": {
-        "name": "White",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-white"
-      },
-      "1": {
         "name": "Red",
         "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-red"
       },
-      "2": {
+      "1": {
         "name": "Green",
         "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-green"
       },
-      "3": {
+      "2": {
         "name": "Blue",
         "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-blue"
+      },
+      "3": {
+        "name": "White",
+        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-white"
       }
     }
   },
   "big_wind": {
     "title": "Big wind",
-    "description": "",
+    "description": "Set mode",
     "actions": {
       "0": {
         "name": "Off",
@@ -60,8 +60,22 @@
         "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-out"
       },
       "3": {
-        "name": "All On",
+        "name": "Full",
         "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-on"
+      }
+    }
+  },
+  "invasion": {
+    "title": "Home Invasion",
+    "description": "Is Allowed?",
+    "actions": {
+      "0": {
+        "name": "Yes",
+        "request": ""
+      },
+      "1": {
+        "name": "No",
+        "request": ""
       }
     }
   }
