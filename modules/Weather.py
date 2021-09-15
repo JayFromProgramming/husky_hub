@@ -166,7 +166,6 @@ def update(dt):
 
             elif display_mode == "room_control":
                 response = room_control.check_click(mouse_pos)
-                print(response)
                 # if response:
                 #     room_control.run_routine(response)
 
@@ -238,7 +237,7 @@ def draw(screen):
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
                 if webcams.update_all():
                     display_mode = "home"
-                    room_control.build_routines()
+                    room_control.build_routines(0)
                     last_current_update = time.time()
                     webcams.page = 0
 
@@ -288,7 +287,7 @@ def draw(screen):
                 refresh_forecast = True
                 selected_loading_hour = 1
                 loading_hour = selected_loading_hour
-            webcams.update_all()
+            # webcams.update_all()
             last_current_update = time.time()
 
         pygame.draw.rect(screen, [255, 206, 0], webcam_button)
@@ -302,9 +301,11 @@ def draw(screen):
         pygame.draw.rect(screen, [255, 206, 0], home_button)
         # fps = webcams.requested_fps
     elif display_mode == "room_control":
-        room_control.draw_routine(screen)
+        room_control.draw_routine(screen, 0)
         pygame.display.set_caption("Room Control")
         pygame.draw.rect(screen, [255, 206, 0], home_button)
+        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_forward)
+        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_backward)
         pass
 
     # Flip the display so that the things we drew actually show up.

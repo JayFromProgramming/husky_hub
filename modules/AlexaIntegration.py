@@ -18,13 +18,27 @@ monkey_routines = "Monkey.json"
 
 class RoutineButton:
 
-    def __init__(self, action):
-        self.action = action
+    def __init__(self, host_bar, data):
+        self.data = data
         self.run = False
         self.color = [64, 64, 64]
         self.button = None
         self.last_run = time.time()
         self.color_changed = False
+        self.type = data["type"]
+        self.host_bar = host_bar
+
+    def preform_action(self):
+        if self.type == "action":
+            return self.data['request']
+        else:
+            if self.host_bar.expanded:
+                self.host_bar.collapse()
+                self.data['name'] = "More"
+            else:
+                self.host_bar.expand(self)
+                self.data['name'] = "Less"
+            return "no_routine"
 
     def draw(self, screen, pos):
         x, y = pos
@@ -35,27 +49,30 @@ class RoutineButton:
             self.color_changed = False
 
         self.button = pygame.Rect(x, y, 75, 60)
-        text = font2.render(self.action["name"], True, pallet_three)
+        text = font2.render(self.data["name"], True, pallet_three)
 
         pygame.draw.rect(screen, self.color, self.button)
         screen.blit(text, text.get_rect(center=self.button.center))
 
 
-class RoutineTile:
+class OptionBar:
 
-    def __init__(self, request_name, data):
+    def __init__(self, request_name, data, host):
         self.request_name = request_name
         self.description = data["description"]
         self.routine_title = data["title"]
-        self.routine_actions = data["actions"]
+        self.routine_actions = [list(data["actions"].items())[i:i+5] for i in range(0, len(list(data["actions"].items())), 5)]
         self.button = None
         self.action_buttons = []
+        self.sub_menus = []
         self.running_routine = None
         self.running_status = [255, 255, 255]
+        self.expanded = False
+        self.host = host
 
         count = 0  # 95
-        for thing, action in self.routine_actions.items():
-            self.action_buttons.append(RoutineButton(action))
+        for thing, action in self.routine_actions[0]:
+            self.action_buttons.append(RoutineButton(self, action))
             # self.action_buttons.append(pygame.Rect(, 75, 60))
             # self.action_text.append(font2.render(action["name"], True, pallet_two))
             count += 1
@@ -69,8 +86,23 @@ class RoutineTile:
                 # return self.routine_actions[str(count)]["request"]
                 return True
             count += 1
+        for submenu in self.sub_menus:
+            return submenu.check_collide(mouse_pos)
 
         return None
+
+    def expand(self, button):
+        """"""
+        self.sub_menus = []
+        self.expanded = True
+        count = 0
+        for page in self.routine_actions[1:]:
+            self.sub_menus.append(SubOptionBar(self, page, button.data['bar_names'][count]))
+            count += 1
+
+    def collapse(self):
+        self.sub_menus = []
+        self.expanded = False
 
     def draw_routine(self, screen, position):
         x, y = position
@@ -91,6 +123,59 @@ class RoutineTile:
             # pygame.draw.rect(screen, [64, 64, 64], button)
             # screen.blit(self.action_text[count], self.action_text[count].get_rect(center=button.center))
             count += 1
+        count = 80
+        for sub_bar in self.sub_menus:
+            sub_bar.draw_routine(screen, (x, y + count))
+            self.host.scroll += 80
+            count += 80
+
+
+class SubOptionBar:
+
+    def __init__(self, master_bar, my_buttons, name):
+        """"""
+        self.master_bar = master_bar
+        self.name = name
+        self.button = None
+        self.action_buttons = []
+        self.running_routine = None
+        self.running_status = [255, 255, 255]
+        count = 0
+        for thing, action in my_buttons:
+            self.action_buttons.append(RoutineButton(self, action))
+            # self.action_buttons.append(pygame.Rect(, 75, 60))
+            # self.action_text.append(font2.render(action["name"], True, pallet_two))
+            count += 1
+
+    def check_collide(self, mouse_pos):
+        count = 0
+        for button in self.action_buttons:
+            if button.button.collidepoint(mouse_pos):
+                button.run = True
+                button.color = [64, 64, 200]
+                # return self.routine_actions[str(count)]["request"]
+                return True
+            count += 1
+        return None
+
+    def draw_routine(self, screen, position):
+        x, y = position
+        font1 = pygame.font.SysFont('timesnewroman', 30)
+        font2 = pygame.font.SysFont('timesnewroman', 20)
+        # self.action_buttons = []
+        self.button = pygame.Rect(x+90, y, 610, 70)
+        description = font2.render(f"{self.name}", True, pallet_two)
+        pygame.draw.line(screen, pallet_one, (x + 40, y - 20), (x + 40, y + 35))
+        pygame.draw.line(screen, pallet_one, (x + 40, y + 35), (x + 90, y + 35))
+        pygame.draw.rect(screen, [255, 206, 0], self.button)
+        screen.blit(description, description.get_rect(midleft=(x + 100, y + 35)))
+        # pygame.draw.rect(screen, [64, 64, 64], self.action_buttons[1])
+        count = 0
+        for button in self.action_buttons:
+            button.draw(screen, (x + 215 + (95 * count), y + 5))
+            # pygame.draw.rect(screen, [64, 64, 64], button)
+            # screen.blit(self.action_text[count], self.action_text[count].get_rect(center=button.center))
+            count += 1
 
 
 class AlexaIntegration:
@@ -100,6 +185,7 @@ class AlexaIntegration:
         self.routines = []
         self.queued_routine = False
         self.clear_time = time.time()
+        self.scroll = 0
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 apikey = json.load(f)
@@ -117,49 +203,61 @@ class AlexaIntegration:
             raise FileNotFoundError("No monkey file found")
 
     def run_queued(self):
+
+        def check_button(test_button):
+            if test_button.run is True:
+                action = test_button.preform_action()
+                if action == "no_routine":
+                    test_button.color = [0, 0, 255]
+                else:
+                    if self.run_routine(action):
+                        test_button.color = [0, 255, 0]
+                    else:
+                        test_button.color = [255, 0, 0]
+                test_button.run = False
+                test_button.color_changed = True
+                test_button.last_run = time.time()
+                self.queued_routine = False
+
         for routine in self.routines:
             for button in routine.action_buttons:
-                if button.run is True:
-                    if self.run_routine(button.action['request']):
-                        button.color = [0, 255, 0]
-                    else:
-                        button.color = [255, 0, 0]
-                    button.run = False
-                    button.color_changed = True
-                    button.last_run = time.time()
-                    self.queued_routine = False
+                check_button(button)
+            for submenu in routine.sub_menus:
+                for button in submenu.action_buttons:
+                    check_button(button)
 
     def run_routine(self, request):
         query = str(request).format(access_token=self.api_token, secret_token=self.api_secret)
         # print(query)
+
         try:
             r = requests.get(url=query)
         except requests.exceptions.ConnectionError:
             return False
         except requests.exceptions.MissingSchema:
             return False
-        # print(f"Code: {r.status_code}, Response: {r.json()}")
+
+        print(f"Code: {r.status_code}, Response: {r.json()}")
         if r.status_code == 200 and r.json()['status'] == "success":
             return True
         else:
             return False
 
-    def build_routines(self):
+    def build_routines(self, starting_point):
         for routine, items in self.monkeys.items():
             # print(routine)
             # print(items)
-            self.routines.append(RoutineTile(routine, items))
+            self.routines.append(OptionBar(routine, items, self))
 
     def check_click(self, mouse_pos):
         for routine in self.routines:
             val = routine.check_collide(mouse_pos)
-            print(val)
             if val:
                 self.queued_routine = True
                 return val
 
-    def draw_routine(self, screen):
-        scroll = 40
+    def draw_routine(self, screen, offset):
+        self.scroll = offset + 40
         for routine in self.routines:
-            routine.draw_routine(screen, (50, scroll))
-            scroll += 80
+            routine.draw_routine(screen, (50, self.scroll))
+            self.scroll += 80
