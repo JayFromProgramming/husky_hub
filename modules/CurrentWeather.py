@@ -15,6 +15,7 @@ class CurrentWeather:
     def __init__(self, weather_api, icon_cache, icon):
         """"""
         self.weather_api = weather_api
+        self.big_info = None
         self.icon_cache = icon_cache
         self.icon = icon
 
@@ -45,9 +46,10 @@ class CurrentWeather:
             icon_url = None
             rain = {}
             snow = {}
+            alert = None
             updated = "N/A"
 
-        big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
+        self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
         small_info = font2.render(f"Low: {round(temp['temp_min'])}°F; High: {round(temp['temp_max'])}"
                                   f"°F; Humidity: {humidity}%", True, pallet_three)
         small_info2 = font2.render(f"Vis: {str(round(visibility * 0.621371)) + 'mi' if visibility < 10000 else 'Clear'}"
@@ -73,7 +75,7 @@ class CurrentWeather:
             current_icon = self.icon
 
         screen.blit(current_icon, current_icon.get_rect(center=(x + 42.5, y + 40)))
-        screen.blit(big_info, (x + 85, y))
+        screen.blit(self.big_info, (x + 85, y))
         screen.blit(small_info, (x + 85, y + 52))
         screen.blit(small_info2, (x + 85, y + 76))
         # if precipitation_text:

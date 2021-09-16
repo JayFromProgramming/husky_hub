@@ -13,6 +13,7 @@ from AlexaIntegration import AlexaIntegration
 from CurrentWeather import CurrentWeather
 from LoadingScreen import LoadingScreen
 from ForecastEntry import ForecastEntry
+from WeatherAlert import WeatherAlert
 
 import pygame
 from pygame.locals import *
@@ -35,6 +36,7 @@ empty_image = pygame.image.load(os.path.join(f"Assets/Empty.png"))
 icon = pygame.image.load(os.path.join("Assets/Icon.png"))
 splash = pygame.image.load(os.path.join("Assets/splash_background2.jpg"))
 no_mouse_icon = pygame.image.load(os.path.join("Assets/NoMouse.png"))
+weather_alert = pygame.image.load(os.path.join("Assets/alert.png"))
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
 
@@ -46,11 +48,12 @@ pallet_two = (255, 206, 0)
 pallet_three = (255, 255, 255)
 pallet_four = (0, 0, 0)
 
-
 refresh_forecast = True
 screen_dimmed = False
 raincheck = False
 no_mouse = False
+weather_alert_display = False
+weather_alert_number = 0
 
 fps = 18
 forecast = []
@@ -81,18 +84,20 @@ home_button = pygame.Rect(10, 450, 100, 40)
 def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
     time.sleep(5)
-    if exctype is not KeyboardInterrupt and py:
-        log.warning("Attempting to restart from uncaught error...")
-        time.sleep(30)
-        response = os.system("nohup /home/pi/weather.sh &")
-        log.warning(f"Response: ({response})")
+    if exctype is not KeyboardInterrupt:
+        if py:
+            log.warning("Attempting to restart from uncaught error...")
+            time.sleep(30)
+            response = os.system("nohup /home/pi/weather.sh &")
+            log.warning(f"Response: ({response})")
 
 
 sys.excepthook = uncaught
 
 
 def update(dt):
-    global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, raincheck
+    global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, raincheck, weather_alert_display
+    global weather_alert_number
     # Go through events that are passed to the script by the window.
     if room_control.queued_routine:
         room_control.run_queued()
@@ -120,6 +125,7 @@ def update(dt):
                 sys.exit(1)
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
+            alert = weatherAPI.future_weather.alerts
 
             # checks if mouse position is over the button
 
@@ -132,6 +138,31 @@ def update(dt):
                 webcams.focus(None)
                 webcams.page = 0
                 display_mode = "room_control"
+
+            elif current_weather.big_info.get_rect().collidepoint(mouse_pos) and display_mode == "home":
+                weather_alert_display = WeatherAlert(alert[weather_alert_number])
+                weather_alert_display.build_alert()
+                display_mode = "weather_alert"
+
+            elif display_mode == "weather_alert":
+
+                if home_button.collidepoint(mouse_pos) or current_weather.big_info.get_rect().collidepoint(mouse_pos):
+                    display_mode = "home"
+                    weather_alert_display = None
+
+                if webcams.webcam_cycle_forward.collidepoint(mouse_pos):
+                    weather_alert_display = WeatherAlert(alert[weather_alert_number])
+                    weather_alert_display.build_alert()
+                    weather_alert_number += 1
+                    if weather_alert_number > len(alert):
+                        weather_alert_number = 0
+
+                if webcams.webcam_cycle_forward.collidepoint(mouse_pos):
+                    weather_alert_display = WeatherAlert(alert[weather_alert_number])
+                    weather_alert_display.build_alert()
+                    weather_alert_number -= 1
+                    if weather_alert_number < 0:
+                        weather_alert_number = 0
 
             elif display_mode == "webcams":
                 if webcams.webcam_cycle_forward.collidepoint(mouse_pos):
@@ -209,8 +240,13 @@ def draw(screen):
     Draw things to the window. Called once per frame.
     """
     global refresh_forecast, last_current_update, current_icon, forecast, loading_hour, fps, selected_loading_hour
-    global failed_current_updates, screen_dimmed, display_mode
+    global failed_current_updates, screen_dimmed, display_mode, weather_alert_display
     screen.fill((0, 0, 0))  # Fill the screen with black.
+
+    def draw_clock(pallet):
+        font1 = pygame.font.SysFont('timesnewroman', 65)
+        clock = font1.render(datetime.datetime.now().strftime("%I:%M:%S %p"), True, pallet)
+        screen.blit(clock, (425, 40))
 
     sys_info_font = pygame.font.SysFont('timesnewroman', 14)
     total = psutil.virtual_memory()[0]
@@ -219,11 +255,16 @@ def draw(screen):
     if len(cpu_averages) > 30:
         cpu_averages.pop(0)
     cpu_average = statistics.mean(cpu_averages)
-    sys_info = sys_info_font.render(f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1-(avail/total))*100, 2)).zfill(5)}%,"
-                                    f" Temp {None if not py else round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)}°C", True, pallet_one)
+    sys_info = sys_info_font.render(f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%,"
+                                    f" Temp {None if not py else round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)}°C", True,
+                                    pallet_one)
     screen.blit(sys_info, (240, 455))
 
-    if no_mouse:
+    alert = weatherAPI.future_weather.alerts
+
+    if alert:
+        screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 0)))
+    elif no_mouse:
         screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 0)))
 
     if display_mode == "init":
@@ -247,9 +288,8 @@ def draw(screen):
                     webcams.page = 0
 
         # Draw Clock
-        font1 = pygame.font.SysFont('timesnewroman', 65)
-        clock = font1.render(datetime.datetime.now().strftime("%I:%M:%S %p"), True, pallet_four)
-        screen.blit(clock, (425, 40))
+        draw_clock(pallet_four)
+
     elif display_mode == "home":
         # Redraw screen here.
         pygame.display.set_caption("Weather")
@@ -259,9 +299,7 @@ def draw(screen):
         webcams.requested_fps = 30
 
         # Draw Clock
-        font1 = pygame.font.SysFont('timesnewroman', 65)
-        clock = font1.render(datetime.datetime.now().strftime("%I:%M:%S %p"), True, pallet_one)
-        screen.blit(clock, (425, 40))
+        draw_clock(pallet_one)
 
         # radar_image = pygame.image.load(io.BytesIO(radar[0]))
         # screen.blit(radar_image, (200, 200))
@@ -312,6 +350,13 @@ def draw(screen):
         pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_forward)
         pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_backward)
         pass
+    elif display_mode == "weather_alert":
+        draw_clock(pallet_one)
+        weather_alert_display.draw(screen, (10, 100))
+        current_weather.draw_current(screen, (0, 0))
+        pygame.draw.rect(screen, [255, 206, 0], home_button)
+        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_forward)
+        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_backward)
 
     # Flip the display so that the things we drew actually show up.
     pygame.display.flip()

@@ -2,7 +2,7 @@ import json
 import os
 import time
 import dill
-from pyowm import OWM
+from pyowmmodifed import OWM
 from pyowm.tiles.enums import MapLayerEnum
 from concurrent import futures
 
@@ -41,6 +41,8 @@ class OpenWeatherWrapper:
                     self._last_future_refresh = cache._last_future_refresh
                 except EOFError:
                     log.warning("Cache File Corrupted")
+                except Exception as e:
+                    log.warning(f"Failed to load cached weather because: {e}")
         self.log = log
 
     def _save_cache(self):
@@ -52,12 +54,12 @@ class OpenWeatherWrapper:
         """Update current weather values"""
         if self._last_current_refresh < time.time() - self._current_max_refresh * 60:
             print("Updating Current")
+            self._last_current_refresh = time.time()
             try:
                 self.current_weather = self.mgr.weather_at_place('Houghton,US').weather
-                self._last_current_refresh = time.time()
                 self._save_cache()
             except Exception:
-                return False
+                return True
             return True
         return None
 
@@ -65,12 +67,13 @@ class OpenWeatherWrapper:
         """Update future weather values"""
         if self._last_future_refresh < time.time() - self._future_max_refresh * 60:
             print("Updating Forecast")
+            self._last_future_refresh = time.time()
             try:
                 self.future_weather = self.mgr.one_call(lat=47.1219, lon=-88.569, units='imperial')
-                self._last_future_refresh = time.time()
                 self._save_cache()
-            except Exception:
-                return False
+            except Exception as e:
+                self.log.warning(f"Unable to load forecast: {e}")
+                return True
             return True
         return None
 
