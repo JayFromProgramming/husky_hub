@@ -45,6 +45,9 @@ class ForecastEntry:
             snow = None
             reference_time = datetime.datetime.now()
 
+        if status == "Thunderstorm":
+            status = "Storm"
+
         # self.forecast_time = datetime.datetime.now() + datetime.timedelta(hours=delta_time)
         self.forecast_time = reference_time
         self.day_formatted = self.forecast_time.strftime("%m/%d")

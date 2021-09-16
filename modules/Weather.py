@@ -34,6 +34,7 @@ husky = pygame.image.load(os.path.join(f"Assets/Husky.png"))
 empty_image = pygame.image.load(os.path.join(f"Assets/Empty.png"))
 icon = pygame.image.load(os.path.join("Assets/Icon.png"))
 splash = pygame.image.load(os.path.join("Assets/splash_background2.jpg"))
+no_mouse_icon = pygame.image.load(os.path.join("Assets/NoMouse.png"))
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
 
@@ -49,6 +50,7 @@ pallet_four = (0, 0, 0)
 refresh_forecast = True
 screen_dimmed = False
 raincheck = False
+no_mouse = False
 
 fps = 18
 forecast = []
@@ -221,6 +223,9 @@ def draw(screen):
                                     f" Temp {None if not py else round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)}°C", True, pallet_one)
     screen.blit(sys_info, (240, 455))
 
+    if no_mouse:
+        screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 0)))
+
     if display_mode == "init":
 
         loading_screen.draw_progress(screen, (100, 300), 600)
@@ -313,7 +318,7 @@ def draw(screen):
 
 
 def run():
-    global fps
+    global fps, no_mouse
     # Initialise PyGame.
     pygame.init()
     pygame.font.init()
@@ -332,6 +337,7 @@ def run():
         if pygame.mouse.get_pos() == (0, 0):
             log.warning("Touch screen is not properly calibrated, attempting to recalibrate")
             pygame.mouse.set_pos(400, 230)
+            no_mouse = True
         pygame.display.get_wm_info()
     else:
         screen = pygame.display.set_mode((width, height))

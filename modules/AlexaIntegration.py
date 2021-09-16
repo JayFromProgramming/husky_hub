@@ -20,6 +20,7 @@ class RoutineButton:
 
     def __init__(self, host_bar, data):
         self.data = data
+        self.name = data['name']
         self.run = False
         self.color = [64, 64, 64]
         self.button = None
@@ -31,13 +32,14 @@ class RoutineButton:
     def preform_action(self):
         if self.type == "action":
             return self.data['request']
-        else:
-            if self.host_bar.expanded:
+        elif self.type == "SubMenu":
+            if self.host_bar.expanded and self.host_bar.expanded_to == self:
                 self.host_bar.collapse()
-                self.data['name'] = "More"
+                self.name = self.data['name']
             else:
+                self.host_bar.collapse()
                 self.host_bar.expand(self)
-                self.data['name'] = "Less"
+                self.name = self.data['name_2']
             return "no_routine"
 
     def draw(self, screen, pos):
@@ -49,7 +51,7 @@ class RoutineButton:
             self.color_changed = False
 
         self.button = pygame.Rect(x, y, 75, 60)
-        text = font2.render(self.data["name"], True, pallet_three)
+        text = font2.render(self.name, True, pallet_three)
 
         pygame.draw.rect(screen, self.color, self.button)
         screen.blit(text, text.get_rect(center=self.button.center))
@@ -61,17 +63,20 @@ class OptionBar:
         self.request_name = request_name
         self.description = data["description"]
         self.routine_title = data["title"]
-        self.routine_actions = [list(data["actions"].items())[i:i+5] for i in range(0, len(list(data["actions"].items())), 5)]
+        # self.routine_actions = [list(data["actions"].items())[i:i+5] for i in range(0, len(list(data["actions"].items())), 5)]
+        self.routine_actions = data['actions']
         self.button = None
         self.action_buttons = []
         self.sub_menus = []
         self.running_routine = None
         self.running_status = [255, 255, 255]
         self.expanded = False
+        self.expanded_to = None
         self.host = host
 
         count = 0  # 95
-        for thing, action in self.routine_actions[0]:
+        for thing, action in dict(self.routine_actions).items():
+            # print(action)
             self.action_buttons.append(RoutineButton(self, action))
             # self.action_buttons.append(pygame.Rect(, 75, 60))
             # self.action_text.append(font2.render(action["name"], True, pallet_two))
@@ -87,7 +92,9 @@ class OptionBar:
                 return True
             count += 1
         for submenu in self.sub_menus:
-            return submenu.check_collide(mouse_pos)
+            val = submenu.check_collide(mouse_pos)
+            if val:
+                return val
 
         return None
 
@@ -95,22 +102,33 @@ class OptionBar:
         """"""
         self.sub_menus = []
         self.expanded = True
+        self.expanded_to = button
         count = 0
-        for page in self.routine_actions[1:]:
-            self.sub_menus.append(SubOptionBar(self, page, button.data['bar_names'][count]))
+        for page in button.data['sub_menus']:
+            self.sub_menus.append(SubOptionBar(self, page['actions'], page['name']))
             count += 1
 
     def collapse(self):
         self.sub_menus = []
         self.expanded = False
+        self.expanded_to = None
 
     def draw_routine(self, screen, position):
         x, y = position
+        if y > 400:
+            return
         font1 = pygame.font.SysFont('timesnewroman', 30)
         font2 = pygame.font.SysFont('timesnewroman', 20)
         title = font1.render(f"{self.routine_title}", True, pallet_two)
         description = font2.render(f"{self.description}", True, pallet_two)
         # self.action_buttons = []
+
+        count = 80
+        for sub_bar in self.sub_menus:
+            sub_bar.draw_routine(screen, (x, y + count))
+            self.host.scroll += 80
+            count += 80
+
         self.button = pygame.Rect(x, y, 700, 70)
 
         pygame.draw.rect(screen, [255, 206, 0], self.button)
@@ -123,11 +141,6 @@ class OptionBar:
             # pygame.draw.rect(screen, [64, 64, 64], button)
             # screen.blit(self.action_text[count], self.action_text[count].get_rect(center=button.center))
             count += 1
-        count = 80
-        for sub_bar in self.sub_menus:
-            sub_bar.draw_routine(screen, (x, y + count))
-            self.host.scroll += 80
-            count += 80
 
 
 class SubOptionBar:
@@ -141,7 +154,7 @@ class SubOptionBar:
         self.running_routine = None
         self.running_status = [255, 255, 255]
         count = 0
-        for thing, action in my_buttons:
+        for thing, action in my_buttons.items():
             self.action_buttons.append(RoutineButton(self, action))
             # self.action_buttons.append(pygame.Rect(, 75, 60))
             # self.action_text.append(font2.render(action["name"], True, pallet_two))
@@ -161,11 +174,11 @@ class SubOptionBar:
     def draw_routine(self, screen, position):
         x, y = position
         font1 = pygame.font.SysFont('timesnewroman', 30)
-        font2 = pygame.font.SysFont('timesnewroman', 20)
+        font2 = pygame.font.SysFont('timesnewroman', 19)
         # self.action_buttons = []
-        self.button = pygame.Rect(x+90, y, 610, 70)
+        self.button = pygame.Rect(x + 90, y, 610, 70)
         description = font2.render(f"{self.name}", True, pallet_two)
-        pygame.draw.line(screen, pallet_one, (x + 40, y - 20), (x + 40, y + 35))
+        pygame.draw.line(screen, pallet_one, (x + 40, y - 50), (x + 40, y + 35))
         pygame.draw.line(screen, pallet_one, (x + 40, y + 35), (x + 90, y + 35))
         pygame.draw.rect(screen, [255, 206, 0], self.button)
         screen.blit(description, description.get_rect(midleft=(x + 100, y + 35)))
@@ -237,7 +250,7 @@ class AlexaIntegration:
         except requests.exceptions.MissingSchema:
             return False
 
-        print(f"Code: {r.status_code}, Response: {r.json()}")
+        # print(f"Code: {r.status_code}, Response: {r.json()}")
         if r.status_code == 200 and r.json()['status'] == "success":
             return True
         else:
