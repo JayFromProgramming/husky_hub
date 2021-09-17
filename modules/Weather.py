@@ -84,7 +84,6 @@ home_button = pygame.Rect(10, 450, 100, 40)
 
 def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
-    time.sleep(5)
     if exctype is not KeyboardInterrupt:
         if py:
             log.warning("Attempting to restart from uncaught error...")
