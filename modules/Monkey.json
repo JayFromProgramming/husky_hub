@@ -110,7 +110,7 @@
         "name_2": "Less",
         "sub_menus": [
           {
-            "name": "Set color",
+            "name": "Set brightness",
             "actions": {
               "0": {
                 "name": "Off",

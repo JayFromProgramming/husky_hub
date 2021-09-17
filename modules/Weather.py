@@ -37,6 +37,7 @@ icon = pygame.image.load(os.path.join("Assets/Icon.png"))
 splash = pygame.image.load(os.path.join("Assets/splash_background2.jpg"))
 no_mouse_icon = pygame.image.load(os.path.join("Assets/NoMouse.png"))
 weather_alert = pygame.image.load(os.path.join("Assets/alert.png"))
+no_fan_icon = pygame.image.load(os.path.join("Assets/No_fan.png"))
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
 
@@ -52,7 +53,7 @@ refresh_forecast = True
 screen_dimmed = False
 raincheck = False
 no_mouse = False
-weather_alert_display = False
+weather_alert_display = None
 weather_alert_number = 0
 
 fps = 18
@@ -102,6 +103,9 @@ def update(dt):
     if room_control.queued_routine:
         room_control.run_queued()
 
+    if weather_alert_display:
+        weather_alert_display.build_alert()
+
     # print(weatherAPI.current_weather.status if weatherAPI.current_weather else None)
     if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not raincheck:
         log.info("Shutting off big wind due to rain")
@@ -126,7 +130,6 @@ def update(dt):
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.future_weather.alerts
-
             # checks if mouse position is over the button
 
             if home_button.collidepoint(mouse_pos) and display_mode != "home":
@@ -139,27 +142,27 @@ def update(dt):
                 webcams.page = 0
                 display_mode = "room_control"
 
-            elif current_weather.big_info.get_rect().collidepoint(mouse_pos) and display_mode == "home":
-                weather_alert_display = WeatherAlert(alert[weather_alert_number])
+            elif (current_weather.big_info.get_rect().collidepoint(mouse_pos) or weather_alert.get_rect().collidepoint(mouse_pos)) \
+                    and display_mode == "home" and alert:
+                weather_alert_display = WeatherAlert(1, len(alert), alert=alert[weather_alert_number])
                 weather_alert_display.build_alert()
                 display_mode = "weather_alert"
 
             elif display_mode == "weather_alert":
 
-                if home_button.collidepoint(mouse_pos) or current_weather.big_info.get_rect().collidepoint(mouse_pos):
+                if home_button.collidepoint(mouse_pos) or current_weather.big_info.get_rect().collidepoint(mouse_pos) or\
+                        weather_alert.get_rect().collidepoint(mouse_pos):
                     display_mode = "home"
                     weather_alert_display = None
 
                 if webcams.webcam_cycle_forward.collidepoint(mouse_pos):
-                    weather_alert_display = WeatherAlert(alert[weather_alert_number])
-                    weather_alert_display.build_alert()
+                    weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
                     weather_alert_number += 1
-                    if weather_alert_number > len(alert):
+                    if weather_alert_number >= len(alert):
                         weather_alert_number = 0
 
-                if webcams.webcam_cycle_forward.collidepoint(mouse_pos):
-                    weather_alert_display = WeatherAlert(alert[weather_alert_number])
-                    weather_alert_display.build_alert()
+                if webcams.webcam_cycle_backward.collidepoint(mouse_pos):
+                    weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
                     weather_alert_number -= 1
                     if weather_alert_number < 0:
                         weather_alert_number = 0
@@ -255,17 +258,22 @@ def draw(screen):
     if len(cpu_averages) > 30:
         cpu_averages.pop(0)
     cpu_average = statistics.mean(cpu_averages)
-    sys_info = sys_info_font.render(f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%,"
-                                    f" Temp {None if not py else round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)}°C", True,
+    sys_info = sys_info_font.render(f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
+                                    + (f", Temp {round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)}°C" if py else ""), True,
                                     pallet_one)
-    screen.blit(sys_info, (240, 455))
+    screen.blit(sys_info, (sys_info.get_rect(midtop=(400, 445))))
 
-    alert = weatherAPI.future_weather.alerts
+    alert = weatherAPI.future_weather.alerts if weatherAPI.future_weather else None
 
     if alert:
-        screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 0)))
-    elif no_mouse:
-        screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 0)))
+        screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))
+    if raincheck:
+        screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
+    if no_mouse:
+        if alert:
+            screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))
+        else:
+            screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 2)))
 
     if display_mode == "init":
 
@@ -312,12 +320,12 @@ def draw(screen):
                 failed_current_updates = 0
                 if weatherAPI.current_weather:
                     if datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunset_time(timeformat='date'):
-                        print("After sunset")
+                        # print("After sunset")
                         if py and not screen_dimmed:
                             os.system(f"sudo sh -c 'echo \"35\" > /sys/class/backlight/rpi_backlight/brightness'")
                             screen_dimmed = True
                     elif datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunrise_time(timeformat='date'):
-                        print("After sunrise")
+                        # print("After sunrise")
                         if py and screen_dimmed:
                             os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
                             screen_dimmed = False

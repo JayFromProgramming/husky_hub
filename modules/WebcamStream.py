@@ -58,7 +58,7 @@ class CampusCams:
         self.last_update = 0
         self.update_rate = 15
         self.log = logs
-        self.webcam_cycle_forward = pygame.Rect(700, 450, 100, 40)
+        self.webcam_cycle_forward = pygame.Rect(690, 450, 100, 40)
         self.webcam_cycle_backward = pygame.Rect(580, 450, 100, 40)
         self.image_frame_boxes = [pygame.Rect(0, 0, 400, 220), pygame.Rect(400, 0, 400, 220),
                                   pygame.Rect(0, 220, 400, 220), pygame.Rect(400, 220, 400, 220)]
