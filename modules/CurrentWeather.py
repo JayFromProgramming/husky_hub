@@ -1,4 +1,6 @@
 import io
+import os
+
 import pygame
 import datetime
 
@@ -24,20 +26,21 @@ class CurrentWeather:
         x, y = location
         # Load temp
         font1 = pygame.font.SysFont('timesnewroman', 48)
-        font2 = pygame.font.SysFont('timesnewroman', 18)
+        font2 = pygame.font.Font(os.path.join("Assets/Fonts/Merri/Merriweather-Regular.ttf"), 15)
         if self.weather_api.current_weather is not None:
             temp = self.weather_api.current_weather.temperature('fahrenheit')
-            wind = self.weather_api.current_weather.wind()
+            wind = self.weather_api.current_weather.wind('miles_hour')
             humidity = self.weather_api.current_weather.humidity
             status = self.weather_api.current_weather.detailed_status
             sky_icon = self.weather_api.current_weather.weather_icon_name
-            visibility = self.weather_api.current_weather.visibility_distance
+            visibility = self.weather_api.current_weather.visibility(unit='miles')
             icon_url = f"http://openweathermap.org/img/wn/{sky_icon}@2x.png"
             rain = self.weather_api.current_weather.rain
             snow = self.weather_api.current_weather.snow
+            clouds = self.weather_api.current_weather.clouds
             # updated = self.weather_api.current_weather.reference_time()
         else:
-            temp = {'temp_max': 0, 'temp': 0, 'temp_min': 0}
+            temp = {'temp': 0, 'temp_max': 0, 'temp_min': 0, 'feels_like': 0, 'temp_kf': None}
             wind = {'speed': 0, 'deg': 0}
             status = "No data"
             humidity = 0
@@ -46,14 +49,36 @@ class CurrentWeather:
             icon_url = None
             rain = {}
             snow = {}
+            clouds = 0
             alert = None
             updated = "N/A"
 
+        def get_angle_arrow(degree):
+            def offset(check):
+                return (degree - check + 180 + 360) % 360 - 180
+            if 22.5 >= offset(0) >= -22.5:
+                return "↑"
+            if 22.5 >= offset(45) >= -22.5:
+                return "↗"
+            if 22.5 >= offset(90) >= -22.5:
+                return "→"
+            if 22.5 >= offset(135) >= -22.5:
+                return "↘"
+            if 22.5 >= offset(180) >= -22.5:
+                return "↓"
+            if 22.5 >= offset(225) >= -22.5:
+                return "↙"
+            if 22.5 >= offset(270) >= -22.5:
+                return "←"
+            if 22.5 >= offset(315) >= -22.5:
+                return "↖"
+            return ""
+
         self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
-        small_info = font2.render(f"Low: {round(temp['temp_min'])}°F; High: {round(temp['temp_max'])}"
-                                  f"°F; Humidity: {humidity}%", True, pallet_three)
-        small_info2 = font2.render(f"Vis: {str(round(visibility * 0.621371)) + 'mi' if visibility < 10000 else 'Clear'}"
-                                   f"; Wind: {round(wind['speed'])} mph; Direction: {round(wind['deg'])}°", True,
+        small_info = font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
+                                  f"; Humidity: {humidity}%", True, pallet_three)
+        small_info2 = font2.render(f"Vis: {str(round(visibility)) + 'mi' if visibility < 6 else 'Clear'}"
+                                   f"; Wind: {round(wind['speed'], 1)} mph; Direction: {get_angle_arrow(wind['deg'])}{round(wind['deg'])}°", True,
                                    pallet_three)
 
         if rain:
