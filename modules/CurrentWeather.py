@@ -56,9 +56,8 @@ class CurrentWeather:
         self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
         small_info = font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
                                   f"; Humidity: {humidity}%", True, pallet_three)
-        small_info2 = font2.render(f"Vis: {str(round(visibility)) + 'mi' if visibility < 6 else 'Clear'}"
-                                   f"; Wind: {round(wind['speed'], 1)} mph; Direction: {self.weather_api.get_angle_arrow(wind['deg'])}"
-                                   f"{round(wind['deg'])}°", True, pallet_three)
+        small_info2 = font2.render(f"Vis: {str(round(visibility, 2)) + 'mi' if visibility < 6 else 'Clear'}"
+                                   f"; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph", True, pallet_three)
 
         if rain:
             precipitation_text = font2.render(f"Rain: {rain}", True, (255, 255, 255))

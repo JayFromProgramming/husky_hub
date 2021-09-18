@@ -131,7 +131,7 @@ def update(dt):
                 sys.exit(1)
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
-            alert = weatherAPI.future_weather.alerts
+            alert = weatherAPI.one_call.alerts
             # checks if mouse position is over the button
             if display_mode == "init":
                 pass  # Don't do anything
@@ -225,8 +225,8 @@ def build_forecast(screen, start_location):
         loading_hour = selected_loading_hour
         slot_position = 1
 
-    if weatherAPI.future_weather is not None:
-        weather = weatherAPI.future_weather.forecast_hourly
+    if weatherAPI.one_call is not None:
+        weather = weatherAPI.one_call.forecast_hourly
     else:
         weather = [None for x in range(48)]
 
@@ -268,7 +268,7 @@ def draw(screen):
                                     pallet_one)
     screen.blit(sys_info, (sys_info.get_rect(midtop=(400, 445))))
 
-    alert = weatherAPI.future_weather.alerts if weatherAPI.future_weather else None
+    alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
 
     if alert:
         screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))

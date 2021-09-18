@@ -62,7 +62,7 @@ class ForecastEntry:
         self.forecast_temp = font1.render(f"{round(temp)}°F", True, pallet_one)
         if percip_percent > 0.2:
             self.second_name = font2.render("Chance", True, pallet_three)
-            self.second_data = font1.render(f"{percip_percent*100}%", True, pallet_one)
+            self.second_data = font1.render(f"{round(percip_percent*100)}%", True, pallet_one)
         else:
             self.second_name = font2.render("Feels like", True, pallet_three)
             self.second_data = font1.render(f"{round(feels_like)}°F", True, pallet_one)

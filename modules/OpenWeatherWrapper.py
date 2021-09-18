@@ -27,7 +27,7 @@ class OpenWeatherWrapper:
         self._last_current_refresh = 0
         self._last_future_refresh = 0
         self.current_weather = None
-        self.future_weather = None
+        self.one_call = None
         self.radar_buffer = {}
 
         if os.path.isfile(cache_location):
@@ -36,7 +36,7 @@ class OpenWeatherWrapper:
                 try:
                     cache = dill.load(inp)
                     self.current_weather = cache.current_weather
-                    self.future_weather = cache.future_weather
+                    self.one_call = cache.one_call
                     self._last_current_refresh = cache._last_current_refresh
                     self._last_future_refresh = cache._last_future_refresh
                 except EOFError:
@@ -69,7 +69,7 @@ class OpenWeatherWrapper:
             print("Updating Forecast")
             self._last_future_refresh = time.time()
             try:
-                self.future_weather = self.mgr.one_call(lat=47.1219, lon=-88.569, units='imperial')
+                self.one_call = self.mgr.one_call(lat=47.1219, lon=-88.569, units='imperial')
                 self._save_cache()
             except Exception as e:
                 self.log.warning(f"Unable to load forecast: {e}")
