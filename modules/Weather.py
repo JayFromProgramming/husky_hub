@@ -78,8 +78,11 @@ loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husk
 
 display_mode = "init"
 room_button = pygame.Rect(120, 450, 100, 40)
+room_button_text = "Room Control"
 webcam_button = pygame.Rect(10, 450, 100, 40)
+webcam_button_text = "Webcams"
 home_button = pygame.Rect(10, 450, 100, 40)
+home_button_text = "Home"
 
 
 def uncaught(exctype, value, tb):
@@ -97,7 +100,7 @@ sys.excepthook = uncaught
 
 def update(dt):
     global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, raincheck, weather_alert_display
-    global weather_alert_number
+    global weather_alert_number, slot_position
     # Go through events that are passed to the script by the window.
     if room_control.queued_routine:
         room_control.run_queued()
@@ -130,8 +133,9 @@ def update(dt):
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.future_weather.alerts
             # checks if mouse position is over the button
-
-            if home_button.collidepoint(mouse_pos) and display_mode != "home":
+            if display_mode == "init":
+                pass  # Don't do anything
+            elif home_button.collidepoint(mouse_pos) and display_mode != "home":
                 webcams.focus(None)
                 webcams.page = 0
                 display_mode = "home"
@@ -154,22 +158,22 @@ def update(dt):
                     display_mode = "home"
                     weather_alert_display = None
 
-                if webcams.webcam_cycle_forward.collidepoint(mouse_pos):
+                if webcams.cycle_forward.collidepoint(mouse_pos):
                     weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
                     weather_alert_number += 1
                     if weather_alert_number >= len(alert):
                         weather_alert_number = 0
 
-                if webcams.webcam_cycle_backward.collidepoint(mouse_pos):
+                if webcams.cycle_backward.collidepoint(mouse_pos):
                     weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
                     weather_alert_number -= 1
                     if weather_alert_number < 0:
                         weather_alert_number = 0
 
             elif display_mode == "webcams":
-                if webcams.webcam_cycle_forward.collidepoint(mouse_pos):
+                if webcams.cycle_forward.collidepoint(mouse_pos):
                     webcams.cycle(1)
-                if webcams.webcam_cycle_backward.collidepoint(mouse_pos):
+                if webcams.cycle_backward.collidepoint(mouse_pos):
                     webcams.cycle(-1)
 
                 cam_id = 0
@@ -186,15 +190,17 @@ def update(dt):
             elif display_mode == "home":
                 if webcam_button.collidepoint(mouse_pos):
                     display_mode = "webcams"
-                if webcams.webcam_cycle_forward.collidepoint(mouse_pos):
+                if webcams.cycle_forward.collidepoint(mouse_pos):
                     if selected_loading_hour + 9 < max_loading_hour:
                         selected_loading_hour += 9
+                        slot_position = 1
                         loading_hour = selected_loading_hour
                         forecast = []
                         refresh_forecast = True
-                elif webcams.webcam_cycle_backward.collidepoint(mouse_pos):
+                elif webcams.cycle_backward.collidepoint(mouse_pos):
                     if selected_loading_hour - 9 >= 1:
                         selected_loading_hour -= 9
+                        slot_position = 1
                         loading_hour = selected_loading_hour
                         forecast = []
                         refresh_forecast = True
@@ -274,6 +280,11 @@ def draw(screen):
         else:
             screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 2)))
 
+    button_font = pygame.font.SysFont('couriernew', 14)
+    room_button_render = button_font.render(room_button_text, True, pallet_four)
+    webcam_button_render = button_font.render(webcam_button_text, True, pallet_four)
+    home_button_render = button_font.render(home_button_text, True, pallet_four)
+
     if display_mode == "init":
 
         loading_screen.draw_progress(screen, (100, 300), 600)
@@ -341,29 +352,30 @@ def draw(screen):
             last_current_update = time.time()
 
         pygame.draw.rect(screen, [255, 206, 0], webcam_button)
-        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_forward)
-        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_backward)
+        screen.blit(webcam_button_render, webcam_button_render.get_rect(midbottom=webcam_button.center))
+        webcams.draw_buttons(screen)
         pygame.draw.rect(screen, [255, 206, 0], room_button)
+        screen.blit(room_button_render, room_button_render.get_rect(midbottom=room_button.center))
     elif display_mode == "webcams":
         pygame.display.set_caption("Campus Webcams")
         webcams.draw(screen)
         webcams.update()
         pygame.draw.rect(screen, [255, 206, 0], home_button)
+        webcams.draw_buttons(screen)
+        screen.blit(home_button_render, home_button_render.get_rect(midbottom=home_button.center))
         # fps = webcams.requested_fps
     elif display_mode == "room_control":
         room_control.draw_routine(screen, 0)
         pygame.display.set_caption("Room Control")
         pygame.draw.rect(screen, [255, 206, 0], home_button)
-        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_forward)
-        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_backward)
-        pass
+        screen.blit(home_button_render, home_button_render.get_rect(midbottom=home_button.center))
     elif display_mode == "weather_alert":
         draw_clock(pallet_one)
         weather_alert_display.draw(screen, (10, 100))
         current_weather.draw_current(screen, (0, 0))
         pygame.draw.rect(screen, [255, 206, 0], home_button)
-        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_forward)
-        pygame.draw.rect(screen, [255, 206, 0], webcams.webcam_cycle_backward)
+        webcams.draw_buttons(screen)
+
 
     # Flip the display so that the things we drew actually show up.
     pygame.display.flip()

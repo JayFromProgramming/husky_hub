@@ -110,6 +110,8 @@ class OptionBar:
 
     def collapse(self):
         self.sub_menus = []
+        if self.expanded_to:
+            self.expanded_to.name = self.expanded_to.data['name']
         self.expanded = False
         self.expanded_to = None
 
@@ -240,7 +242,8 @@ class AlexaIntegration:
                     check_button(button)
 
     def run_routine(self, request):
-        query = str(request).format(access_token=self.api_token, secret_token=self.api_secret)
+        template = "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey={request}"
+        query = str(template).format(access_token=self.api_token, secret_token=self.api_secret, request=request)
         # print(query)
 
         try:

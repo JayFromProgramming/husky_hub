@@ -58,8 +58,10 @@ class CampusCams:
         self.last_update = 0
         self.update_rate = 15
         self.log = logs
-        self.webcam_cycle_forward = pygame.Rect(690, 450, 100, 40)
-        self.webcam_cycle_backward = pygame.Rect(580, 450, 100, 40)
+        self.cycle_forward = pygame.Rect(690, 450, 100, 40)
+        self.cycle_forward_text = "Next"
+        self.cycle_backward = pygame.Rect(580, 450, 100, 40)
+        self.cycle_backward_text = "Back"
         self.image_frame_boxes = [pygame.Rect(0, 0, 400, 220), pygame.Rect(400, 0, 400, 220),
                                   pygame.Rect(0, 220, 400, 220), pygame.Rect(400, 220, 400, 220)]
         self.focus_stream = pygame.Rect(0, 0, 800, 440)
@@ -156,6 +158,17 @@ class CampusCams:
         else:
             return False
 
+    def draw_buttons(self, screen):
+        """"""
+        button_font = pygame.font.SysFont('couriernew', 14)
+        cycle_forward_render = button_font.render(self.cycle_forward_text, True, (0, 0, 0))
+        cycle_backward_render = button_font.render(self.cycle_backward_text, True, (0, 0, 0))
+
+        pygame.draw.rect(screen, [255, 206, 0], self.cycle_forward)
+        screen.blit(cycle_forward_render, cycle_forward_render.get_rect(midbottom=self.cycle_forward.center))
+        pygame.draw.rect(screen, [255, 206, 0], self.cycle_backward)
+        screen.blit(cycle_backward_render, cycle_backward_render.get_rect(midbottom=self.cycle_backward.center))
+
     def draw(self, screen):
         """Draw all buffered frames to the screen"""
 
@@ -179,6 +192,3 @@ class CampusCams:
                     self.requested_fps = 30
             except Exception:
                 self.focus(None)
-
-        pygame.draw.rect(screen, [255, 206, 0], self.webcam_cycle_forward)
-        pygame.draw.rect(screen, [255, 206, 0], self.webcam_cycle_backward)

@@ -5,22 +5,22 @@
     "actions": {
       "0": {
         "name": "Off",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightsoff",
+        "request": "lightsoff",
         "type": "action"
       },
       "1": {
         "name": "Low",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightslow",
+        "request": "lightslow",
         "type": "action"
       },
       "2": {
         "name": "Med",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightsmed",
+        "request": "lightsmed",
         "type": "action"
       },
       "3": {
         "name": "High",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightson",
+        "request": "lightson",
         "type": "action"
       },
       "4": {
@@ -32,22 +32,22 @@
             "actions": {
               "0": {
                 "name": "Red",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-red",
+                "request": "monkey=lights-red",
                 "type": "action"
               },
               "1": {
                 "name": "Green",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-green",
+                "request": "lights-green",
                 "type": "action"
               },
               "2": {
                 "name": "Blue",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-blue",
+                "request": "lights-blue",
                 "type": "action"
               },
               "3": {
                 "name": "White",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-white",
+                "request": "lights-white",
                 "type": "action"
               }
             }
@@ -114,22 +114,22 @@
             "actions": {
               "0": {
                 "name": "Off",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightsoff",
+                "request": "bed-lights-off",
                 "type": "action"
               },
               "1": {
                 "name": "Low",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightslow",
+                "request": "bed-lights-low",
                 "type": "action"
               },
               "2": {
                 "name": "Med",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightsmed",
+                "request": "bed-lights-med",
                 "type": "action"
               },
               "3": {
                 "name": "High",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lightson",
+                "request": "bed-lights-high",
                 "type": "action"
               }
             }
@@ -139,22 +139,22 @@
             "actions": {
               "0": {
                 "name": "Red",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-red",
+                "request": "",
                 "type": "action"
               },
               "1": {
                 "name": "Green",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-green",
+                "request": "",
                 "type": "action"
               },
               "2": {
                 "name": "Blue",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-blue",
+                "request": "",
                 "type": "action"
               },
               "3": {
                 "name": "White",
-                "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=lights-white",
+                "request": "",
                 "type": "action"
               }
             }
@@ -170,22 +170,22 @@
     "actions": {
       "0": {
         "name": "Off",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-off",
+        "request": "big-wind-off",
         "type": "action"
       },
       "1": {
         "name": "Intake",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-in",
+        "request": "big-wind-in",
         "type": "action"
       },
       "2": {
         "name": "Exhaust",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-out",
+        "request": "big-wind-out",
         "type": "action"
       },
       "3": {
         "name": "Full",
-        "request": "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-on",
+        "request": "big-wind-on",
         "type": "action"
       }
     }
