@@ -95,3 +95,26 @@ class OpenWeatherWrapper:
         # with futures.ThreadPoolExecutor(max_workers=6) as executor:
         #     future_to = {executor.submit(self.load_x_row, tile_manager, y, 2040, 2210): y for y in range(2840, 2910)}
         # print(self.radar_buffer)
+
+    @staticmethod
+    def get_angle_arrow(degree):
+        def offset(check):
+            return (degree - check + 180 + 360) % 360 - 180
+
+        if 22.5 >= offset(0) >= -22.5:
+            return "↑"
+        if 22.5 >= offset(45) >= -22.5:
+            return "↗"
+        if 22.5 >= offset(90) >= -22.5:
+            return "→"
+        if 22.5 >= offset(135) >= -22.5:
+            return "↘"
+        if 22.5 >= offset(180) >= -22.5:
+            return "↓"
+        if 22.5 >= offset(225) >= -22.5:
+            return "↙"
+        if 22.5 >= offset(270) >= -22.5:
+            return "←"
+        if 22.5 >= offset(315) >= -22.5:
+            return "↖"
+        return ""

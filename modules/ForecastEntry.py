@@ -5,6 +5,8 @@ import datetime
 from urllib.request import urlopen
 import logging as log
 
+from OpenWeatherWrapper import OpenWeatherWrapper
+
 pallet_one = (255, 206, 0)
 pallet_two = (255, 206, 0)
 pallet_three = (255, 255, 255)
@@ -16,10 +18,10 @@ class ForecastEntry:
         """Houses a forecast"""
         self.x, self.y = location
         self.delta_time = delta_time
-        font1 = pygame.font.SysFont('timesnewroman', 30)
+        font1 = pygame.font.Font("Assets/Fonts/Merri/Merriweather-Regular.ttf", 24)
         font2 = pygame.font.SysFont('timesnewroman', 20)
         font3 = pygame.font.SysFont('timesnewroman', 20)
-        font4 = pygame.font.SysFont('timesnewroman', 30)
+        font4 = pygame.font.Font("Assets/Fonts/Merri/Merriweather-Regular.ttf", 18)
 
         if weather is not None:
             icon_name = weather.weather_icon_name
@@ -33,6 +35,7 @@ class ForecastEntry:
             snow = weather.snow
             reference_time = weather.reference_time()
             reference_time = datetime.datetime.fromtimestamp(reference_time)
+            percip_percent = weather.precipitation_probability
         else:
             # icon_url = "http://openweathermap.org/img/wn/01d@2x.png"
             icon_url = None
@@ -44,6 +47,7 @@ class ForecastEntry:
             rain = None
             snow = None
             reference_time = datetime.datetime.now()
+            percip_percent = 0
 
         if status == "Thunderstorm":
             status = "Storm"
@@ -56,12 +60,16 @@ class ForecastEntry:
         self.time_text = font3.render(f"{self.time_formatted}", True, pallet_one)
         self.small_info = font2.render(f"{status.capitalize()}", True, pallet_three)
         self.forecast_temp = font1.render(f"{round(temp)}°F", True, pallet_one)
-        self.feels_text = font2.render("Feels like", True, pallet_three)
-        self.feels_temp = font1.render(f"{round(feels_like)}°F", True, pallet_one)
+        if percip_percent > 0.2:
+            self.second_name = font2.render("Chance", True, pallet_three)
+            self.second_data = font1.render(f"{percip_percent*100}%", True, pallet_one)
+        else:
+            self.second_name = font2.render("Feels like", True, pallet_three)
+            self.second_data = font1.render(f"{round(feels_like)}°F", True, pallet_one)
         self.humidity_text = font2.render("Humidity", True, pallet_three)
-        self.humidity_percent = font4.render(f"{humidity}%", True, pallet_one)
-        self.wind_text = font2.render("Wind spd", True, pallet_three)
-        self.wind_speed = font2.render(f"{round(wind['speed'])} mph", True, pallet_one)
+        self.humidity_percent = font1.render(f"{humidity}%", True, pallet_one)
+        self.wind_text = font2.render("Wind", True, pallet_three)
+        self.wind_speed = font4.render(f"{OpenWeatherWrapper.get_angle_arrow(wind['deg'])}{round(wind['speed'])} mph", True, pallet_one)
 
         try:
             if icon_url in icon_cache:
@@ -81,8 +89,8 @@ class ForecastEntry:
         screen.blit(self.pic, self.pic.get_rect(center=(self.x + 42.5, self.y + 60)))
         screen.blit(self.small_info, self.small_info.get_rect(center=(self.x + 42.5, self.y + 100)))
         screen.blit(self.forecast_temp, self.forecast_temp.get_rect(center=(self.x + 42.5, self.y + 130)))
-        screen.blit(self.feels_text, self.feels_text.get_rect(center=(self.x + 42.5, self.y + 157)))
-        screen.blit(self.feels_temp, self.feels_temp.get_rect(center=(self.x + 42.5, self.y + 185)))
+        screen.blit(self.second_name, self.second_name.get_rect(center=(self.x + 42.5, self.y + 157)))
+        screen.blit(self.second_data, self.second_data.get_rect(center=(self.x + 42.5, self.y + 185)))
         screen.blit(self.humidity_text, self.humidity_text.get_rect(center=(self.x + 42.5, self.y + 210)))
         screen.blit(self.humidity_percent, self.humidity_percent.get_rect(center=(self.x + 42.5, self.y + 237)))
         screen.blit(self.wind_text, self.wind_text.get_rect(center=(self.x + 42.5, self.y + 266)))

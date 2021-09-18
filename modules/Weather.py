@@ -91,8 +91,8 @@ def uncaught(exctype, value, tb):
         if py:
             log.warning("Attempting to restart from uncaught error...")
             time.sleep(30)
-            response = os.system("nohup /home/pi/weather.sh &")
-            log.warning(f"Response: ({response})")
+            # response = os.system("nohup /home/pi/weather.sh &")
+            # log.warning(f"Response: ({response})")
 
 
 sys.excepthook = uncaught

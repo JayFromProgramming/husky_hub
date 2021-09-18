@@ -53,33 +53,12 @@ class CurrentWeather:
             alert = None
             updated = "N/A"
 
-        def get_angle_arrow(degree):
-            def offset(check):
-                return (degree - check + 180 + 360) % 360 - 180
-            if 22.5 >= offset(0) >= -22.5:
-                return "↑"
-            if 22.5 >= offset(45) >= -22.5:
-                return "↗"
-            if 22.5 >= offset(90) >= -22.5:
-                return "→"
-            if 22.5 >= offset(135) >= -22.5:
-                return "↘"
-            if 22.5 >= offset(180) >= -22.5:
-                return "↓"
-            if 22.5 >= offset(225) >= -22.5:
-                return "↙"
-            if 22.5 >= offset(270) >= -22.5:
-                return "←"
-            if 22.5 >= offset(315) >= -22.5:
-                return "↖"
-            return ""
-
         self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
         small_info = font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
                                   f"; Humidity: {humidity}%", True, pallet_three)
         small_info2 = font2.render(f"Vis: {str(round(visibility)) + 'mi' if visibility < 6 else 'Clear'}"
-                                   f"; Wind: {round(wind['speed'], 1)} mph; Direction: {get_angle_arrow(wind['deg'])}{round(wind['deg'])}°", True,
-                                   pallet_three)
+                                   f"; Wind: {round(wind['speed'], 1)} mph; Direction: {self.weather_api.get_angle_arrow(wind['deg'])}"
+                                   f"{round(wind['deg'])}°", True, pallet_three)
 
         if rain:
             precipitation_text = font2.render(f"Rain: {rain}", True, (255, 255, 255))
