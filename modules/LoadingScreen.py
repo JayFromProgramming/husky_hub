@@ -1,4 +1,5 @@
 import io
+import os.path
 import time
 
 import pygame
@@ -15,13 +16,14 @@ pallet_three = (255, 255, 255)
 
 class LoadingScreen:
 
-    def __init__(self, weather_api, icon_cache, forecast, icons, modules):
+    def __init__(self, weather_api, icon_cache, forecast, icons, modules, ignore_cache=False):
         """"""
         self.weather_api = weather_api
         self.icon_cache = icon_cache
         self.no_image, self.husky, self.empty_image, self.splash = icons
         self.forecast = forecast
         self.webcams, self.current_weather = modules
+        self.ignore_cache = ignore_cache
 
         self._common_icons = ["01", "02", "03", "04", "09", "10", "11", "13", "50"]
         self._current_icon_number = 0
@@ -38,18 +40,34 @@ class LoadingScreen:
         self.loading_status_strings.append("Loaded weather data from OpenWeatherMap.org")
 
     def _load_icon(self, icon):
+
+        def update_cache(new_image_str):
+            f = open(f"Icon_cache/{icon}.png", "wb")
+            f.write(new_image_str)
+            f.close()
+
+        def load():
+            if os.path.exists(f"Icon_cache/{icon}.png") and not self.ignore_cache:
+                f = open(f"Icon_cache/{icon}.png", "rb")
+                image_str = f.read()
+            else:
+                image_str = urlopen(icon_url, timeout=0.25).read()
+                update_cache(image_str)
+
+            image_file = io.BytesIO(image_str)
+            return pygame.image.load(image_file)
+
         self.loading_percentage += (self.loading_percent_bias['Icons'] / (len(self._common_icons) * 2)) * 0.1
         icon_url = f"http://openweathermap.org/img/wn/{icon}@2x.png"
         try:
             self.loading_status_strings.append(f"Loading icon: {icon_url}")
-            image_str = urlopen(icon_url, timeout=0.25).read()
-            image_file = io.BytesIO(image_str)
-            pic = pygame.image.load(image_file)
+            pic = load()
             self.icon_cache.update({icon_url: pic})
             self.loading_status_strings.append(f"Loaded icon: {icon_url}")
             self.loading_percentage += (self.loading_percent_bias['Icons'] / (len(self._common_icons) * 2)) * 0.9
-        except Exception:
-            self.loading_status_strings.append(f"Failed icon: {icon_url}")
+        except Exception as e:
+            self.loading_status_strings.append(f"Failed icon: {icon_url}, reason {e}")
+            print(e)
             self.loading_percentage += (self.loading_percent_bias['Icons'] / (len(self._common_icons) * 2)) * 0.9
 
     def cache_icons(self):
