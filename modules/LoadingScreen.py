@@ -42,13 +42,13 @@ class LoadingScreen:
     def _load_icon(self, icon):
 
         def update_cache(new_image_str):
-            f = open(f"Icon_cache/{icon}.png", "wb")
+            f = open(f"Caches/Icon_cache/{icon}.png", "wb")
             f.write(new_image_str)
             f.close()
 
         def load():
-            if os.path.exists(f"Icon_cache/{icon}.png") and not self.ignore_cache:
-                f = open(f"Icon_cache/{icon}.png", "rb")
+            if os.path.exists(f"Caches/Icon_cache/{icon}.png") and not self.ignore_cache:
+                f = open(f"Caches/Icon_cache/{icon}.png", "rb")
                 image_str = f.read()
             else:
                 image_str = urlopen(icon_url, timeout=0.25).read()

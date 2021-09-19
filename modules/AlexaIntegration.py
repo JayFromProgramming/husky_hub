@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import threading
 import time
 
 import pygame
@@ -13,7 +14,7 @@ pallet_two = (0, 0, 0)
 pallet_three = (255, 255, 255)
 
 api_file = "../APIKey.json"
-monkey_routines = "Monkey.json"
+monkey_routines = "Assets/Configs/Monkey.json"
 
 
 class RoutineButton:
@@ -28,6 +29,8 @@ class RoutineButton:
         self.color_changed = False
         self.type = data["type"]
         self.host_bar = host_bar
+        self.request_thread = None
+        self.request_success = None
 
     def preform_action(self):
         if self.type == "action":
@@ -49,6 +52,15 @@ class RoutineButton:
         if time.time() > self.last_run + 1.5 and self.color_changed:
             self.color = [64, 64, 64]
             self.color_changed = False
+
+        if self.request_thread:
+            if not self.request_thread.is_alive():
+                self.request_thread.join()
+                if self.request_success:
+                    self.color = [0, 255, 0]
+                else:
+                    self.color = [255, 0, 0]
+                self.request_thread = None
 
         self.button = pygame.Rect(x, y, 75, 60)
         text = font2.render(self.name, True, pallet_three)
@@ -207,14 +219,14 @@ class AlexaIntegration:
                 self.api_token = apikey['monkey_token']
                 self.api_secret = apikey['monkey_secret']
         else:
-            log.critial("No api key file found")
+            log.critical("No api key file found")
             raise FileNotFoundError("No api key file found")
         if os.path.isfile(monkey_routines):
             with open(monkey_routines) as f:
                 monkey = json.load(f)
                 self.monkeys = monkey
         else:
-            log.critial("No monkey file found")
+            log.critical("No monkey file found")
             raise FileNotFoundError("No monkey file found")
 
     def run_queued(self):
@@ -225,10 +237,13 @@ class AlexaIntegration:
                 if action == "no_routine":
                     test_button.color = [0, 0, 255]
                 else:
-                    if self.run_routine(action):
-                        test_button.color = [0, 255, 0]
-                    else:
-                        test_button.color = [255, 0, 0]
+                    thread = threading.Thread(target=self.run_routine, args=(self, action, test_button))
+                    thread.start()
+                    test_button.request_thread = thread
+                    # if self.run_routine(action):
+                    #     test_button.color = [0, 255, 0]
+                    # else:
+                    #     test_button.color = [255, 0, 0]
                 test_button.run = False
                 test_button.color_changed = True
                 test_button.last_run = time.time()
@@ -241,7 +256,7 @@ class AlexaIntegration:
                 for button in submenu.action_buttons:
                     check_button(button)
 
-    def run_routine(self, request):
+    def run_routine(self, test, request, test_button):
         template = "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey={request}"
         query = str(template).format(access_token=self.api_token, secret_token=self.api_secret, request=request)
         # print(query)
@@ -249,15 +264,15 @@ class AlexaIntegration:
         try:
             r = requests.get(url=query)
         except requests.exceptions.ConnectionError:
-            return False
+            test_button.request_success = False
         except requests.exceptions.MissingSchema:
-            return False
+            test_button.request_success = False
 
         # print(f"Code: {r.status_code}, Response: {r.json()}")
         if r.status_code == 200 and r.json()['status'] == "success":
-            return True
+            test_button.request_success = True
         else:
-            return False
+            test_button.request_success = False
 
     def build_routines(self, starting_point):
         for routine, items in self.monkeys.items():

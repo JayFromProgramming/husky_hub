@@ -32,7 +32,7 @@
             "actions": {
               "0": {
                 "name": "Red",
-                "request": "monkey=lights-red",
+                "request": "lights-red",
                 "type": "action"
               },
               "1": {

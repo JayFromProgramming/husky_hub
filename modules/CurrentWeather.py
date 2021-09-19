@@ -38,26 +38,26 @@ class CurrentWeather:
             rain = self.weather_api.current_weather.rain
             snow = self.weather_api.current_weather.snow
             clouds = self.weather_api.current_weather.clouds
-            # updated = self.weather_api.current_weather.reference_time()
+            updated = self.weather_api.current_weather.reference_time()
         else:
             temp = {'temp': 0, 'temp_max': 0, 'temp_min': 0, 'feels_like': 0, 'temp_kf': None}
             wind = {'speed': 0, 'deg': 0}
             status = "No data"
             humidity = 0
             visibility = 0
-            # icon_url = "http://openweathermap.org/img/wn/01d@2x.png"
             icon_url = None
             rain = {}
             snow = {}
             clouds = 0
             alert = None
-            updated = "N/A"
-
+            updated = 0
+        updated = datetime.datetime.fromtimestamp(updated)
         self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
         small_info = font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
                                   f"; Humidity: {humidity}%", True, pallet_three)
         small_info2 = font2.render(f"Vis: {str(round(visibility, 2)) + 'mi' if visibility < 6 else 'Clear'}"
-                                   f"; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph", True, pallet_three)
+                                   f"; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
+                                   f"; {updated.strftime('%I:%M %p')}", True, pallet_three)
 
         if rain:
             precipitation_text = font2.render(f"Rain: {rain}", True, (255, 255, 255))
@@ -74,7 +74,8 @@ class CurrentWeather:
                 image_file = io.BytesIO(image_str)
                 current_icon = pygame.image.load(image_file)
                 self.icon_cache.update({icon_url: current_icon})
-        except Exception:
+        except Exception as e:
+            print(f"Current weather icon load error: {e}")
             current_icon = self.icon
 
         screen.blit(current_icon, current_icon.get_rect(center=(x + 42.5, y + 40)))

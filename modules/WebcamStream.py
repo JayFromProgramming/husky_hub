@@ -1,5 +1,7 @@
 import concurrent
 import http.client
+import json
+import math
 import os
 import socket
 import urllib.error
@@ -11,46 +13,21 @@ import time
 import io
 from urllib.request import urlopen
 
+camera_path = "Assets/Configs/Cameras.json"
+
 
 class CampusCams:
 
     def __init__(self, logs, static_images, live_mode_enable):
-        self.cameras = [[(0, "https://webcams.mtu.edu/webcam11/webcam11.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera011.stream/playlist.m3u8"),
-                         (1, "https://webcams.mtu.edu/webcam31/webcam31.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera031.stream/playlist.m3u8"),
-                         (2, "https://webcams.mtu.edu/webcam16/webcam16.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera016.stream/playlist.m3u8"),
-                         (3, "https://webcams.mtu.edu/images/webcam26.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera26.stream/playlist.m3u8")],
-                        [(0, "https://webcams.mtu.edu/webcam7/webcam7.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera007.stream/playlist.m3u8"),
-                         (1, "https://webcams.mtu.edu/webcam25/webcam25.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera25.stream/playlist.m3u8"),
-                         (2, "https://webcams.mtu.edu/webcam15/webcam15.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera015.stream/playlist.m3u8"),
-                         (3, "https://webcams.mtu.edu/webcam4/webcam4.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera004.stream/playlist.m3u8")],
-                        [(0, "https://webcams.mtu.edu/webcam30/webcam30.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera30.stream/playlist.m3u8"),
-                         (1, "https://webcams.mtu.edu/webcam21/webcam21.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera21.stream/playlist.m3u8"),
-                         (2, "https://webcams.mtu.edu/images/webcam29.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera29.stream/playlist.m3u8"),
-                         (3, "https://webcams.mtu.edu/images/webcam28.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera028.stream/playlist.m3u8")],
-                        [(0, "https://webcams.mtu.edu/webcam14/webcam14.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera014.stream/playlist.m3u8"),
-                         (1, "https://webcams.mtu.edu/webcam13/webcam13.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera013.stream/playlist.m3u8"),
-                         (2, "https://webcams.mtu.edu/webcam36/webcam36.jpg",
-                          "https://streamingwebcams.mtu.edu:1935/rtplive/camera036.stream/playlist.m3u8"),
-                         (3, "https://www.mtu.edu/mtu_resources/images/download-central/logos/full-horizontal/gold.png", "")]]
-
+        if os.path.exists(camera_path):
+            with open(camera_path, "r") as f:
+                self.cameras = json.load(f)
+        else:
+            raise FileNotFoundError("No Camera Config")
         self.no_image, self.husky, self.empty_image = static_images
         self.buffers = []
         self.overlay_buffers = []
-        for x in range(4):
+        for x in range(len(self.cameras)):
             self.buffers.append([self.husky, self.husky, self.husky, self.husky])
             self.overlay_buffers.append([self.empty_image, self.empty_image, self.empty_image, self.empty_image])
         self.page = 0
@@ -72,10 +49,10 @@ class CampusCams:
 
     def cycle(self, amount):
         self.page += amount
-        if self.page > 3:
+        if self.page > len(self.cameras) - 1:
             self.page = 0
         elif self.page < 0:
-            self.page = 3
+            self.page = len(self.cameras) - 1
         self.focus(None)
         self.last_update = time.time() - self.update_rate + 1
         # self.buffers[self.page] = [self.husky, self.husky, self.husky, self.husky]

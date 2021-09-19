@@ -30,14 +30,14 @@ if py:
 else:
     log.basicConfig(filename="../weatherLogs.txt", level=log.DEBUG, format="%(levelname)s: %(asctime)s - %(message)s")
 
-no_image = pygame.image.load(os.path.join(f"Assets/No_image.png"))
-husky = pygame.image.load(os.path.join(f"Assets/Husky.png"))
-empty_image = pygame.image.load(os.path.join(f"Assets/Empty.png"))
-icon = pygame.image.load(os.path.join("Assets/Icon.png"))
-splash = pygame.image.load(os.path.join("Assets/splash_background2.jpg"))
-no_mouse_icon = pygame.image.load(os.path.join("Assets/NoMouse.png"))
-weather_alert = pygame.image.load(os.path.join("Assets/alert.png"))
-no_fan_icon = pygame.image.load(os.path.join("Assets/No_fan.png"))
+no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png"))
+husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png"))
+empty_image = pygame.image.load(os.path.join(f"Assets/Images/Empty.png"))
+icon = pygame.image.load(os.path.join("Assets/Images/Icon.png"))
+splash = pygame.image.load(os.path.join("Assets/Images/splash_background2.jpg"))
+no_mouse_icon = pygame.image.load(os.path.join("Assets/Images/NoMouse.png"))
+weather_alert = pygame.image.load(os.path.join("Assets/Images/alert.png"))
+no_fan_icon = pygame.image.load(os.path.join("Assets/Images/No_fan.png"))
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
 
@@ -88,11 +88,12 @@ home_button_text = "Home"
 def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
     if exctype is not KeyboardInterrupt:
-        if py:
-            log.warning("Attempting to restart from uncaught error...")
-            time.sleep(30)
-            # response = os.system("nohup /home/pi/weather.sh &")
-            # log.warning(f"Response: ({response})")
+        pass
+        # if py:
+        #     log.warning("Attempting to restart from uncaught error...")
+        #     time.sleep(30)
+        #     # response = os.system("nohup /home/pi/weather.sh &")
+        #     # log.warning(f"Response: ({response})")
 
 
 sys.excepthook = uncaught

@@ -1,6 +1,5 @@
 /APIKey.json
 /copy.bat
 /venv/
-/modules/System_cache/
 /weatherLogs.txt
-/modules/Icon_cache/
+/modules/Caches/
