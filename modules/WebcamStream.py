@@ -7,7 +7,6 @@ import socket
 import urllib.error
 from concurrent import futures
 
-from Pygamevideo import Video
 import pygame
 import time
 import io
@@ -84,6 +83,7 @@ class CampusCams:
 
     def create_stream(self, camera):
         if self.steaming_enabled:
+            from Pygamevideo import Video
             cam_id, url, stream_url = camera
             self.stream = Video(stream_url)
             self.stream.play()

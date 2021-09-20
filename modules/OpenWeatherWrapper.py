@@ -49,6 +49,7 @@ class OpenWeatherWrapper:
         with open(cache_location, 'wb') as outp:
             self.log.info("Saving current weather to cache")
             dill.dump(self, outp)
+            outp.close()
 
     def update_current_weather(self):
         """Update current weather values"""

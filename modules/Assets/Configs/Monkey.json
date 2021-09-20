@@ -203,6 +203,11 @@
         "name": "No",
         "request": "",
         "type": "action"
+      },
+      "2": {
+        "name": "Sleep",
+        "request": "sleep-mode",
+        "type": "action"
       }
     }
   }

@@ -27,8 +27,13 @@ if py:
     os.chdir("/home/pi/Downloads/modules")
     log.basicConfig(filename="../weatherLogs.txt",
                     level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
+    fps = 8
 else:
     log.basicConfig(filename="../weatherLogs.txt", level=log.DEBUG, format="%(levelname)s: %(asctime)s - %(message)s")
+    fps = 18
+
+pygame.init()
+pygame.font.init()
 
 no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png"))
 husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png"))
@@ -38,8 +43,13 @@ splash = pygame.image.load(os.path.join("Assets/Images/splash_background2.jpg"))
 no_mouse_icon = pygame.image.load(os.path.join("Assets/Images/NoMouse.png"))
 weather_alert = pygame.image.load(os.path.join("Assets/Images/alert.png"))
 no_fan_icon = pygame.image.load(os.path.join("Assets/Images/No_fan.png"))
+overheat_icon = pygame.image.load(os.path.join("Assets/Images/overheat.png"))
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
+
+clock_font = pygame.font.SysFont('timesnewroman', 65)
+sys_info_font = pygame.font.SysFont('timesnewroman', 14)
+button_font = pygame.font.SysFont('couriernew', 14)
 
 current_icon = None
 pygame.mixer.quit()
@@ -53,10 +63,10 @@ refresh_forecast = True
 screen_dimmed = False
 raincheck = False
 no_mouse = False
+overheat_halt = False
 weather_alert_display = None
 weather_alert_number = 0
 
-fps = 18
 forecast = []
 cpu_averages = []
 loading_hour = 1
@@ -249,23 +259,23 @@ def draw(screen):
     Draw things to the window. Called once per frame.
     """
     global refresh_forecast, last_current_update, current_icon, forecast, loading_hour, fps, selected_loading_hour
-    global failed_current_updates, screen_dimmed, display_mode, weather_alert_display
+    global failed_current_updates, screen_dimmed, display_mode, weather_alert_display, overheat_halt, loading_screen
     screen.fill((0, 0, 0))  # Fill the screen with black.
 
     def draw_clock(pallet):
-        font1 = pygame.font.SysFont('timesnewroman', 65)
-        clock = font1.render(datetime.datetime.now().strftime("%I:%M:%S %p"), True, pallet)
+        clock = clock_font.render(datetime.datetime.now().strftime("%I:%M:%S %p"), True, pallet)
         screen.blit(clock, (425, 40))
 
-    sys_info_font = pygame.font.SysFont('timesnewroman', 14)
     total = psutil.virtual_memory()[0]
     avail = psutil.virtual_memory()[1]
-    cpu_averages.append(psutil.cpu_percent())
-    if len(cpu_averages) > 30:
-        cpu_averages.pop(0)
-    cpu_average = statistics.mean(cpu_averages)
-    sys_info = sys_info_font.render(f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
-                                    + (f", Temp {round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)}°C" if py else ""), True,
+    # cpu_averages.append()
+    # if len(cpu_averages) > 30:
+    #     cpu_averages.pop(0)
+    # cpu_average = statistics.mean(cpu_averages)
+    if py:
+        temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
+    sys_info = sys_info_font.render(f"CPU: {str(round(psutil.cpu_percent(), 2)).zfill(4)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
+                                    + (f", Temp {temp}°C" if py else ""), True,
                                     pallet_one)
     screen.blit(sys_info, (sys_info.get_rect(midtop=(400, 445))))
 
@@ -275,13 +285,14 @@ def draw(screen):
         screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))
     if raincheck:
         screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
+    if py and temp > 70:
+        screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))
     if no_mouse:
         if alert:
             screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))
         else:
             screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 2)))
 
-    button_font = pygame.font.SysFont('couriernew', 14)
     room_button_render = button_font.render(room_button_text, True, pallet_four)
     webcam_button_render = button_font.render(webcam_button_text, True, pallet_four)
     home_button_render = button_font.render(home_button_text, True, pallet_four)
@@ -305,6 +316,7 @@ def draw(screen):
                     room_control.build_routines(0)
                     last_current_update = time.time()
                     webcams.page = 0
+                    del loading_screen
 
         # Draw Clock
         draw_clock(pallet_four)
@@ -315,7 +327,6 @@ def draw(screen):
         current_weather.draw_current(screen, (0, 0))
         draw_forecast(screen)
         build_forecast(screen, (-80, 125))
-        webcams.requested_fps = 30
 
         # Draw Clock
         draw_clock(pallet_one)
@@ -337,7 +348,7 @@ def draw(screen):
                             screen_dimmed = True
                     elif datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunrise_time(timeformat='date'):
                         # print("After sunrise")
-                        if py and screen_dimmed:
+                        if py:
                             os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
                             screen_dimmed = False
             elif weatherAPI.update_current_weather() is False:
@@ -385,8 +396,6 @@ def draw(screen):
 def run():
     global fps, no_mouse
     # Initialise PyGame.
-    pygame.init()
-    pygame.font.init()
 
     # weatherAPI.update_weather_map()
 

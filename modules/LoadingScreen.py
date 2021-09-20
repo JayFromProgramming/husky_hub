@@ -50,6 +50,7 @@ class LoadingScreen:
             if os.path.exists(f"Caches/Icon_cache/{icon}.png") and not self.ignore_cache:
                 f = open(f"Caches/Icon_cache/{icon}.png", "rb")
                 image_str = f.read()
+                f.close()
             else:
                 image_str = urlopen(icon_url, timeout=0.25).read()
                 update_cache(image_str)

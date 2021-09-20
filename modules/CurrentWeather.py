@@ -20,13 +20,14 @@ class CurrentWeather:
         self.big_info = None
         self.icon_cache = icon_cache
         self.icon = icon
+        self.font1 = pygame.font.SysFont('timesnewroman', 48)
+        self.font2 = pygame.font.Font(os.path.join("Assets/Fonts/Merri/Merriweather-Regular.ttf"), 15)
 
     def draw_current(self, screen, location):
         """Draws the current temp with high low"""
         x, y = location
         # Load temp
-        font1 = pygame.font.SysFont('timesnewroman', 48)
-        font2 = pygame.font.Font(os.path.join("Assets/Fonts/Merri/Merriweather-Regular.ttf"), 15)
+
         if self.weather_api.current_weather is not None:
             temp = self.weather_api.current_weather.temperature('fahrenheit')
             wind = self.weather_api.current_weather.wind('miles_hour')
@@ -52,19 +53,19 @@ class CurrentWeather:
             alert = None
             updated = 0
         updated = datetime.datetime.fromtimestamp(updated)
-        self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
-        small_info = font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
-                                  f"; Humidity: {humidity}%", True, pallet_three)
-        small_info2 = font2.render(f"Vis: {str(round(visibility, 2)) + 'mi' if visibility < 6 else 'Clear'}"
-                                   f"; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
-                                   f"; {updated.strftime('%I:%M %p')}", True, pallet_three)
+        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
+        small_info = self.font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
+                                       f"; Humidity: {humidity}%", True, pallet_three)
+        small_info2 = self.font2.render(f"Vis: {str(round(visibility, 2)) + 'mi' if visibility < 6 else 'Clear'}"
+                                        f"; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
+                                        f"; {updated.strftime('%I:%M %p')}", True, pallet_three)
 
-        if rain:
-            precipitation_text = font2.render(f"Rain: {rain}", True, (255, 255, 255))
-        elif snow:
-            precipitation_text = font2.render(f"Snow: {snow}", True, (255, 255, 255))
-        else:
-            precipitation_text = font2.render(f"No precipitation", True, (255, 255, 255))
+        # if rain:
+        #     precipitation_text = font2.render(f"Rain: {rain}", True, (255, 255, 255))
+        # elif snow:
+        #     precipitation_text = font2.render(f"Snow: {snow}", True, (255, 255, 255))
+        # else:
+        #     precipitation_text = font2.render(f"No precipitation", True, (255, 255, 255))
 
         try:
             if icon_url in self.icon_cache:
