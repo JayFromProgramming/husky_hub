@@ -70,12 +70,12 @@
             "actions": {
               "0": {
                 "name": "Off",
-                "request": "",
+                "request": "bed-fan-off",
                 "type": "action"
               },
               "1": {
                 "name": "On",
-                "request": "",
+                "request": "bed-fan-on",
                 "type": "action"
               }
             }
@@ -92,12 +92,12 @@
             "actions": {
               "0": {
                 "name": "Off",
-                "request": "",
+                "request": "bed-lamp-off",
                 "type": "action"
               },
               "1": {
                 "name": "On",
-                "request": "",
+                "request": "bedlampon",
                 "type": "action"
               }
             }
@@ -187,27 +187,45 @@
         "name": "Full",
         "request": "big-wind-on",
         "type": "action"
+      },
+      "4":
+      {
+        "name": "Auto",
+        "eval": "self.host_bar.host.raincheck = not self.host_bar.host.raincheck",
+        "type": "code"
       }
     }
   },
-  "invasion": {
-    "title": "Home Invasion",
-    "description": "Is Allowed?",
+  "scenes": {
+    "title": "Scenes",
+    "description": "Set room configuration",
     "actions": {
-      "0": {
-        "name": "Yes",
-        "request": "",
-        "type": "action"
-      },
-      "1": {
-        "name": "No",
-        "request": "",
-        "type": "action"
-      },
-      "2": {
+      "Sleep": {
         "name": "Sleep",
         "request": "sleep-mode",
         "type": "action"
+      },
+      "More": {
+        "name": "More",
+        "name_2": "Close",
+        "sub_menus": [
+          {
+            "name": "Invade?",
+            "actions": {
+              "0": {
+                "name": "Yes",
+                "request": "allow-home-invasion",
+                "type": "action"
+              },
+              "1": {
+                "name": "No",
+                "request": "no-home-invasion",
+                "type": "action"
+              }
+            }
+          }
+        ],
+        "type": "SubMenu"
       }
     }
   }

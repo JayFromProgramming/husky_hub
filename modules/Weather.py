@@ -27,10 +27,10 @@ if py:
     os.chdir("/home/pi/Downloads/modules")
     log.basicConfig(filename="../weatherLogs.txt",
                     level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
-    fps = 8
+    fps = 14
 else:
-    log.basicConfig(filename="../weatherLogs.txt", level=log.DEBUG, format="%(levelname)s: %(asctime)s - %(message)s")
-    fps = 18
+    log.basicConfig(filename="../weatherLogs.txt", level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
+    fps = 30
 
 pygame.init()
 pygame.font.init()
@@ -61,7 +61,6 @@ pallet_four = (0, 0, 0)
 
 refresh_forecast = True
 screen_dimmed = False
-raincheck = False
 no_mouse = False
 overheat_halt = False
 weather_alert_display = None
@@ -110,7 +109,7 @@ sys.excepthook = uncaught
 
 
 def update(dt):
-    global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, raincheck, weather_alert_display
+    global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, weather_alert_display
     global weather_alert_number, slot_position
     # Go through events that are passed to the script by the window.
     if room_control.queued_routine:
@@ -120,11 +119,10 @@ def update(dt):
         weather_alert_display.build_alert()
 
     # print(weatherAPI.current_weather.status if weatherAPI.current_weather else None)
-    if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not raincheck:
+    if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not room_control.raincheck:
         log.info("Shutting off big wind due to rain")
-        room_control.run_routine(
-            "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey=big-wind-off")
-        raincheck = True
+        room_control.run_routine("f", "big-wind-off")
+        room_control.raincheck = True
 
     for event in pygame.event.get():
         # We need to handle these events. Initially the only one you'll want to care
@@ -150,11 +148,13 @@ def update(dt):
                 webcams.focus(None)
                 webcams.page = 0
                 display_mode = "home"
+                room_control.open_since = 0
 
             elif room_button.collidepoint(mouse_pos) and display_mode == "home":
                 webcams.focus(None)
                 webcams.page = 0
                 display_mode = "room_control"
+                room_control.open_since = time.time()
 
             elif (current_weather.big_info.get_rect().collidepoint(mouse_pos) or weather_alert.get_rect().collidepoint(mouse_pos)) \
                     and display_mode == "home" and alert:
@@ -164,7 +164,7 @@ def update(dt):
 
             elif display_mode == "weather_alert":
 
-                if home_button.collidepoint(mouse_pos) or current_weather.big_info.get_rect().collidepoint(mouse_pos) or\
+                if home_button.collidepoint(mouse_pos) or current_weather.big_info.get_rect().collidepoint(mouse_pos) or \
                         weather_alert.get_rect().collidepoint(mouse_pos):
                     display_mode = "home"
                     weather_alert_display = None
@@ -274,16 +274,17 @@ def draw(screen):
     # cpu_average = statistics.mean(cpu_averages)
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
-    sys_info = sys_info_font.render(f"CPU: {str(round(psutil.cpu_percent(), 2)).zfill(4)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
-                                    + (f", Temp {temp}°C" if py else ""), True,
-                                    pallet_one)
+    sys_info = sys_info_font.render(
+        f"CPU: {str(round(psutil.cpu_percent(), 2)).zfill(4)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
+        + (f", Temp {temp}°C" if py else ""), True,
+        pallet_one)
     screen.blit(sys_info, (sys_info.get_rect(midtop=(400, 445))))
 
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
 
     if alert:
         screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))
-    if raincheck:
+    if room_control.raincheck:
         screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
     if py and temp > 70:
         screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))
@@ -381,13 +382,15 @@ def draw(screen):
         pygame.display.set_caption("Room Control")
         pygame.draw.rect(screen, [255, 206, 0], home_button)
         screen.blit(home_button_render, home_button_render.get_rect(midbottom=home_button.center))
+        if room_control.open_since < time.time() - 60:
+            room_control.open_since = 0
+            display_mode = "home"
     elif display_mode == "weather_alert":
         draw_clock(pallet_one)
         weather_alert_display.draw(screen, (10, 100))
         current_weather.draw_current(screen, (0, 0))
         pygame.draw.rect(screen, [255, 206, 0], home_button)
         webcams.draw_buttons(screen)
-
 
     # Flip the display so that the things we drew actually show up.
     pygame.display.flip()

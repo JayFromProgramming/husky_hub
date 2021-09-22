@@ -44,12 +44,25 @@ class RoutineButton:
                 self.host_bar.expand(self)
                 self.name = self.data['name_2']
             return "no_routine"
+        elif self.type == "code":
+            thread = threading.Thread(target=self._exec, args=(self, self.data['eval']))
+            thread.start()
+            self.request_thread = thread
+
+    def _exec(self, thread, code):
+        try:
+            exec(code)
+        except Exception as err:
+            print(f"Custom code button error: {err}")
+            self.request_success = False
+            return
+        self.request_success = True
 
     def draw(self, screen, pos):
         x, y = pos
         font2 = pygame.font.SysFont('timesnewroman', 20)
 
-        if time.time() > self.last_run + 1.5 and self.color_changed:
+        if time.time() > self.last_run + 0.75 and self.color_changed:
             self.color = [64, 64, 64]
             self.color_changed = False
 
@@ -58,8 +71,12 @@ class RoutineButton:
                 self.request_thread.join()
                 if self.request_success:
                     self.color = [0, 255, 0]
+                    self.color_changed = True
+                    self.last_run = time.time()
                 else:
                     self.color = [255, 0, 0]
+                    self.color_changed = True
+                    self.last_run = time.time()
                 self.request_thread = None
 
         self.button = pygame.Rect(x, y, 75, 60)
@@ -162,6 +179,7 @@ class SubOptionBar:
     def __init__(self, master_bar, my_buttons, name):
         """"""
         self.master_bar = master_bar
+        self.host = master_bar.host
         self.name = name
         self.button = None
         self.action_buttons = []
@@ -211,8 +229,9 @@ class AlexaIntegration:
         """"""
         self.routines = []
         self.queued_routine = False
-        self.clear_time = time.time()
         self.scroll = 0
+        self.open_since = 0
+        self.raincheck = False
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 apikey = json.load(f)
@@ -230,12 +249,13 @@ class AlexaIntegration:
             raise FileNotFoundError("No monkey file found")
 
     def run_queued(self):
-
         def check_button(test_button):
             if test_button.run is True:
                 action = test_button.preform_action()
                 if action == "no_routine":
                     test_button.color = [0, 0, 255]
+                    test_button.color_changed = True
+                    test_button.last_run = time.time()
                 else:
                     thread = threading.Thread(target=self.run_routine, args=(self, action, test_button))
                     thread.start()
@@ -245,8 +265,6 @@ class AlexaIntegration:
                     # else:
                     #     test_button.color = [255, 0, 0]
                 test_button.run = False
-                test_button.color_changed = True
-                test_button.last_run = time.time()
                 self.queued_routine = False
 
         for routine in self.routines:
@@ -256,7 +274,7 @@ class AlexaIntegration:
                 for button in submenu.action_buttons:
                     check_button(button)
 
-    def run_routine(self, test, request, test_button):
+    def run_routine(self, test, request, test_button=None):
         template = "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey={request}"
         query = str(template).format(access_token=self.api_token, secret_token=self.api_secret, request=request)
         # print(query)
@@ -264,15 +282,17 @@ class AlexaIntegration:
         try:
             r = requests.get(url=query)
         except requests.exceptions.ConnectionError:
-            test_button.request_success = False
+            if test_button:
+                test_button.request_success = False
         except requests.exceptions.MissingSchema:
-            test_button.request_success = False
-
-        # print(f"Code: {r.status_code}, Response: {r.json()}")
-        if r.status_code == 200 and r.json()['status'] == "success":
-            test_button.request_success = True
-        else:
-            test_button.request_success = False
+            if test_button:
+                test_button.request_success = False
+        if test_button:
+            # print(f"Code: {r.status_code}, Response: {r.json()}")
+            if r.status_code == 200 and r.json()['status'] == "success":
+                test_button.request_success = True
+            else:
+                test_button.request_success = False
 
     def build_routines(self, starting_point):
         for routine, items in self.monkeys.items():

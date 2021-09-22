@@ -3,3 +3,4 @@
 /venv/
 /weatherLogs.txt
 /modules/Caches/
+/WeatherServer/clientAuth.json

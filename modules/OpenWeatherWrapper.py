@@ -7,7 +7,7 @@ from pyowm.tiles.enums import MapLayerEnum
 from concurrent import futures
 
 api_file = "../APIKey.json"
-cache_location = "System_cache/weather.cache"
+cache_location = "Caches/weather.cache"
 
 
 class OpenWeatherWrapper:

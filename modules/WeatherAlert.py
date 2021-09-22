@@ -32,7 +32,7 @@ class WeatherAlert:
         self.tags = None
         self.description_lines = []
         self.built_line = 0
-        self.initalized = False
+        self.initialized = False
         self.built = False
 
         self.scroll = 0
@@ -46,7 +46,7 @@ class WeatherAlert:
         font2 = pygame.font.SysFont('couriernew', 24)
         font3 = pygame.font.SysFont('couriernew', 16)
 
-        if not self.initalized:
+        if not self.initialized:
             if self.alert:
                 self.sender_name = self.alert['sender_name']
                 self.event = self.alert['event']
@@ -60,10 +60,13 @@ class WeatherAlert:
                                            True, pallet_one)
             self.sender_text = font2.render(f"Issued by: {self.alert['sender_name']}", True, pallet_one)
             self.time_range_text = font2.render(f"In Effect From: ", True, pallet_one)
-            self.initalized = True
-
-        if self.built_line < len(self.description_raw):
-            line = self.description_raw[self.built_line]
+            self.initialized = True
+        if self.built_line == 0:
+            self.description_lines.append(font3.render(f"--------------------------------Begin Alert---------------------------------",
+                                                       True, pallet_one))
+            self.built_line += 1
+        elif self.built_line <= len(self.description_raw):
+            line = self.description_raw[self.built_line - 1]
             self.description_lines.append(font3.render(f"{str(self.built_line).zfill(2)}: {line}", True, pallet_one))
             self.built_line += 1
         else:
@@ -73,7 +76,7 @@ class WeatherAlert:
 
     def draw(self, screen, location):
         x, y = location
-        if not self.initalized:
+        if not self.initialized:
             return False
         screen.blit(self.event_text, (x, y+10))
         screen.blit(self.sender_text, (x, y + 45))
