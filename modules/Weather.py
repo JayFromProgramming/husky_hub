@@ -254,7 +254,7 @@ def draw_forecast(screen):
         hour.draw(screen)
 
 
-def draw(screen):
+def draw(screen, dt):
     """
     Draw things to the window. Called once per frame.
     """
@@ -276,7 +276,7 @@ def draw(screen):
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
     sys_info = sys_info_font.render(
         f"CPU: {str(round(psutil.cpu_percent(), 2)).zfill(4)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
-        + (f", Temp {temp}°C" if py else ""), True,
+        + (f", Temp {temp}°C" if py else "") + f", {dt}FPS", True,
         pallet_one)
     screen.blit(sys_info, (sys_info.get_rect(midtop=(400, 445))))
 
@@ -410,7 +410,7 @@ def run():
 
     log.info(f"Starting piWeather, OnPi:{py}")
     if py:
-        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
         if pygame.mouse.get_pos() == (0, 0):
             log.warning("Touch screen is not properly calibrated, attempting to recalibrate")
             pygame.mouse.set_pos(400, 230)
@@ -426,9 +426,10 @@ def run():
     dt = 1 / fps  # dt is the time since last frame.
     while True:  # Loop forever!
         update(dt)  # You can update/draw here, I've just moved the code for neatness.
-        draw(screen)
+        draw(screen, dt)
 
-        dt = fps_clock.tick(fps)
+        fps_clock.tick(fps)
+        dt = round(fps_clock.get_fps())
 
 
 run()

@@ -164,6 +164,54 @@
         }
       }
   },
+  "scenes": {
+    "title": "Scenes",
+    "description": "Set room configuration",
+    "actions": {
+      "Normal": {
+        "name": "Normal",
+        "request": "standard",
+        "type": "action"
+      },
+      "Night": {
+        "name": "Night",
+        "request": "night-scene",
+        "type": "action"
+      },
+      "Sleep": {
+        "name": "Sleep",
+        "request": "sleep-mode",
+        "type": "action"
+      },
+      "away": {
+        "name": "Away",
+        "request": "away",
+        "type": "action"
+      },
+      "More": {
+        "name": "More",
+        "name_2": "Close",
+        "sub_menus": [
+          {
+            "name": "Invade?",
+            "actions": {
+              "0": {
+                "name": "Yes",
+                "request": "allow-home-invasion",
+                "type": "action"
+              },
+              "1": {
+                "name": "No",
+                "request": "no-home-invasion",
+                "type": "action"
+              }
+            }
+          }
+        ],
+        "type": "SubMenu"
+      }
+    }
+  },
   "big_wind": {
     "title": "Big wimd",
     "description": "Set mode",
@@ -193,39 +241,6 @@
         "name": "Auto",
         "eval": "self.host_bar.host.raincheck = not self.host_bar.host.raincheck",
         "type": "code"
-      }
-    }
-  },
-  "scenes": {
-    "title": "Scenes",
-    "description": "Set room configuration",
-    "actions": {
-      "Sleep": {
-        "name": "Sleep",
-        "request": "sleep-mode",
-        "type": "action"
-      },
-      "More": {
-        "name": "More",
-        "name_2": "Close",
-        "sub_menus": [
-          {
-            "name": "Invade?",
-            "actions": {
-              "0": {
-                "name": "Yes",
-                "request": "allow-home-invasion",
-                "type": "action"
-              },
-              "1": {
-                "name": "No",
-                "request": "no-home-invasion",
-                "type": "action"
-              }
-            }
-          }
-        ],
-        "type": "SubMenu"
       }
     }
   }

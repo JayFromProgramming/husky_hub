@@ -31,6 +31,7 @@ class RoutineButton:
         self.host_bar = host_bar
         self.request_thread = None
         self.request_success = None
+        self.font2 = pygame.font.SysFont('timesnewroman', 20)
 
     def preform_action(self):
         if self.type == "action":
@@ -60,7 +61,6 @@ class RoutineButton:
 
     def draw(self, screen, pos):
         x, y = pos
-        font2 = pygame.font.SysFont('timesnewroman', 20)
 
         if time.time() > self.last_run + 0.75 and self.color_changed:
             self.color = [64, 64, 64]
@@ -80,7 +80,7 @@ class RoutineButton:
                 self.request_thread = None
 
         self.button = pygame.Rect(x, y, 75, 60)
-        text = font2.render(self.name, True, pallet_three)
+        text = self.font2.render(self.name, True, pallet_three)
 
         pygame.draw.rect(screen, self.color, self.button)
         screen.blit(text, text.get_rect(center=self.button.center))
@@ -102,6 +102,8 @@ class OptionBar:
         self.expanded = False
         self.expanded_to = None
         self.host = host
+        self.font1 = pygame.font.SysFont('timesnewroman', 30)
+        self.font2 = pygame.font.SysFont('timesnewroman', 20)
 
         count = 0  # 95
         for thing, action in dict(self.routine_actions).items():
@@ -148,10 +150,9 @@ class OptionBar:
         x, y = position
         if y > 400:
             return
-        font1 = pygame.font.SysFont('timesnewroman', 30)
-        font2 = pygame.font.SysFont('timesnewroman', 20)
-        title = font1.render(f"{self.routine_title}", True, pallet_two)
-        description = font2.render(f"{self.description}", True, pallet_two)
+
+        title = self.font1.render(f"{self.routine_title}", True, pallet_two)
+        description = self.font2.render(f"{self.description}", True, pallet_two)
         # self.action_buttons = []
 
         count = 80
@@ -185,6 +186,7 @@ class SubOptionBar:
         self.action_buttons = []
         self.running_routine = None
         self.running_status = [255, 255, 255]
+        self.font2 = pygame.font.SysFont('timesnewroman', 19)
         count = 0
         for thing, action in my_buttons.items():
             self.action_buttons.append(RoutineButton(self, action))
@@ -205,11 +207,9 @@ class SubOptionBar:
 
     def draw_routine(self, screen, position):
         x, y = position
-        font1 = pygame.font.SysFont('timesnewroman', 30)
-        font2 = pygame.font.SysFont('timesnewroman', 19)
         # self.action_buttons = []
         self.button = pygame.Rect(x + 90, y, 610, 70)
-        description = font2.render(f"{self.name}", True, pallet_two)
+        description = self.font2.render(f"{self.name}", True, pallet_two)
         pygame.draw.line(screen, pallet_one, (x + 40, y - 50), (x + 40, y + 35))
         pygame.draw.line(screen, pallet_one, (x + 40, y + 35), (x + 90, y + 35))
         pygame.draw.rect(screen, [255, 206, 0], self.button)
