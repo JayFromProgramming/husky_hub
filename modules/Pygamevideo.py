@@ -10,9 +10,7 @@ import numpy
 import cv2
 from ffpyplayer.player import MediaPlayer
 
-
 __version__ = "1.0.0"
-
 
 
 class Time:
@@ -41,30 +39,29 @@ class Time:
         return format_string
 
     def to_hour(self):
-        return self.hour + self.minute/60 + self.second/3600 + self.millisecond/3600000
+        return self.hour + self.minute / 60 + self.second / 3600 + self.millisecond / 3600000
 
     def to_minute(self):
-        return self.hour*60 + self.minute + self.second/60 + self.millisecond/60000
+        return self.hour * 60 + self.minute + self.second / 60 + self.millisecond / 60000
 
     def to_second(self):
-        return self.hour*3600 + self.minute*60 + self.second + self.millisecond/1000
+        return self.hour * 3600 + self.minute * 60 + self.second + self.millisecond / 1000
 
     def to_millisecond(self):
-        return self.hour*3600000 + self.minute*60000 + self.second*1000 + self.millisecond
+        return self.hour * 3600000 + self.minute * 60000 + self.second * 1000 + self.millisecond
 
     @classmethod
     def from_millisecond(cls, ms):
-        h = ms//3600000
-        hr = ms%3600000
+        h = ms // 3600000
+        hr = ms % 3600000
 
-        m = hr//60000
-        mr = hr%60000
+        m = hr // 60000
+        mr = hr % 60000
 
-        s = mr//1000
-        sr = mr%1000
+        s = mr // 1000
+        sr = mr % 1000
 
         return cls(hour=h, minute=m, second=s, millisecond=sr)
-
 
 
 class Video:
@@ -83,32 +80,32 @@ class Video:
         self.filepath = filepath
 
         self.is_playing = False
-        self.is_ended   = True
-        self.is_paused  = False
-        self.is_looped  = False
+        self.is_ended = True
+        self.is_paused = False
+        self.is_looped = False
 
-        self.draw_frame  = 0
-        self.start_time  = 0
+        self.draw_frame = 0
+        self.start_time = 0
         self.ostart_time = 0
 
-        self.volume   = 1
+        self.volume = 1
         self.is_muted = False
 
-        self.vidcap  = cv2.VideoCapture(self.filepath)
+        self.vidcap = cv2.VideoCapture(self.filepath)
         self.ff = MediaPlayer(self.filepath)
 
         self.fps = self.vidcap.get(cv2.CAP_PROP_FPS)
 
         self.total_frames = int(self.vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        self.frame_width  = int(self.vidcap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.frame_width = int(self.vidcap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.frame_height = int(self.vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        self.aspect_ratio      = self.frame_width / self.frame_height
-        self.aspect_ratio2     = self.frame_height / self.frame_width
+        self.aspect_ratio = self.frame_width / self.frame_height
+        self.aspect_ratio2 = self.frame_height / self.frame_width
         self.keep_aspect_ratio = False
 
-        self.frame_surf   = pygame.Surface((self.frame_width, self.frame_height))
+        self.frame_surf = pygame.Surface((self.frame_width, self.frame_height))
         self._aspect_surf = pygame.Surface((self.frame_width, self.frame_height))
 
         self.is_ready = True
@@ -157,7 +154,7 @@ class Video:
 
     def pause(self):
         self.is_paused = True
-        sel.ff.set_pause(True)
+        self.ff.set_pause(True)
 
     def resume(self):
         self.is_paused = False
@@ -184,7 +181,7 @@ class Video:
 
     @property
     def duration(self):
-        return Time.from_millisecond((self.total_frames/self.fps)*1000)
+        return Time.from_millisecond((self.total_frames / self.fps) * 1000)
 
     @property
     def current_time(self):
@@ -217,10 +214,10 @@ class Video:
             self.seek_time(_t.to_millisecond())
 
         elif isinstance(t, (int, float)):
-            self.start_time = self.ostart_time + t/1000
+            self.start_time = self.ostart_time + t / 1000
             self.draw_frame = int((time.time() - self.start_time) * self.fps)
             self.vidcap.set(cv2.CAP_PROP_POS_MSEC, t)
-            self.ff.seek(t/1000, relative=False)
+            self.ff.seek(t / 1000, relative=False)
 
         else:
             raise ValueError("Time can only be represented in Time, str, int or float")
@@ -266,14 +263,14 @@ class Video:
         if self.keep_aspect_ratio:
             if self.frame_width < self.frame_height:
                 self._aspect_surf.fill((0, 0, 0))
-                frame_surf = pygame.transform.scale(self.frame_surf, (self.frame_width, int(self.frame_width/self.aspect_ratio)))
-                self._aspect_surf.blit(frame_surf, (0, self.frame_height/2-frame_surf.get_height()/2))
+                frame_surf = pygame.transform.scale(self.frame_surf, (self.frame_width, int(self.frame_width / self.aspect_ratio)))
+                self._aspect_surf.blit(frame_surf, (0, self.frame_height / 2 - frame_surf.get_height() / 2))
                 return self._aspect_surf
 
             else:
                 self._aspect_surf.fill((0, 0, 0))
-                frame_surf = pygame.transform.scale(self.frame_surf, (int(self.frame_height/self.aspect_ratio2), self.frame_height))
-                self._aspect_surf.blit(frame_surf, (self.frame_width/2-frame_surf.get_width()/2, 0))
+                frame_surf = pygame.transform.scale(self.frame_surf, (int(self.frame_height / self.aspect_ratio2), self.frame_height))
+                self._aspect_surf.blit(frame_surf, (self.frame_width / 2 - frame_surf.get_width() / 2, 0))
                 return self._aspect_surf
         else:
             return pygame.transform.scale(self.frame_surf, (self.frame_width, self.frame_height))

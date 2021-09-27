@@ -49,6 +49,13 @@ class RoutineButton:
             thread = threading.Thread(target=self._exec, args=(self, self.data['eval']))
             thread.start()
             self.request_thread = thread
+        elif self.type == "toggle":
+            if self.data['current_state']:
+                self.data['current_state'] = False
+                return self.data['requests'][1]
+            else:
+                self.data['current_state'] = True
+                return self.data['requests'][0]
 
     def _exec(self, thread, code):
         try:
@@ -266,6 +273,7 @@ class AlexaIntegration:
                     #     test_button.color = [255, 0, 0]
                 test_button.run = False
                 self.queued_routine = False
+                self.open_since = time.time()
 
         for routine in self.routines:
             for button in routine.action_buttons:

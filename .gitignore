@@ -1,6 +1,8 @@
 /APIKey.json
-/copy.bat
+/update.bat
 /venv/
 /weatherLogs.txt
 /modules/Caches/
 /WeatherServer/clientAuth.json
+/update_commands.command
+

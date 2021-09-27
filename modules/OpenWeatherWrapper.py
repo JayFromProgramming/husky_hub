@@ -119,3 +119,16 @@ class OpenWeatherWrapper:
         if 22.5 >= offset(315) >= -22.5:
             return "↖"
         return ""
+
+    @staticmethod
+    def uvi_scale(uvi):
+        if uvi < 3:
+            return "Low"
+        elif uvi < 6:
+            return "Moderate"
+        elif uvi < 8:
+            return "High"
+        elif uvi < 11:
+            return "Very High"
+        else:
+            return "Extreme"

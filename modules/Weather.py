@@ -1,4 +1,3 @@
-import io
 import os
 import statistics
 import time
@@ -17,13 +16,11 @@ from WeatherAlert import WeatherAlert
 
 import pygame
 from pygame.locals import *
-from urllib.request import urlopen
 import logging as log
 
 py = os.getcwd() != r"C:\Users\Aidan\PycharmProjects\raspberryPiWeather\modules"
 
 if py:
-    # os.system("export DISPLAY=:0")
     os.chdir("/home/pi/Downloads/modules")
     log.basicConfig(filename="../weatherLogs.txt",
                     level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
@@ -60,6 +57,7 @@ pallet_three = (255, 255, 255)
 pallet_four = (0, 0, 0)
 
 refresh_forecast = True
+focused_forecast = None
 screen_dimmed = False
 no_mouse = False
 overheat_halt = False
@@ -110,7 +108,7 @@ sys.excepthook = uncaught
 
 def update(dt):
     global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, weather_alert_display
-    global weather_alert_number, slot_position
+    global weather_alert_number, slot_position, focused_forecast
     # Go through events that are passed to the script by the window.
     if room_control.queued_routine:
         room_control.run_queued()
@@ -141,6 +139,10 @@ def update(dt):
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.one_call.alerts
+            if focused_forecast:
+                focused_forecast = None
+                forecast = []
+                refresh_forecast = True
             # checks if mouse position is over the button
             if display_mode == "init":
                 pass  # Don't do anything
@@ -215,6 +217,8 @@ def update(dt):
                         loading_hour = selected_loading_hour
                         forecast = []
                         refresh_forecast = True
+                for hour in forecast:
+                    hour.check_click(mouse_pos)
 
             elif display_mode == "room_control":
                 response = room_control.check_click(mouse_pos)
@@ -250,8 +254,19 @@ def build_forecast(screen, start_location):
 
 def draw_forecast(screen):
     """Draw forecast"""
-    for hour in forecast:
-        hour.draw(screen)
+    global focused_forecast, forecast, refresh_forecast
+    if not focused_forecast:
+        for hour in forecast:
+            if hour.focused:
+                focused_forecast = hour
+            hour.draw(screen)
+    else:
+        if focused_forecast.focused:
+            focused_forecast.draw(screen)
+        else:
+            focused_forecast = None
+            forecast = []
+            refresh_forecast = True
 
 
 def draw(screen, dt):
@@ -268,14 +283,14 @@ def draw(screen, dt):
 
     total = psutil.virtual_memory()[0]
     avail = psutil.virtual_memory()[1]
-    # cpu_averages.append()
-    # if len(cpu_averages) > 30:
-    #     cpu_averages.pop(0)
-    # cpu_average = statistics.mean(cpu_averages)
+    cpu_averages.append(psutil.cpu_percent())
+    if len(cpu_averages) > 30:
+        cpu_averages.pop(0)
+    cpu_average = statistics.mean(cpu_averages)
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
     sys_info = sys_info_font.render(
-        f"CPU: {str(round(psutil.cpu_percent(), 2)).zfill(4)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
+        f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
         + (f", Temp {temp}°C" if py else "") + f", {dt}FPS", True,
         pallet_one)
     screen.blit(sys_info, (sys_info.get_rect(midtop=(400, 445))))

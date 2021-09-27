@@ -63,47 +63,21 @@
     "actions": {
       "Bed_fan": {
         "name": "Fan",
-        "name_2": "Less",
-        "sub_menus": [
-          {
-            "name": "Bed Fan",
-            "actions": {
-              "0": {
-                "name": "Off",
-                "request": "bed-fan-off",
-                "type": "action"
-              },
-              "1": {
-                "name": "On",
-                "request": "bed-fan-on",
-                "type": "action"
-              }
-            }
-          }
+        "requests": [
+          "bed-fan-on",
+          "bed-fan-off"
         ],
-        "type": "SubMenu"
+        "current_state": false,
+        "type": "toggle"
       },
       "Bed_lamp": {
         "name": "Lamp",
-        "name_2": "Less",
-        "sub_menus": [
-          {
-            "name": "Bed Lamp",
-            "actions": {
-              "0": {
-                "name": "Off",
-                "request": "bed-lamp-off",
-                "type": "action"
-              },
-              "1": {
-                "name": "On",
-                "request": "bedlampon",
-                "type": "action"
-              }
-            }
-          }
+        "requests":[
+          "bedlampon",
+          "bed-lamp-off"
         ],
-        "type": "SubMenu"
+        "current_state": false,
+        "type": "toggle"
       },
       "Bed_LED": {
         "name": "Lights",
@@ -129,7 +103,7 @@
               },
               "3": {
                 "name": "High",
-                "request": "bed-lights-high",
+                "request": "bed-lights-full",
                 "type": "action"
               }
             }
@@ -139,22 +113,22 @@
             "actions": {
               "0": {
                 "name": "Red",
-                "request": "",
+                "request": "bed-lights-red",
                 "type": "action"
               },
               "1": {
                 "name": "Green",
-                "request": "",
+                "request": "bed-lights-green",
                 "type": "action"
               },
               "2": {
                 "name": "Blue",
-                "request": "",
+                "request": "bed-lights-blue",
                 "type": "action"
               },
               "3": {
                 "name": "White",
-                "request": "",
+                "request": "bed-lights-white",
                 "type": "action"
               }
             }
@@ -170,7 +144,7 @@
     "actions": {
       "Normal": {
         "name": "Normal",
-        "request": "standard",
+        "request": "normal",
         "type": "action"
       },
       "Night": {
