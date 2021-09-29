@@ -4,8 +4,8 @@ import json
 import math
 import os
 import socket
+import threading
 import urllib.error
-from concurrent import futures
 
 import pygame
 import time
@@ -45,6 +45,7 @@ class CampusCams:
         self.steaming_enabled = live_mode_enable
         self.requested_fps = 30
         self.stream_cooldown_timer = 0
+        self.active_requests = []
 
     def cycle(self, amount):
         self.page += amount
@@ -73,67 +74,86 @@ class CampusCams:
         # self.buffers = [self.no_image, self.no_image, self.no_image, self.no_image]
         if cam_id is not None and time.time() > self.stream_cooldown_timer + 10:
             try:
-                self.create_stream(self.cameras[self.page][cam_id])
-                self.log.debug(f"Created Stream/Focus for cam {cam_id}")
+                thread = threading.Thread(target=self.create_stream, args=(self, self.cameras[self.page][cam_id]))
+                thread.start()
+                self.log.info(f"Created Stream/Focus for cam {cam_id}")
             except Exception as e:
                 self.log.error(f"Attempted to create stream for cam {cam_id}, failed because ({e})")
                 self.stream = None
             self.buffers[self.page][cam_id] = pygame.transform.scale(self.buffers[self.page][cam_id], (800, 440))
         self.update()
 
-    def create_stream(self, camera):
-        if self.steaming_enabled:
-            from Pygamevideo import Video
-            cam_id, url, stream_url = camera
-            self.stream = Video(stream_url)
-            self.stream.play()
-
-    def load_frame(self, camera):
-        """Load image from internet"""
+    def create_stream(self, ob, camera):
         cam_id, url, stream_url = camera
         try:
-            image_str = urlopen(url, timeout=2).read()
+            if self.steaming_enabled:
+                from Pygamevideo import Video
+                self.stream = Video(stream_url)
+                self.stream.play()
+        except Exception as e:
+            self.log.error(f"Attempted to create stream for cam {cam_id}, failed because ({e})")
+
+    # def get_exif(self, url):
+    #     image_str = urlopen("https://webcams.mtu.edu/webcam21/webcam21.jpg", timeout=0.25).read()
+    #     f = open(os.path.join(sanitize_filename.sanitize(f"Caches/Webcam_cache/{url}")), "wb")
+    #     f.write(image_str)
+    #     f.close()
+    #     print(Image.open(os.path.join(sanitize_filename.sanitize(f"Caches/Webcam_cache/{url}")))._getexif()[36867])
+
+    def load_frame(self, ob, camera, select_buffer=None):
+        """Load image from internet"""
+        cam_id, url, stream_url = camera
+        if select_buffer:
+            page = select_buffer
+        else:
+            page = self.page
+        try:
+            image_str = urlopen(url, timeout=10).read()
             image_file = io.BytesIO(image_str)
             raw_frame = pygame.image.load(image_file)
+            # self.get_exif(url)
             if self.current_focus is None:
-                self.buffers[self.page][cam_id] = pygame.transform.scale(raw_frame, (400, 220))
-                self.overlay_buffers[self.page][cam_id] = self.empty_image
-                self.log.debug(f"Cam {cam_id}: Updated")
+                self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (400, 220))
+                self.overlay_buffers[page][cam_id] = self.empty_image
+                self.log.debug(f"Cam {page}-{cam_id}: Updated")
             elif self.current_focus == cam_id:
-                self.buffers[self.page][cam_id] = pygame.transform.scale(raw_frame, (800, 440))
-                self.overlay_buffers[self.page][cam_id] = self.empty_image
-                self.log.debug(f"Cam {cam_id}: Updated and focused")
+                self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (800, 440))
+                self.overlay_buffers[page][cam_id] = self.empty_image
+                self.log.debug(f"Cam {page}-{cam_id}: Updated and focused")
         except http.client.IncompleteRead:
-            self.overlay_buffers[self.page][cam_id] = self.no_image
-            self.log.info(f"Cam {cam_id}: Incomplete read")
+            self.overlay_buffers[page][cam_id] = self.no_image
+            self.log.info(f"Cam {page}-{cam_id}: Incomplete read")
         except urllib.error.URLError as e:
-            self.overlay_buffers[self.page][cam_id] = self.no_image
-            self.log.info(f"Cam {cam_id}: URLError ({e})")
+            self.overlay_buffers[page][cam_id] = self.no_image
+            self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
         except socket.timeout:
-            self.overlay_buffers[self.page][cam_id] = self.no_image
-            self.log.info(f"Cam {cam_id}: Timeout")
+            self.overlay_buffers[page][cam_id] = self.no_image
+            self.log.info(f"Cam {page}-{cam_id}: Timeout")
+        except Exception as e:
+            print(f"Cam {page}-{cam_id}: {e}")
 
     def update(self):
         if self.last_update == 0:
             self.last_update = time.time() - self.update_rate
         elif self.last_update < time.time() - self.update_rate:
             self.log.debug("Queueing camera updates")
-            with futures.ThreadPoolExecutor(max_workers=4) as executor:
-                var = {executor.submit(self.load_frame, camera): camera for camera in self.cameras[self.page]}
-                self.log.debug("Cameras updates queued")
+            for camera in self.cameras[self.page]:
+                thread = threading.Thread(target=self.load_frame, args=(self, camera))
+                thread.start()
+                self.active_requests.append(thread)
+            self.log.debug("Cameras updates queued")
             self.last_update = time.time()
 
     def update_all(self):
-        self.log.debug("Queueing camera updates")
-        with futures.ThreadPoolExecutor(max_workers=4) as executor:
-            var = {executor.submit(self.load_frame, camera): camera for camera in self.cameras[self.page]}
-            self.log.debug("Cameras updates queued")
-        self.page += 1
-        if self.page > 3:
-            self.page = 0
-            return True
-        else:
-            return False
+        self.log.debug("Updating all camera thumbnails")
+        page_num = 0
+        for page in self.cameras:
+            for camera in page:
+                thread = threading.Thread(target=self.load_frame, args=(self, camera, page_num))
+                thread.start()
+                self.active_requests.append(thread)
+            page_num += 1
+        return True
 
     def draw_buttons(self, screen):
         """"""
@@ -148,6 +168,11 @@ class CampusCams:
 
     def draw(self, screen):
         """Draw all buffered frames to the screen"""
+
+        for thread in self.active_requests:
+            if not thread.is_alive():
+                thread.join()
+                del thread
 
         if self.current_focus is None:
             screen.blit(self.buffers[self.page][0], (0, 0))
@@ -166,6 +191,6 @@ class CampusCams:
                     self.stream.set_width(800)
                     self.stream.set_height(440)
                     self.stream.draw_to(screen, (0, 0))
-                    self.requested_fps = 30
-            except Exception:
+            except Exception as e:
                 self.focus(None)
+                self.log.error(f"Stream error: {e}")

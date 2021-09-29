@@ -46,7 +46,7 @@
     [
         [
             0,
-            "https://webcams.mtu.edu/webcam30/webcam30.jpg",
+            "https://webcams.mtu.edu/webcam30/webcam30.jpg-error",
             "https://streamingwebcams.mtu.edu:1935/rtplive/camera30.stream/playlist.m3u8"
         ],
         [
@@ -83,7 +83,7 @@
         ],
         [
             3,
-            "https://www.mtu.edu/mtu_resources/images/download-central/logos/full-horizontal/gold.png",
+            "https://wttr.in/Houghton_0nFQ.png",
             ""
         ]
     ]

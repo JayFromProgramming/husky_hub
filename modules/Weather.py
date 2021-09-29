@@ -81,7 +81,6 @@ webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), not py)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
-# radar = RadarViewer.Radar(log, weatherAPI)
 
 display_mode = "init"
 room_button = pygame.Rect(120, 450, 100, 40)
@@ -385,7 +384,7 @@ def draw(screen, dt):
         pygame.draw.rect(screen, [255, 206, 0], room_button)
         screen.blit(room_button_render, room_button_render.get_rect(midbottom=room_button.center))
     elif display_mode == "webcams":
-        pygame.display.set_caption("Campus Webcams")
+        pygame.display.set_caption(f"Campus Webcams {webcams.page + 1}/{len(webcams.cameras)}")
         webcams.draw(screen)
         webcams.update()
         pygame.draw.rect(screen, [255, 206, 0], home_button)
