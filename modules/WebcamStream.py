@@ -64,14 +64,13 @@ class CampusCams:
             if self.stream is not None:
                 self.stream.release()
                 self.stream.stop()
+                del self.stream
             self.stream = None
             self.buffers[self.page][self.current_focus] = pygame.transform.scale(self.buffers[self.page][self.current_focus], (400, 220))
-            # self.stream_cooldown_timer = time.time()
-            self.log.debug("Closed Stream/Focus")
+            self.log.info("Closed Stream/Focus")
         self.requested_fps = 30
         self.current_focus = cam_id
         self.last_update = time.time() - self.update_rate + 1
-        # self.buffers = [self.no_image, self.no_image, self.no_image, self.no_image]
         if cam_id is not None and time.time() > self.stream_cooldown_timer + 10:
             try:
                 thread = threading.Thread(target=self.create_stream, args=(self, self.cameras[self.page][cam_id]))
@@ -86,19 +85,14 @@ class CampusCams:
     def create_stream(self, ob, camera):
         cam_id, url, stream_url = camera
         try:
-            if self.steaming_enabled:
-                from Pygamevideo import Video
-                self.stream = Video(stream_url)
-                self.stream.play()
+            from Pygamevideo import Video
+            self.stream = Video(stream_url)
+            self.stream.set_width(800)
+            self.stream.set_height(440)
+            self.stream.play()
         except Exception as e:
             self.log.error(f"Attempted to create stream for cam {cam_id}, failed because ({e})")
-
-    # def get_exif(self, url):
-    #     image_str = urlopen("https://webcams.mtu.edu/webcam21/webcam21.jpg", timeout=0.25).read()
-    #     f = open(os.path.join(sanitize_filename.sanitize(f"Caches/Webcam_cache/{url}")), "wb")
-    #     f.write(image_str)
-    #     f.close()
-    #     print(Image.open(os.path.join(sanitize_filename.sanitize(f"Caches/Webcam_cache/{url}")))._getexif()[36867])
+            self.overlay_buffers[self.page][0] = self.no_image
 
     def load_frame(self, ob, camera, select_buffer=None):
         """Load image from internet"""
@@ -118,7 +112,7 @@ class CampusCams:
                 self.log.debug(f"Cam {page}-{cam_id}: Updated")
             elif self.current_focus == cam_id:
                 self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (800, 440))
-                self.overlay_buffers[page][cam_id] = self.empty_image
+                # self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated and focused")
         except http.client.IncompleteRead:
             self.overlay_buffers[page][cam_id] = self.no_image
@@ -188,9 +182,8 @@ class CampusCams:
             screen.blit(self.buffers[self.page][self.current_focus], (0, 0))
             try:
                 if self.stream is not None:
-                    self.stream.set_width(800)
-                    self.stream.set_height(440)
-                    self.stream.draw_to(screen, (0, 0))
+                    self.stream.draw_to(screen, (0, 0), anti_alias=self.steaming_enabled)
             except Exception as e:
                 self.focus(None)
                 self.log.error(f"Stream error: {e}")
+            screen.blit(self.overlay_buffers[self.page][0], (0, 0))

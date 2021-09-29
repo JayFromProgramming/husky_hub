@@ -77,7 +77,7 @@ last_current_update = 0
 failed_current_updates = 0
 
 weatherAPI = Api.OpenWeatherWrapper(log)
-webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), not py)
+webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), py)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
@@ -296,18 +296,6 @@ def draw(screen, dt):
 
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
 
-    if alert:
-        screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))
-    if room_control.raincheck:
-        screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
-    if py and temp > 70:
-        screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))
-    if no_mouse:
-        if alert:
-            screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))
-        else:
-            screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 2)))
-
     room_button_render = button_font.render(room_button_text, True, pallet_four)
     webcam_button_render = button_font.render(webcam_button_text, True, pallet_four)
     home_button_render = button_font.render(home_button_text, True, pallet_four)
@@ -406,6 +394,25 @@ def draw(screen, dt):
         pygame.draw.rect(screen, [255, 206, 0], home_button)
         webcams.draw_buttons(screen)
 
+    if alert:
+        screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))
+    if room_control.raincheck:
+        screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
+    if (py and temp > 70) or overheat_halt:
+        if display_mode == "webcams" and temp > 70:
+            webcams.focus(None)
+        screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))
+        overheat_halt = True
+        fps = 7
+        if temp < 60:
+            overheat_halt = False
+            fps = 14
+    if no_mouse:
+        if alert:
+            screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))
+        else:
+            screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 2)))
+
     # Flip the display so that the things we drew actually show up.
     pygame.display.flip()
 
@@ -431,7 +438,7 @@ def run():
             no_mouse = True
         pygame.display.get_wm_info()
     else:
-        screen = pygame.display.set_mode((width, height))
+        screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF)
         pygame.display.set_caption("Initializing...")
         pygame.display.set_icon(icon)
         pygame.display.get_wm_info()

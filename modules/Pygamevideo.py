@@ -92,9 +92,18 @@ class Video:
         self.is_muted = False
 
         self.vidcap = cv2.VideoCapture(self.filepath)
+
+        # self.vidcap.set(cv2.CAP_PROP_FPS, 1)
+
         self.ff = MediaPlayer(self.filepath)
 
         self.fps = self.vidcap.get(cv2.CAP_PROP_FPS)
+
+        # self.vidcap.set(cv2.CAP_PROP_FPS, 30)
+
+        # self.fps = 1
+
+        self._last_frame_time = time.time()
 
         self.total_frames = int(self.vidcap.get(cv2.CAP_PROP_FRAME_COUNT))
 
@@ -106,7 +115,7 @@ class Video:
         self.keep_aspect_ratio = False
 
         self.frame_surf = pygame.Surface((self.frame_width, self.frame_height))
-        self._aspect_surf = pygame.Surface((self.frame_width, self.frame_height))
+        # self._aspect_surf = pygame.Surface((self.frame_width, self.frame_height))
 
         self.is_ready = True
 
@@ -238,51 +247,55 @@ class Video:
 
     def set_size(self, size):
         self.frame_width, self.frame_height = size
-        self._aspect_surf = pygame.transform.scale(self._aspect_surf, (self.frame_width, self.frame_height))
+        # self._aspect_surf = pygame.transform.scale(self._aspect_surf, (self.frame_width, self.frame_height))
 
         if not (self.frame_width > 0 and self.frame_height > 0):
             raise ValueError(f"Size must be positive")
 
     def set_width(self, width):
         self.frame_width = width
-        self._aspect_surf = pygame.transform.scale(self._aspect_surf, (self.frame_width, self.frame_height))
+        self.frame_surf = pygame.Surface((width, self.frame_height))
+        # self._aspect_surf = pygame.transform.scale(self._aspect_surf, (self.frame_width, self.frame_height))
 
         if self.frame_width <= 0:
             raise ValueError(f"Width must be positive")
 
     def set_height(self, height):
         self.frame_height = height
-        self._aspect_surf = pygame.transform.scale(self._aspect_surf, (self.frame_width, self.frame_height))
+        self.frame_surf = pygame.Surface((self.frame_width, height))
+        # self._aspect_surf = pygame.transform.scale(self._aspect_surf, (self.frame_width, self.frame_height))
 
         if self.frame_height <= 0:
             raise ValueError(f"Height must be positive")
 
     # Process & draw video
 
-    def _scaled_frame(self):
-        if self.keep_aspect_ratio:
-            if self.frame_width < self.frame_height:
-                self._aspect_surf.fill((0, 0, 0))
-                frame_surf = pygame.transform.scale(self.frame_surf, (self.frame_width, int(self.frame_width / self.aspect_ratio)))
-                self._aspect_surf.blit(frame_surf, (0, self.frame_height / 2 - frame_surf.get_height() / 2))
-                return self._aspect_surf
+    # def _scaled_frame(self):
+    #     if self.keep_aspect_ratio:
+    #         if self.frame_width < self.frame_height:
+    #             self._aspect_surf.fill((0, 0, 0))
+    #             frame_surf = pygame.transform.scale(self.frame_surf, (self.frame_width, int(self.frame_width / self.aspect_ratio)))
+    #             self._aspect_surf.blit(frame_surf, (0, self.frame_height / 2 - frame_surf.get_height() / 2))
+    #             return self._aspect_surf
+    #
+    #         else:
+    #             self._aspect_surf.fill((0, 0, 0))
+    #             frame_surf = pygame.transform.scale(self.frame_surf, (int(self.frame_height / self.aspect_ratio2), self.frame_height))
+    #             self._aspect_surf.blit(frame_surf, (self.frame_width / 2 - frame_surf.get_width() / 2, 0))
+    #             return self._aspect_surf
+    #     else:
+    #         return pygame.transform.scale(self.frame_surf, (self.frame_width, self.frame_height))
 
-            else:
-                self._aspect_surf.fill((0, 0, 0))
-                frame_surf = pygame.transform.scale(self.frame_surf, (int(self.frame_height / self.aspect_ratio2), self.frame_height))
-                self._aspect_surf.blit(frame_surf, (self.frame_width / 2 - frame_surf.get_width() / 2, 0))
-                return self._aspect_surf
-        else:
-            return pygame.transform.scale(self.frame_surf, (self.frame_width, self.frame_height))
-
-    def get_frame(self):
+    def update_frame(self, anti_alias=False):
         if not self.is_playing:
-            return self._scaled_frame()
+            return
+            # return self.frame_surf
 
         elapsed_frames = int((time.time() - self.start_time) * self.fps)
 
         if self.draw_frame >= elapsed_frames:
-            return self._scaled_frame()
+            # return self.frame_surf
+            return
 
         else:
             target_frames = elapsed_frames - self.draw_frame
@@ -291,8 +304,15 @@ class Video:
             if not self.is_paused:
                 for _ in range(target_frames):
                     success, frame = self.vidcap.read()
-                    audio_frame, val = self.ff.get_frame()
+                    if anti_alias: frame = cv2.resize(frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_AREA)
+                    if not anti_alias: frame = cv2.resize(frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_NEAREST)
+                    # # frame = cv2.bitwise_not(frame)
+                    # frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_COUNTERCLOCKWISE)
+                    # frame = cv2.flip(frame, 0)
 
+                    audio_frame, val = self.ff.get_frame()
+                    if frame[::-1] is None:
+                        print("No frame")
                     if not success:
                         if self.is_looped:
                             self.restart()
@@ -300,12 +320,13 @@ class Video:
                         else:
                             self.stop()
                             return
-
                 pygame.pixelcopy.array_to_surface(self.frame_surf, numpy.flip(numpy.rot90(frame[::-1])))
+                # pygame.pixelcopy.array_to_surface(self.frame_surf, frame)
 
-            return self._scaled_frame()
+            # return self._scaled_frame()
+            return self.frame_surf
 
-    def draw_to(self, surface, pos):
-        frame = self.get_frame()
+    def draw_to(self, surface, pos, anti_alias=False):
+        self.update_frame(anti_alias)
 
-        surface.blit(frame, pos)
+        surface.blit(self.frame_surf, pos)
