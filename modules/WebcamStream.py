@@ -84,9 +84,9 @@ class CampusCams:
             try:
                 thread = threading.Thread(target=self.create_stream, args=(self, self.cameras[self.page][cam_id]))
                 thread.start()
-                self.log.info(f"Created Stream/Focus for cam {cam_id}")
+                self.log.info(f"Created Stream/Focus for cam {self.page}-{cam_id}")
             except Exception as e:
-                self.log.error(f"Attempted to create stream for cam {cam_id}, failed because ({e})")
+                self.log.error(f"Attempted to create stream for cam {self.page}-{cam_id}, failed because ({e})")
                 self.stream = None
             self.buffers[self.page][cam_id] = pygame.transform.scale(self.buffers[self.page][cam_id], (800, 440))
         self.update()

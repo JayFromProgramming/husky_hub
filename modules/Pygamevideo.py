@@ -291,7 +291,7 @@ class Video:
                     if target_frames > 7: target_frames = 7
                     for _ in range(target_frames):
                         success, self._frame = self.vidcap.read()
-                        # time.sleep(1 / (self.fps * 1.5))
+                        # time.sleep(1 / (self.fps * 1.6))
 
                 if anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_AREA)
                 if not anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_NEAREST)
