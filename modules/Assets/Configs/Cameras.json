@@ -3,88 +3,104 @@
         [
             0,
             "https://webcams.mtu.edu/webcam11/webcam11.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera011.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera011.stream/playlist.m3u8",
+            "Lift Bridge"
         ],
         [
             1,
             "https://webcams.mtu.edu/webcam31/webcam31.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera031.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera031.stream/playlist.m3u8",
+            "Walker Lawn"
         ],
         [
             2,
             "https://webcams.mtu.edu/webcam16/webcam16.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera016.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera016.stream/playlist.m3u8",
+            "Campus Aerial"
         ],
         [
             3,
             "https://webcams.mtu.edu/images/webcam26.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera26.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera26.stream/playlist.m3u8",
+            "Husky Plaza"
         ]
     ],
     [
         [
             0,
             "https://webcams.mtu.edu/webcam7/webcam7.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera007.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera007.stream/playlist.m3u8",
+            "Mid Campus"
         ],
         [
             1,
             "https://webcams.mtu.edu/webcam25/webcam25.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera25.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera25.stream/playlist.m3u8",
+            "Clock Tower"
         ],
         [
             2,
             "https://webcams.mtu.edu/webcam15/webcam15.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera015.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera015.stream/playlist.m3u8",
+            "College Av"
         ],
         [
             3,
             "https://webcams.mtu.edu/webcam4/webcam4.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera004.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera004.stream/playlist.m3u8",
+            "SDC"
         ]
     ],
     [
         [
             0,
-            "https://webcams.mtu.edu/webcam30/webcam30.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera30.stream/playlist.m3u8"
+            "https://webcams.mtu.edu/webcam30/webcam30.jpg-f",
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera30.stream/playlist.m3u8",
+            "Offline"
         ],
         [
             1,
             "https://webcams.mtu.edu/webcam21/webcam21.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera21.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera21.stream/playlist.m3u8",
+            "Mt. Ripley"
         ],
         [
             2,
             "https://webcams.mtu.edu/images/webcam29.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera29.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera29.stream/playlist.m3u8",
+            "West Water"
         ],
         [
             3,
             "https://webcams.mtu.edu/images/webcam28.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera028.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera028.stream/playlist.m3u8",
+            "East Water"
         ]
     ],
     [
         [
             0,
             "https://webcams.mtu.edu/webcam14/webcam14.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera014.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera014.stream/playlist.m3u8",
+            "Trails 1"
         ],
         [
             1,
             "https://webcams.mtu.edu/webcam13/webcam13.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera013.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera013.stream/playlist.m3u8",
+            "Trails 2"
         ],
         [
             2,
             "https://webcams.mtu.edu/webcam36/webcam36.jpg",
-            "https://streamingwebcams.mtu.edu:1935/rtplive/camera036.stream/playlist.m3u8"
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera036.stream/playlist.m3u8",
+            "Falcon Cam"
         ],
         [
             3,
             "https://wttr.in/Houghton_0nFQ.png",
-            ""
+            "",
+            "Wttr"
         ]
     ]
 ]

@@ -13,9 +13,15 @@ import io
 from urllib.request import urlopen
 
 camera_path = "Assets/Configs/Cameras.json"
+pallet_one = (255, 206, 0)
+pallet_two = (255, 255, 255)
+pallet_three = (0, 0, 0)
 
 
 class CampusCams:
+
+    def text(self, text):
+        return self.text_font.render(text, True, pallet_two, pallet_three)
 
     def __init__(self, logs, static_images, live_mode_enable):
         if os.path.exists(camera_path):
@@ -24,11 +30,14 @@ class CampusCams:
         else:
             raise FileNotFoundError("No Camera Config")
         self.no_image, self.husky, self.empty_image = static_images
+        self.text_font = pygame.font.SysFont('consolas', 12)
         self.buffers = []
         self.overlay_buffers = []
+        self.name_buffer = []
         for x in range(len(self.cameras)):
             self.buffers.append([self.husky, self.husky, self.husky, self.husky])
             self.overlay_buffers.append([self.empty_image, self.empty_image, self.empty_image, self.empty_image])
+            self.name_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
         self.page = 0
         self.current_focus = None
         self.last_update = 0
@@ -83,7 +92,7 @@ class CampusCams:
         self.update()
 
     def create_stream(self, ob, camera):
-        cam_id, url, stream_url = camera
+        cam_id, url, stream_url, name = camera
         try:
             from Pygamevideo import Video
             self.stream = Video(stream_url)
@@ -96,11 +105,13 @@ class CampusCams:
 
     def load_frame(self, ob, camera, select_buffer=None):
         """Load image from internet"""
-        cam_id, url, stream_url = camera
+        cam_id, url, stream_url, name = camera
         if select_buffer:
             page = select_buffer
         else:
             page = self.page
+
+        self.name_buffer[page][cam_id] = self.text(name)
         try:
             image_str = urlopen(url, timeout=10).read()
             image_file = io.BytesIO(image_str)
@@ -178,6 +189,11 @@ class CampusCams:
             screen.blit(self.overlay_buffers[self.page][1], (400, 0))
             screen.blit(self.overlay_buffers[self.page][2], (0, 220))
             screen.blit(self.overlay_buffers[self.page][3], (400, 220))
+
+            screen.blit(self.name_buffer[self.page][0], self.name_buffer[self.page][0].get_rect(midtop=(200, 0)))
+            screen.blit(self.name_buffer[self.page][1], self.name_buffer[self.page][1].get_rect(midtop=(600, 0)))
+            screen.blit(self.name_buffer[self.page][2], self.name_buffer[self.page][2].get_rect(midtop=(200, 220)))
+            screen.blit(self.name_buffer[self.page][3], self.name_buffer[self.page][3].get_rect(midtop=(600, 220)))
         else:
             screen.blit(self.buffers[self.page][self.current_focus], (0, 0))
             try:

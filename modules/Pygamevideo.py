@@ -1,14 +1,14 @@
 #                  Pygame Video Player                #
 #                LGPL 3.0 - Kadir Aksoy               #
 #       https://github.com/kadir014/pygamevideo       #
-
-
+import threading
 import time
 import os
 import pygame
 import numpy
 import cv2
 from ffpyplayer.player import MediaPlayer
+import warnings
 
 __version__ = "1.0.0"
 
@@ -66,6 +66,10 @@ class Time:
 
 class Video:
     def __init__(self, filepath):
+        self._frame = None
+        self.draw_frame = 0
+        self.last_segment = time.time()
+        self.last_process_amount = 0
         self.is_ready = False
         self.load(filepath)
 
@@ -74,8 +78,6 @@ class Video:
 
     def load(self, filepath):
         filepath = str(filepath)
-
-        # raise FileNotFoundError(f"No such file or directory: '{filepath}'")
 
         self.filepath = filepath
 
@@ -93,15 +95,9 @@ class Video:
 
         self.vidcap = cv2.VideoCapture(self.filepath)
 
-        # self.vidcap.set(cv2.CAP_PROP_FPS, 1)
-
         self.ff = MediaPlayer(self.filepath)
 
         self.fps = self.vidcap.get(cv2.CAP_PROP_FPS)
-
-        # self.vidcap.set(cv2.CAP_PROP_FPS, 30)
-
-        # self.fps = 1
 
         self._last_frame_time = time.time()
 
@@ -110,14 +106,13 @@ class Video:
         self.frame_width = int(self.vidcap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.frame_height = int(self.vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-        self.aspect_ratio = self.frame_width / self.frame_height
-        self.aspect_ratio2 = self.frame_height / self.frame_width
         self.keep_aspect_ratio = False
 
         self.frame_surf = pygame.Surface((self.frame_width, self.frame_height))
-        # self._aspect_surf = pygame.Surface((self.frame_width, self.frame_height))
 
         self.is_ready = True
+
+        self._frame = None
 
     def release(self):
         self.vidcap.release()
@@ -204,10 +199,6 @@ class Video:
     def current_frame(self):
         return self.vidcap.get(cv2.CAP_PROP_POS_FRAMES)
 
-    @property
-    def remaining_frames(self):
-        return self.frame_count - self.current_frame
-
     def seek_time(self, t):
         if isinstance(t, Time):
             _t = t.to_millisecond()
@@ -270,22 +261,6 @@ class Video:
 
     # Process & draw video
 
-    # def _scaled_frame(self):
-    #     if self.keep_aspect_ratio:
-    #         if self.frame_width < self.frame_height:
-    #             self._aspect_surf.fill((0, 0, 0))
-    #             frame_surf = pygame.transform.scale(self.frame_surf, (self.frame_width, int(self.frame_width / self.aspect_ratio)))
-    #             self._aspect_surf.blit(frame_surf, (0, self.frame_height / 2 - frame_surf.get_height() / 2))
-    #             return self._aspect_surf
-    #
-    #         else:
-    #             self._aspect_surf.fill((0, 0, 0))
-    #             frame_surf = pygame.transform.scale(self.frame_surf, (int(self.frame_height / self.aspect_ratio2), self.frame_height))
-    #             self._aspect_surf.blit(frame_surf, (self.frame_width / 2 - frame_surf.get_width() / 2, 0))
-    #             return self._aspect_surf
-    #     else:
-    #         return pygame.transform.scale(self.frame_surf, (self.frame_width, self.frame_height))
-
     def update_frame(self, anti_alias=False):
         if not self.is_playing:
             return
@@ -293,40 +268,50 @@ class Video:
 
         elapsed_frames = int((time.time() - self.start_time) * self.fps)
 
+        # elapsed_frames = self.vidcap.get(cv2.CAP_PROP_POS_FRAMES)
+
         if self.draw_frame >= elapsed_frames:
             # return self.frame_surf
             return
 
         else:
-            target_frames = elapsed_frames - self.draw_frame
-            self.draw_frame += target_frames
+            target_frames = elapsed_frames - (int(self.vidcap.get(cv2.CAP_PROP_POS_FRAMES)) + self.draw_frame + self.last_process_amount)
+            # self.draw_frame += target_frames
+
+            time_difference = round(self.vidcap.get(cv2.CAP_PROP_POS_MSEC) / 1000 - elapsed_frames / self.fps, 2)
 
             if not self.is_paused:
-                for _ in range(target_frames):
-                    success, frame = self.vidcap.read()
-                    if anti_alias: frame = cv2.resize(frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_AREA)
-                    if not anti_alias: frame = cv2.resize(frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_NEAREST)
-                    # # frame = cv2.bitwise_not(frame)
-                    # frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_COUNTERCLOCKWISE)
-                    # frame = cv2.flip(frame, 0)
+                # print(f"\n\nShould have elapsed: {elapsed_frames}"
+                #       f"\nAmount to process: {target_frames}"
+                #       f"\nCalculated elapsed: {(int(self.vidcap.get(cv2.CAP_PROP_POS_FRAMES)) + self.draw_frame)}"
+                #       f"\nActually elapsed: {self.vidcap.get(cv2.CAP_PROP_POS_FRAMES)}"
+                #       f"\nFrame time: {round(self.vidcap.get(cv2.CAP_PROP_POS_MSEC) / 1000)}"
+                #       f"\nDisplay Time: {round(elapsed_frames / self.fps)}"
+                #       f"\nTime difference: {time_difference}"
+                #       f"\nPast Elapsed: {self.draw_frame}")
+                # In the event that we have fallen behind in processing the stream skip to the next Iframe
+                if self.last_segment < time.time() - 5.9 and time_difference < 0 and target_frames > 7:
+                    self.draw_frame += int(self.vidcap.get(cv2.CAP_PROP_POS_FRAMES))
+                    self.last_process_amount += target_frames
+                    self.vidcap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    self.last_segment = time.time()
+                else:
+                    if target_frames > 7: target_frames = 7
+                    for _ in range(target_frames):
+                        success, self._frame = self.vidcap.read()
+                        # time.sleep(1 / (self.fps * 1.5))
 
-                    audio_frame, val = self.ff.get_frame()
-                    if frame[::-1] is None:
-                        print("No frame")
-                    if not success:
-                        if self.is_looped:
-                            self.restart()
-                            return
-                        else:
-                            self.stop()
-                            return
+                if anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_AREA)
+                if not anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_NEAREST)
+                audio_frame, val = self.ff.get_frame()
                 pygame.pixelcopy.array_to_surface(self.frame_surf, numpy.flip(numpy.rot90(frame[::-1])))
                 # pygame.pixelcopy.array_to_surface(self.frame_surf, frame)
 
             # return self._scaled_frame()
-            return self.frame_surf
+            return True
 
     def draw_to(self, surface, pos, anti_alias=False):
-        self.update_frame(anti_alias)
-
-        surface.blit(self.frame_surf, pos)
+        if self.frame_width != 0 and self.frame_height != 0:
+            result = self.update_frame(anti_alias)
+            surface.blit(self.frame_surf, pos)
+            return result

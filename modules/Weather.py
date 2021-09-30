@@ -77,7 +77,7 @@ last_current_update = 0
 failed_current_updates = 0
 
 weatherAPI = Api.OpenWeatherWrapper(log)
-webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), py)
+webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), not py)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
