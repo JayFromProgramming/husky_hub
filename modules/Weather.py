@@ -282,10 +282,14 @@ def draw(screen, dt):
 
     total = psutil.virtual_memory()[0]
     avail = psutil.virtual_memory()[1]
-    cpu_averages.append(psutil.cpu_percent())
-    if len(cpu_averages) > 30:
+    if display_mode != "webcams":
+        cpu_averages.append(psutil.cpu_percent())
+        cpu_average = statistics.mean(cpu_averages)
+    else:
+        cpu_average = psutil.cpu_percent()
+    if len(cpu_averages) > 30 and display_mode != "webcams":
         cpu_averages.pop(0)
-    cpu_average = statistics.mean(cpu_averages)
+
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
     sys_info = sys_info_font.render(
@@ -399,14 +403,15 @@ def draw(screen, dt):
     if room_control.raincheck:
         screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
     if (py and temp > 70) or overheat_halt:
-        if display_mode == "webcams" and temp > 70:
-            webcams.focus(None)
         screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))
         overheat_halt = True
         fps = 7
         if temp < 60:
             overheat_halt = False
             fps = 14
+        if display_mode == "webcams" and temp > 70:
+            # webcams.focus(None)
+            fps = 0.5
     if no_mouse:
         if alert:
             screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))

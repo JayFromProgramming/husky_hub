@@ -30,7 +30,7 @@ class CampusCams:
         else:
             raise FileNotFoundError("No Camera Config")
         self.no_image, self.husky, self.empty_image = static_images
-        self.text_font = pygame.font.SysFont('consolas', 12)
+        self.text_font = pygame.font.SysFont('couriernew', 11)
         self.buffers = []
         self.overlay_buffers = []
         self.name_buffer = []
@@ -55,6 +55,7 @@ class CampusCams:
         self.requested_fps = 30
         self.stream_cooldown_timer = 0
         self.active_requests = []
+        self.stream_info_text = self.text("Info: N/A")
 
     def cycle(self, amount):
         self.page += amount
@@ -96,12 +97,16 @@ class CampusCams:
         try:
             from Pygamevideo import Video
             self.stream = Video(stream_url)
+            self.stream_info_text = self.text(f"{self.stream.frame_height}x{self.stream.frame_width}@{round(self.stream.fps)}fps")
+            if self.stream.fps == 0:
+                raise BrokenPipeError("No Stream Data")
             self.stream.set_width(800)
             self.stream.set_height(440)
             self.stream.play()
         except Exception as e:
             self.log.error(f"Attempted to create stream for cam {cam_id}, failed because ({e})")
             self.overlay_buffers[self.page][0] = self.no_image
+            self.stream = None
 
     def load_frame(self, ob, camera, select_buffer=None):
         """Load image from internet"""
@@ -199,6 +204,7 @@ class CampusCams:
             try:
                 if self.stream is not None:
                     self.stream.draw_to(screen, (0, 0), anti_alias=self.steaming_enabled)
+                    screen.blit(self.stream_info_text, self.stream_info_text.get_rect(topright=(800, 0)))
                 else:
                     screen.blit(self.overlay_buffers[self.page][0], (0, 0))
             except Exception as e:
