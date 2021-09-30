@@ -199,7 +199,9 @@ class CampusCams:
             try:
                 if self.stream is not None:
                     self.stream.draw_to(screen, (0, 0), anti_alias=self.steaming_enabled)
+                else:
+                    screen.blit(self.overlay_buffers[self.page][0], (0, 0))
             except Exception as e:
                 self.focus(None)
                 self.log.error(f"Stream error: {e}")
-            screen.blit(self.overlay_buffers[self.page][0], (0, 0))
+

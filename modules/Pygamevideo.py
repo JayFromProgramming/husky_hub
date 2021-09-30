@@ -281,14 +281,6 @@ class Video:
             time_difference = round(self.vidcap.get(cv2.CAP_PROP_POS_MSEC) / 1000 - elapsed_frames / self.fps, 2)
 
             if not self.is_paused:
-                # print(f"\n\nShould have elapsed: {elapsed_frames}"
-                #       f"\nAmount to process: {target_frames}"
-                #       f"\nCalculated elapsed: {(int(self.vidcap.get(cv2.CAP_PROP_POS_FRAMES)) + self.draw_frame)}"
-                #       f"\nActually elapsed: {self.vidcap.get(cv2.CAP_PROP_POS_FRAMES)}"
-                #       f"\nFrame time: {round(self.vidcap.get(cv2.CAP_PROP_POS_MSEC) / 1000)}"
-                #       f"\nDisplay Time: {round(elapsed_frames / self.fps)}"
-                #       f"\nTime difference: {time_difference}"
-                #       f"\nPast Elapsed: {self.draw_frame}")
                 # In the event that we have fallen behind in processing the stream skip to the next Iframe
                 if self.last_segment < time.time() - 5.9 and time_difference < 0 and target_frames > 7:
                     self.draw_frame += int(self.vidcap.get(cv2.CAP_PROP_POS_FRAMES))
