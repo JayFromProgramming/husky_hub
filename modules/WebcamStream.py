@@ -21,7 +21,7 @@ pallet_three = (0, 0, 0)
 class CampusCams:
 
     def text(self, text):
-        return self.text_font.render(text, True, pallet_two, pallet_three)
+        return self.text_font.render(text, False, pallet_one, pallet_three)
 
     def __init__(self, logs, static_images, live_mode_enable):
         if os.path.exists(camera_path):
@@ -34,6 +34,7 @@ class CampusCams:
         self.buffers = []
         self.overlay_buffers = []
         self.name_buffer = []
+        self.stream_buffer = []
         for x in range(len(self.cameras)):
             self.buffers.append([self.husky, self.husky, self.husky, self.husky])
             self.overlay_buffers.append([self.empty_image, self.empty_image, self.empty_image, self.empty_image])
@@ -56,6 +57,7 @@ class CampusCams:
         self.stream_cooldown_timer = 0
         self.active_requests = []
         self.stream_info_text = self.text("Info: N/A")
+        self.screen = None
 
     def cycle(self, amount):
         self.page += amount
@@ -71,12 +73,14 @@ class CampusCams:
 
     def focus(self, cam_id):
         if cam_id is None and self.current_focus is not None:
+            if not self.steaming_enabled: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/bind")
             if self.stream is not None:
                 self.stream.release()
                 self.stream.stop()
                 del self.stream
             self.stream = None
-            self.buffers[self.page][self.current_focus] = pygame.transform.scale(self.buffers[self.page][self.current_focus], (400, 220))
+            self.buffers[self.page][self.current_focus] = pygame.transform.scale \
+                (self.buffers[self.page][self.current_focus], (int((self.screen.get_width() / 2)), int((self.screen.get_height() - 35) / 2)))
             self.log.info("Closed Stream/Focus")
         self.requested_fps = 30
         self.current_focus = cam_id
@@ -85,11 +89,13 @@ class CampusCams:
             try:
                 thread = threading.Thread(target=self.create_stream, args=(self, self.cameras[self.page][cam_id]))
                 thread.start()
+                if not self.steaming_enabled: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind")
                 self.log.info(f"Created Stream/Focus for cam {self.page}-{cam_id}")
             except Exception as e:
                 self.log.error(f"Attempted to create stream for cam {self.page}-{cam_id}, failed because ({e})")
                 self.stream = None
-            self.buffers[self.page][cam_id] = pygame.transform.scale(self.buffers[self.page][cam_id], (800, 440))
+            self.buffers[self.page][cam_id] = pygame.transform.scale(self.buffers[self.page][cam_id], (int((self.screen.get_width())),
+                                                                                                       int((self.screen.get_height() - 35))))
         self.update()
 
     def create_stream(self, ob, camera):
@@ -97,11 +103,11 @@ class CampusCams:
         try:
             from Pygamevideo import Video
             self.stream = Video(stream_url)
+            self.stream.set_fps(30)
             self.stream_info_text = self.text(f"{self.stream.frame_height}x{self.stream.frame_width}@{round(self.stream.fps)}fps")
             if self.stream.fps == 0:
                 raise BrokenPipeError("No Stream Data")
-            self.stream.set_width(800)
-            self.stream.set_height(440)
+            self.stream.set_size((self.screen.get_width(), self.screen.get_height() - 35))
             self.stream.play()
         except Exception as e:
             self.log.error(f"Attempted to create stream for cam {cam_id}, failed because ({e})")
@@ -111,23 +117,25 @@ class CampusCams:
     def load_frame(self, ob, camera, select_buffer=None):
         """Load image from internet"""
         cam_id, url, stream_url, name = camera
-        if select_buffer:
+        if select_buffer is not None:
             page = select_buffer
         else:
             page = self.page
 
-        self.name_buffer[page][cam_id] = self.text(name)
         try:
+            self.name_buffer[page][cam_id] = self.text(name)
             image_str = urlopen(url, timeout=10).read()
             image_file = io.BytesIO(image_str)
             raw_frame = pygame.image.load(image_file)
             # self.get_exif(url)
             if self.current_focus is None:
-                self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (400, 220))
+                self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (int((self.screen.get_width() / 2)),
+                                                                                int((self.screen.get_height() - 35) / 2)))
                 self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated")
             elif self.current_focus == cam_id:
-                self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (800, 440))
+                self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (int((self.screen.get_width())),
+                                                                                int((self.screen.get_height() - 35))))
                 # self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated and focused")
         except http.client.IncompleteRead:
@@ -142,6 +150,21 @@ class CampusCams:
         except Exception as e:
             print(f"Cam {page}-{cam_id}: {e}")
 
+    def resize(self, screen):
+        self.screen = screen
+        center_w = self.screen.get_width() / 2
+        height = self.screen.get_height()
+        self.image_frame_boxes = [pygame.Rect(0, 0, center_w, (height - 35) / 2),
+                                  pygame.Rect(center_w, 0, center_w * 2, (height - 35) / 2),
+                                  pygame.Rect(0, (height - 35) / 2, center_w, (height - 35) / 2),
+                                  pygame.Rect(center_w, (height - 35) / 2, center_w * 2, (height - 35) / 2)]
+        self.update_all()
+        if self.stream is not None:
+            self.stream = None
+            thread = threading.Thread(target=self.create_stream, args=(self, self.cameras[self.page][self.current_focus]))
+            thread.start()
+        return True
+
     def update(self):
         if self.last_update == 0:
             self.last_update = time.time() - self.update_rate
@@ -155,7 +178,7 @@ class CampusCams:
             self.last_update = time.time()
 
     def update_all(self):
-        self.log.debug("Updating all camera thumbnails")
+        self.log.info("Updating all camera thumbnails")
         page_num = 0
         for page in self.cameras:
             for camera in page:
@@ -163,7 +186,6 @@ class CampusCams:
                 thread.start()
                 self.active_requests.append(thread)
             page_num += 1
-        return True
 
     def draw_buttons(self, screen):
         """"""
@@ -184,30 +206,33 @@ class CampusCams:
                 thread.join()
                 del thread
 
+        center_w = self.screen.get_width() / 2
+        height = self.screen.get_height()
+
         if self.current_focus is None:
+
             screen.blit(self.buffers[self.page][0], (0, 0))
-            screen.blit(self.buffers[self.page][1], (400, 0))
-            screen.blit(self.buffers[self.page][2], (0, 220))
-            screen.blit(self.buffers[self.page][3], (400, 220))
+            screen.blit(self.buffers[self.page][1], (center_w, 0))
+            screen.blit(self.buffers[self.page][2], (0, (height - 35) / 2))
+            screen.blit(self.buffers[self.page][3], (center_w, (height - 35) / 2))
 
             screen.blit(self.overlay_buffers[self.page][0], (0, 0))
-            screen.blit(self.overlay_buffers[self.page][1], (400, 0))
-            screen.blit(self.overlay_buffers[self.page][2], (0, 220))
-            screen.blit(self.overlay_buffers[self.page][3], (400, 220))
+            screen.blit(self.overlay_buffers[self.page][1], (center_w, 0))
+            screen.blit(self.overlay_buffers[self.page][2], (0, (height - 35) / 2))
+            screen.blit(self.overlay_buffers[self.page][3], (center_w, (height - 35) / 2))
 
-            screen.blit(self.name_buffer[self.page][0], self.name_buffer[self.page][0].get_rect(midtop=(200, 0)))
-            screen.blit(self.name_buffer[self.page][1], self.name_buffer[self.page][1].get_rect(midtop=(600, 0)))
-            screen.blit(self.name_buffer[self.page][2], self.name_buffer[self.page][2].get_rect(midtop=(200, 220)))
-            screen.blit(self.name_buffer[self.page][3], self.name_buffer[self.page][3].get_rect(midtop=(600, 220)))
+            screen.blit(self.name_buffer[self.page][0], self.name_buffer[self.page][0].get_rect(midtop=(center_w - center_w / 2, 0)))
+            screen.blit(self.name_buffer[self.page][1], self.name_buffer[self.page][1].get_rect(midtop=(center_w + center_w / 2, 0)))
+            screen.blit(self.name_buffer[self.page][2], self.name_buffer[self.page][2].get_rect(midtop=(center_w - center_w / 2, (height - 35) / 2)))
+            screen.blit(self.name_buffer[self.page][3], self.name_buffer[self.page][3].get_rect(midtop=(center_w + center_w / 2, (height - 35) / 2)))
         else:
             screen.blit(self.buffers[self.page][self.current_focus], (0, 0))
             try:
                 if self.stream is not None:
                     self.stream.draw_to(screen, (0, 0), anti_alias=self.steaming_enabled)
-                    screen.blit(self.stream_info_text, self.stream_info_text.get_rect(topright=(800, 0)))
+                    screen.blit(self.stream_info_text, self.stream_info_text.get_rect(topright=(center_w*2, 0)))
                 else:
                     screen.blit(self.overlay_buffers[self.page][0], (0, 0))
             except Exception as e:
                 self.focus(None)
                 self.log.error(f"Stream error: {e}")
-

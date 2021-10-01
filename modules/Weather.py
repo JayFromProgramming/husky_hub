@@ -63,6 +63,13 @@ no_mouse = False
 overheat_halt = False
 weather_alert_display = None
 weather_alert_number = 0
+display_mode = "init"
+room_button = pygame.Rect(120, 450, 100, 40)
+room_button_text = "Room Control"
+webcam_button = pygame.Rect(10, 450, 100, 40)
+webcam_button_text = "Webcams"
+home_button = pygame.Rect(10, 450, 100, 40)
+home_button_text = "Home"
 
 forecast = []
 cpu_averages = []
@@ -82,14 +89,6 @@ room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
 
-display_mode = "init"
-room_button = pygame.Rect(120, 450, 100, 40)
-room_button_text = "Room Control"
-webcam_button = pygame.Rect(10, 450, 100, 40)
-webcam_button_text = "Webcams"
-home_button = pygame.Rect(10, 450, 100, 40)
-home_button_text = "Home"
-
 
 def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
@@ -105,10 +104,12 @@ def uncaught(exctype, value, tb):
 sys.excepthook = uncaught
 
 
-def update(dt):
+def update(dt, screen):
     global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, weather_alert_display
     global weather_alert_number, slot_position, focused_forecast
+    global room_button, room_button_text, webcam_button, webcam_button_text, home_button, home_button_text
     # Go through events that are passed to the script by the window.
+
     if room_control.queued_routine:
         room_control.run_queued()
 
@@ -130,6 +131,13 @@ def update(dt):
             pygame.quit()  # Opposite of pygame.init
             sys.exit()  # Not including this line crashes the script on Windows. Possibly
             # on other operating systems too, but I don't know for sure.
+        elif event.type == pygame.VIDEORESIZE:
+            room_button = pygame.Rect(120, screen.get_height() - 25, 100, 40)
+            webcam_button = pygame.Rect(10, screen.get_height() - 25, 100, 40)
+            home_button = pygame.Rect(10, screen.get_height() - 25, 100, 40)
+            webcams.resize(screen)
+            webcams.cycle_forward = pygame.Rect(screen.get_width() - 110, screen.get_height() - 25, 100, 40)
+            webcams.cycle_backward = pygame.Rect(screen.get_width() - 220, screen.get_height() - 25, 100, 40)
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 webcams.focus(None)
@@ -296,7 +304,7 @@ def draw(screen, dt):
         f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
         + (f", Temp {temp}°C" if py else "") + f", {dt}FPS", True,
         pallet_one)
-    screen.blit(sys_info, (sys_info.get_rect(midtop=(400, 445))))
+    screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width()/2, screen.get_height()-30))))
 
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
 
@@ -318,7 +326,7 @@ def draw(screen, dt):
             if refresh_forecast is False:
                 loading_screen.loading_percentage += loading_screen.loading_percent_bias['Webcams'] / 4
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
-                if webcams.update_all():
+                if webcams.resize(screen):
                     display_mode = "home"
                     room_control.build_routines(0)
                     last_current_update = time.time()
@@ -443,7 +451,7 @@ def run():
             no_mouse = True
         pygame.display.get_wm_info()
     else:
-        screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF)
+        screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE)
         pygame.display.set_caption("Initializing...")
         pygame.display.set_icon(icon)
         pygame.display.get_wm_info()
@@ -451,7 +459,7 @@ def run():
     # Main game loop.
     dt = 1 / fps  # dt is the time since last frame.
     while True:  # Loop forever!
-        update(dt)  # You can update/draw here, I've just moved the code for neatness.
+        update(dt, screen)  # You can update/draw here, I've just moved the code for neatness.
         draw(screen, dt)
 
         fps_clock.tick(fps)

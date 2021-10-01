@@ -79,6 +79,12 @@
         "current_state": false,
         "type": "toggle"
       },
+       "Kettle": {
+        "name": "Arson",
+        "requests":[],
+        "current_state": false,
+        "type": "toggle"
+      },
       "Bed_LED": {
         "name": "Lights",
         "name_2": "Less",

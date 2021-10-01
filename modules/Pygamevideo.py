@@ -71,7 +71,7 @@ class Video:
         self._frame = None
         self.draw_frame = 0
         self.last_segment = time.time()
-        self.last_process_amount = 0
+        self.dropped_frames = 0
         self.is_ready = False
 
         self.filepath = filepath
@@ -235,23 +235,27 @@ class Video:
 
     def set_size(self, size):
         self.frame_width, self.frame_height = size
+        self.frame_surf = pygame.Surface((self.frame_width, self.frame_height))
 
         if not (self.frame_width > 0 and self.frame_height > 0):
             raise ValueError(f"Size must be positive")
 
-    def set_width(self, width):
+    def change_width(self, width: int):
         self.frame_width = width
         self.frame_surf = pygame.Surface((width, self.frame_height))
 
         if self.frame_width <= 0:
             raise ValueError(f"Width must be positive")
 
-    def set_height(self, height):
+    def change_height(self, height: int):
         self.frame_height = height
         self.frame_surf = pygame.Surface((self.frame_width, height))
 
         if self.frame_height <= 0:
             raise ValueError(f"Height must be positive")
+
+    def set_fps(self, fps):
+        self.fps = fps
 
     # Process & draw video
 
@@ -262,36 +266,36 @@ class Video:
 
         elapsed_frames = int((time.time() - self.start_time) * self.fps)
 
-        if self.draw_frame >= elapsed_frames:
+        seeked_frames = int(self.stream.get(cv2.CAP_PROP_POS_FRAMES) + self.draw_frame + self.dropped_frames)
+        makeup_frames = elapsed_frames - seeked_frames
+
+        time_difference = round(self.stream.get(cv2.CAP_PROP_POS_MSEC) / 1000 - elapsed_frames / self.fps, 2)
+
+        if seeked_frames >= elapsed_frames:
             return
 
-        else:
-            makeup_frames = elapsed_frames - (int(self.stream.get(cv2.CAP_PROP_POS_FRAMES)) + self.draw_frame + self.last_process_amount)
+        if not self.is_paused:
+            # In the event that we have fallen behind in processing the stream skip to the next Iframe
+            # print(f"Time based Elapsed: {elapsed_frames}; Seeked frames: {seeked_frames}; Makeup_frames: {makeup_frames - 1};"
+            #       f" Time delta: {time_difference}; Dropped Frames: {self.dropped_frames}")
+            if time_difference < 0 and makeup_frames > 5 and self.last_segment < time.time() - 1:
+                self.draw_frame += int(self.stream.get(cv2.CAP_PROP_POS_FRAMES))
+                self.dropped_frames += makeup_frames
+                self.stream.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Sets position to the next Iframe
+                # self.stream.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Sets position to the next Iframe
+                self.last_segment = time.time()
+            else:
+                if makeup_frames > 5: makeup_frames = 5  # Set a max makeup amount to prevent process locking
+                for _ in range(makeup_frames):
+                    success, self._frame = self.stream.read()
+                    # time.sleep(1 / (self.fps * 1))
 
-            time_difference = round(self.stream.get(cv2.CAP_PROP_POS_MSEC) / 1000 - elapsed_frames / self.fps, 2)
-
-            if not self.is_paused:
-                # In the event that we have fallen behind in processing the stream skip to the next Iframe
-                if self.last_segment < time.time() - 5.9 and time_difference < 0 and makeup_frames > 7:
-                    self.draw_frame += int(self.stream.get(cv2.CAP_PROP_POS_FRAMES))
-                    self.last_process_amount += makeup_frames
-                    self.stream.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Sets position to the next Iframe
-                    self.last_segment = time.time()
-                else:
-                    if makeup_frames > 7: makeup_frames = 7  # Set a max makeup amount to prevent process locking
-                    for _ in range(makeup_frames):
-                        success, self._frame = self.stream.read()
-                        # time.sleep(1 / (self.fps * 1.6))
-
-                if anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_AREA)
-                if not anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_NEAREST)
-                audio_frame, val = self.ff.get_frame()
-                pygame.pixelcopy.array_to_surface(self.frame_surf, numpy.flip(numpy.rot90(frame[::-1])))
-
-            return True
+            if anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_AREA)
+            if not anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_NEAREST)
+            audio_frame, val = self.ff.get_frame()
+            pygame.pixelcopy.array_to_surface(self.frame_surf, numpy.flip(numpy.rot90(frame[::-1])))
 
     def draw_to(self, surface, pos, anti_alias=False):
         if self.frame_width != 0 and self.frame_height != 0:
-            result = self.update_frame(anti_alias)
+            self.update_frame(anti_alias)
             surface.blit(self.frame_surf, pos)
-            return result
