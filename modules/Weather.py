@@ -84,7 +84,7 @@ last_current_update = 0
 failed_current_updates = 0
 
 weatherAPI = Api.OpenWeatherWrapper(log)
-webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), not py)
+webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), not py, False)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
@@ -92,13 +92,14 @@ loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husk
 
 def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
+    webcams.close_multicast()
     if exctype is not KeyboardInterrupt:
         pass
         # if py:
         #     log.warning("Attempting to restart from uncaught error...")
         #     time.sleep(30)
         #     # response = os.system("nohup /home/pi/weather.sh &")
-        #     # log.warning(f"Response: ({response})")
+        #     # log.warning(f"Response: ({response})"
 
 
 sys.excepthook = uncaught
@@ -127,6 +128,7 @@ def update(dt, screen):
         # about is the QUIT event, because if you don't handle it, your game will crash
         # whenever someone tries to exit.
         if event.type == QUIT:
+            webcams.close_multicast()
             webcams.focus(None)
             pygame.quit()  # Opposite of pygame.init
             sys.exit()  # Not including this line crashes the script on Windows. Possibly
@@ -143,6 +145,18 @@ def update(dt, screen):
                 webcams.focus(None)
                 pygame.quit()
                 sys.exit(1)
+            elif event.key == pygame.K_l:
+                if webcams.multi_cast:
+                    webcams.close_multicast()
+                    webcams.multi_cast = False
+                else:
+                    webcams.multi_cast = True
+                    webcams.last_update = time.time() - webcams.update_rate
+                    webcams.update()
+            elif event.key == pygame.K_LEFT:
+                webcams.cycle(-1)
+            elif event.key == pygame.K_RIGHT:
+                webcams.cycle(1)
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.one_call.alerts
@@ -384,7 +398,8 @@ def draw(screen, dt):
         pygame.draw.rect(screen, [255, 206, 0], room_button)
         screen.blit(room_button_render, room_button_render.get_rect(midbottom=room_button.center))
     elif display_mode == "webcams":
-        pygame.display.set_caption(f"Campus Webcams {webcams.page + 1}/{len(webcams.cameras)}")
+        pygame.display.set_caption(("Streaming " if webcams.multi_cast else "Viewing ") +
+                                   f"Campus Webcams-Page: {webcams.page + 1}/{len(webcams.cameras)}")
         webcams.draw(screen)
         webcams.update()
         pygame.draw.rect(screen, [255, 206, 0], home_button)

@@ -68,6 +68,9 @@ class Video:
 
     def __init__(self, filepath):
 
+        if not filepath:
+            raise ValueError("No Stream Source Provided")
+
         self._frame = None
         self.draw_frame = 0
         self.last_segment = time.time()
@@ -90,7 +93,7 @@ class Video:
 
         self.stream = cv2.VideoCapture(self.filepath)
 
-        self.ff = MediaPlayer(self.filepath)
+        # self.ff = MediaPlayer(self.filepath)
 
         self.fps = self.stream.get(cv2.CAP_PROP_FPS)
 
@@ -113,7 +116,7 @@ class Video:
 
     def release(self):
         self.stream.release()
-        self.ff.close_player()
+        # self.ff.close_player()
         self.is_ready = False
 
     # Control methods
@@ -263,6 +266,7 @@ class Video:
         if not self.is_playing:
             return
             # return self.frame_surf
+        # start_time = time.time_ns()
 
         elapsed_frames = int((time.time() - self.start_time) * self.fps)
 
@@ -289,13 +293,25 @@ class Video:
                 for _ in range(makeup_frames):
                     success, self._frame = self.stream.read()
                     # time.sleep(1 / (self.fps * 1))
+            if type(self._frame) is not numpy.ndarray:
+                return
+            if anti_alias: frame = cv2.resize(self._frame, (int(self.frame_width), int(self.frame_height)), interpolation=cv2.INTER_AREA)
+            if not anti_alias: frame = cv2.resize(self._frame, (int(self.frame_width), int(self.frame_height)), interpolation=cv2.INTER_NEAREST)
+            # audio_frame, val = self.ff.get_frame()
+            try:
+                pygame.pixelcopy.array_to_surface(self.frame_surf, numpy.flip(numpy.rot90(frame[::-1])))
+            except ValueError:
+                return
 
-            if anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_AREA)
-            if not anti_alias: frame = cv2.resize(self._frame, (self.frame_width, self.frame_height), interpolation=cv2.INTER_NEAREST)
-            audio_frame, val = self.ff.get_frame()
-            pygame.pixelcopy.array_to_surface(self.frame_surf, numpy.flip(numpy.rot90(frame[::-1])))
+        # finish_time = time.time_ns()
+        # total_time = (finish_time - start_time) / 1e+6
+        # print(total_time)
 
-    def draw_to(self, surface, pos, anti_alias=False):
+    def draw_to(self, surface, pos):
+        if self.frame_width != 0 and self.frame_height != 0:
+            surface.blit(self.frame_surf, pos)
+
+    def stream_to(self, surface, pos, anti_alias=False):
         if self.frame_width != 0 and self.frame_height != 0:
             self.update_frame(anti_alias)
             surface.blit(self.frame_surf, pos)
