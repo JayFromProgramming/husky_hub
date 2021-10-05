@@ -110,7 +110,7 @@ class Video:
 
         self.is_ready = True
 
-        print(f"Stream ready with resolution {self.frame_height}x{self.frame_width}@{self.fps}fps")
+        # print(f"Stream ready with resolution {self.frame_height}x{self.frame_width}@{self.fps}fps")
 
         self._frame = None
 
@@ -264,9 +264,9 @@ class Video:
 
     def update_frame(self, anti_alias=False):
         if not self.is_playing:
-            return
+            return 0
             # return self.frame_surf
-        # start_time = time.time_ns()
+        start_time = time.time()
 
         elapsed_frames = int((time.time() - self.start_time) * self.fps)
 
@@ -276,7 +276,7 @@ class Video:
         time_difference = round(self.stream.get(cv2.CAP_PROP_POS_MSEC) / 1000 - elapsed_frames / self.fps, 2)
 
         if seeked_frames >= elapsed_frames:
-            return
+            return 0
 
         if not self.is_paused:
             # In the event that we have fallen behind in processing the stream skip to the next Iframe
@@ -292,19 +292,20 @@ class Video:
                 if makeup_frames > 5: makeup_frames = 5  # Set a max makeup amount to prevent process locking
                 for _ in range(makeup_frames):
                     success, self._frame = self.stream.read()
-                    # time.sleep(1 / (self.fps * 1))
+                    # time.sleep(1 / (self.fps * 1.1))
             if type(self._frame) is not numpy.ndarray:
-                return
+                return 0
             if anti_alias: frame = cv2.resize(self._frame, (int(self.frame_width), int(self.frame_height)), interpolation=cv2.INTER_AREA)
             if not anti_alias: frame = cv2.resize(self._frame, (int(self.frame_width), int(self.frame_height)), interpolation=cv2.INTER_NEAREST)
             # audio_frame, val = self.ff.get_frame()
             try:
                 pygame.pixelcopy.array_to_surface(self.frame_surf, numpy.flip(numpy.rot90(frame[::-1])))
             except ValueError:
-                return
+                return 0
 
-        # finish_time = time.time_ns()
-        # total_time = (finish_time - start_time) / 1e+6
+        finish_time = time.time()
+        total_time = (finish_time - start_time)
+        return total_time
         # print(total_time)
 
     def draw_to(self, surface, pos):

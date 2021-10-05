@@ -145,18 +145,19 @@ def update(dt, screen):
                 webcams.focus(None)
                 pygame.quit()
                 sys.exit(1)
-            elif event.key == pygame.K_l:
-                if webcams.multi_cast:
-                    webcams.close_multicast()
-                    webcams.multi_cast = False
-                else:
-                    webcams.multi_cast = True
-                    webcams.last_update = time.time() - webcams.update_rate
-                    webcams.update()
-            elif event.key == pygame.K_LEFT:
-                webcams.cycle(-1)
-            elif event.key == pygame.K_RIGHT:
-                webcams.cycle(1)
+            if display_mode == 'webcams':
+                if event.key == pygame.K_l:
+                    if webcams.multi_cast:
+                        webcams.close_multicast()
+                        webcams.multi_cast = False
+                    else:
+                        webcams.multi_cast = True
+                        webcams.last_update = time.time() - webcams.update_rate
+                        webcams.update()
+                elif event.key == pygame.K_LEFT:
+                    webcams.cycle(-1)
+                elif event.key == pygame.K_RIGHT:
+                    webcams.cycle(1)
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.one_call.alerts

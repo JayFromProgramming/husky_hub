@@ -107,22 +107,22 @@ class CampusCams:
     def multicast_refresh_thread(self, ob, stream):
         clock = pygame.time.Clock()
         while stream and self.thread_run:
-            stream.update_frame(anti_alias=True)
-            clock.tick(stream.fps)
+            process_time = stream.update_frame(anti_alias=self.high_preformance_enabled)
+            if not process_time > (1 / stream.fps):
+                clock.tick(stream.fps)
 
     def close_multicast(self):
-        if self.multi_cast:
-            for stream in self.stream_buffer:
-                if stream:
-                    stream.release()
-                    stream.stop()
-                    del stream
-            self.stream_buffer = [None, None, None, None]
-            self.thread_run = False
-            for thread in self.multi_cast_threads:
-                thread.join()
-            self.thread_run = True
-            self.multi_cast_threads = []
+        for stream in self.stream_buffer:
+            if stream is not None:
+                stream.release()
+                stream.stop()
+                del stream
+        self.stream_buffer = [None, None, None, None]
+        self.thread_run = False
+        for thread in self.multi_cast_threads:
+            thread.join()
+        self.thread_run = True
+        self.multi_cast_threads = []
 
     def create_stream(self, ob, camera):
         cam_id, url, stream_url, name = camera
@@ -151,7 +151,11 @@ class CampusCams:
             thread.start()
             self.multi_cast_threads.append(thread)
         else:
-            self.thread_run = False
+            self.close_multicast()
+            self.thread_run = True
+            thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream))
+            thread.start()
+            self.multi_cast_threads.append(thread)
             self.stream = stream
 
     def load_frame(self, ob, camera, select_buffer=None):
@@ -284,7 +288,7 @@ class CampusCams:
             screen.blit(self.buffers[self.page][self.current_focus], (0, 0))
             try:
                 if self.stream is not None:
-                    self.stream.stream_to(screen, (0, 0), anti_alias=self.high_preformance_enabled)
+                    self.stream.draw_to(screen, (0, 0))
                     screen.blit(self.stream_info_text, self.stream_info_text.get_rect(topright=(center_w * 2, 0)))
                 else:
                     screen.blit(self.overlay_buffers[self.page][0], (0, 0))

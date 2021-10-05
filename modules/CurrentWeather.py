@@ -52,12 +52,19 @@ class CurrentWeather:
             clouds = 0
             alert = None
             updated = 0
+        if visibility > 6:
+            visibility = "Clear"
+        elif visibility % 1 == 0:
+            visibility = f"{int(visibility)} mi"
+        elif visibility > 1:
+            visibility = f"{round(visibility, 2)} mi"
+        else:
+            visibility = f"{int(visibility*5280)} ft"
         updated = datetime.datetime.fromtimestamp(updated)
         self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
         small_info = self.font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
                                        f"; Humidity: {humidity}%", True, pallet_three)
-        small_info2 = self.font2.render(f"Vis: {str(round(visibility, 2)) + 'mi' if visibility < 6 else 'Clear'}"
-                                        f"; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
+        small_info2 = self.font2.render(f"Vis: {visibility}; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
                                         f"; {updated.strftime('%I:%M %p')}", True, pallet_three)
 
         # if rain:

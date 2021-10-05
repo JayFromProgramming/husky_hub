@@ -1,0 +1,8 @@
+psutil
+ffpyplayer
+dill
+urllib3
+pillow
+numpy
+pygame~=2.0.0
+opencv-python
