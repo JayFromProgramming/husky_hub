@@ -140,6 +140,8 @@ def update(dt, screen):
             webcams.resize(screen)
             webcams.cycle_forward = pygame.Rect(screen.get_width() - 110, screen.get_height() - 25, 100, 40)
             webcams.cycle_backward = pygame.Rect(screen.get_width() - 220, screen.get_height() - 25, 100, 40)
+            # for fore in forecast:
+            #     fore.resize(screen)
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 webcams.focus(None)

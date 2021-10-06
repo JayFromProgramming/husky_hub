@@ -93,6 +93,7 @@ class ForecastEntry:
         self.weather = weather
         self.delta_time = delta_time
         self.clicked_rect = pygame.Rect(self.x, self.y, 85, 300)
+        self.surf = pygame.Surface((100, 400), pygame.SRCALPHA)
         font1 = pygame.font.Font("Assets/Fonts/Merri/Merriweather-Regular.ttf", 24)
         font2 = pygame.font.SysFont('timesnewroman', 20)
         font3 = pygame.font.SysFont('timesnewroman', 20)
@@ -153,6 +154,21 @@ class ForecastEntry:
             self.pic = icon
             print(f"Forecast Icon Load Error: {e}")
 
+        screen = self.surf
+
+        pygame.draw.line(screen, pallet_two, (85, -10), (85, 300))
+        screen.blit(self.day_text, self.day_text.get_rect(center=(42.5, -5)))
+        screen.blit(self.time_text, self.time_text.get_rect(center=(42.5, 15)))
+        screen.blit(self.pic, self.pic.get_rect(center=(42.5, 60)))
+        screen.blit(self.small_info, self.small_info.get_rect(center=(42.5, 100)))
+        screen.blit(self.forecast_temp, self.forecast_temp.get_rect(center=(42.5, 130)))
+        screen.blit(self.second_name, self.second_name.get_rect(center=(42.5, 157)))
+        screen.blit(self.second_data, self.second_data.get_rect(center=(42.5, 185)))
+        screen.blit(self.humidity_text, self.humidity_text.get_rect(center=(42.5, 210)))
+        screen.blit(self.humidity_percent, self.humidity_percent.get_rect(center=(42.5, 237)))
+        screen.blit(self.wind_text, self.wind_text.get_rect(center=(42.5, 266)))
+        screen.blit(self.wind_speed, self.wind_speed.get_rect(center=(42.5, 290)))
+
     def check_click(self, mouse_pos):
         if self.clicked_rect.collidepoint(mouse_pos):
             self.focused = True
@@ -163,15 +179,16 @@ class ForecastEntry:
                 self.focused_object = FocusedForecast(self)
             self.focused_object.draw(screen)
         else:
-            pygame.draw.line(screen, pallet_two, (self.x + 85, self.y - 10), (self.x + 85, self.y + 300))
-            screen.blit(self.day_text, self.day_text.get_rect(center=(self.x + 42.5, self.y - 5)))
-            screen.blit(self.time_text, self.time_text.get_rect(center=(self.x + 42.5, self.y + 15)))
-            screen.blit(self.pic, self.pic.get_rect(center=(self.x + 42.5, self.y + 60)))
-            screen.blit(self.small_info, self.small_info.get_rect(center=(self.x + 42.5, self.y + 100)))
-            screen.blit(self.forecast_temp, self.forecast_temp.get_rect(center=(self.x + 42.5, self.y + 130)))
-            screen.blit(self.second_name, self.second_name.get_rect(center=(self.x + 42.5, self.y + 157)))
-            screen.blit(self.second_data, self.second_data.get_rect(center=(self.x + 42.5, self.y + 185)))
-            screen.blit(self.humidity_text, self.humidity_text.get_rect(center=(self.x + 42.5, self.y + 210)))
-            screen.blit(self.humidity_percent, self.humidity_percent.get_rect(center=(self.x + 42.5, self.y + 237)))
-            screen.blit(self.wind_text, self.wind_text.get_rect(center=(self.x + 42.5, self.y + 266)))
-            screen.blit(self.wind_speed, self.wind_speed.get_rect(center=(self.x + 42.5, self.y + 290)))
+            screen.blit(self.surf, (self.x, self.y))
+            # pygame.draw.line(screen, pallet_two, (self.x + 85, self.y - 10), (self.x + 85, self.y + 300))
+            # screen.blit(self.day_text, self.day_text.get_rect(center=(self.x + 42.5, self.y - 5)))
+            # screen.blit(self.time_text, self.time_text.get_rect(center=(self.x + 42.5, self.y + 15)))
+            # screen.blit(self.pic, self.pic.get_rect(center=(self.x + 42.5, self.y + 60)))
+            # screen.blit(self.small_info, self.small_info.get_rect(center=(self.x + 42.5, self.y + 100)))
+            # screen.blit(self.forecast_temp, self.forecast_temp.get_rect(center=(self.x + 42.5, self.y + 130)))
+            # screen.blit(self.second_name, self.second_name.get_rect(center=(self.x + 42.5, self.y + 157)))
+            # screen.blit(self.second_data, self.second_data.get_rect(center=(self.x + 42.5, self.y + 185)))
+            # screen.blit(self.humidity_text, self.humidity_text.get_rect(center=(self.x + 42.5, self.y + 210)))
+            # screen.blit(self.humidity_percent, self.humidity_percent.get_rect(center=(self.x + 42.5, self.y + 237)))
+            # screen.blit(self.wind_text, self.wind_text.get_rect(center=(self.x + 42.5, self.y + 266)))
+            # screen.blit(self.wind_speed, self.wind_speed.get_rect(center=(self.x + 42.5, self.y + 290)))
