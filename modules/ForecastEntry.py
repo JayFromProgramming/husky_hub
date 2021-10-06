@@ -44,10 +44,10 @@ class FocusedForecast:
 
         self.time_info = font4.render(updated.strftime('Forecast for %A, %B %d at %I:00 %p'), True, pallet_one)
         self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
-        self.lines.append(font2.render(f"It will feel like: {round(temp['feels_like'])}°F with an expected humidity of {humidity}%",
+        self.lines.append(font2.render(f"It will feel like {round(temp['feels_like'])}°F with an expected humidity of {humidity}%",
                                        True, pallet_three))
 
-        self.lines.append(font2.render(f"Expected cloud cover of {round(clouds)}% and a {OpenWeatherWrapper.uvi_scale(uvi).lower()} UV index of {uvi}"
+        self.lines.append(font2.render(f"Expected cloud cover of {round(clouds)}% with a {OpenWeatherWrapper.uvi_scale(uvi).lower()} UV index of {uvi}"
                                        , True, pallet_three))
 
         self.lines.append(font2.render(f"Expected wind speed of {OpenWeatherWrapper.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph "
@@ -92,8 +92,8 @@ class ForecastEntry:
         self.focused_object = None
         self.weather = weather
         self.delta_time = delta_time
-        # self.clicked_rect = pygame.Rect(self.x, self.y, 85, 300)
-        self.surf = pygame.Surface((90, 325), pygame.SRCALPHA)
+        self.clicked_rect = pygame.Rect(self.x, self.y, 85, 300)
+        self.surf = pygame.Surface((90, 315))
         font1 = pygame.font.Font("Assets/Fonts/Merri/Merriweather-Regular.ttf", 24)
         font2 = pygame.font.SysFont('timesnewroman', 20)
         font3 = pygame.font.SysFont('timesnewroman', 20)
@@ -156,8 +156,8 @@ class ForecastEntry:
 
         screen = self.surf
 
-        pygame.draw.line(screen, pallet_two, (85, 0), (85, 300))
-        screen.blit(self.day_text, self.day_text.get_rect(center=(42.5, 5)))
+        pygame.draw.line(screen, pallet_two, (85, 0), (85, self.surf.get_height()))
+        screen.blit(self.day_text, self.day_text.get_rect(center=(42.5, 7)))
         screen.blit(self.time_text, self.time_text.get_rect(center=(42.5, 25)))
         screen.blit(self.pic, self.pic.get_rect(center=(42.5, 70)))
         screen.blit(self.small_info, self.small_info.get_rect(center=(42.5, 110)))
@@ -169,8 +169,11 @@ class ForecastEntry:
         screen.blit(self.wind_text, self.wind_text.get_rect(center=(42.5, 276)))
         screen.blit(self.wind_speed, self.wind_speed.get_rect(center=(42.5, 300)))
 
+        del self.day_text, self.time_text, self.small_info, self.forecast_temp, self.second_name, self.second_data
+        del self.humidity_text, self. humidity_percent, self.wind_text, self.wind_speed
+
     def check_click(self, mouse_pos):
-        if self.surf.get_rect().collidepoint(mouse_pos):
+        if self.clicked_rect.collidepoint(mouse_pos):
             self.focused = True
 
     def draw(self, screen):

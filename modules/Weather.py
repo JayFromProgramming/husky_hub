@@ -285,7 +285,7 @@ def draw_forecast(screen):
     """Draw forecast"""
     global focused_forecast, forecast, refresh_forecast
     if not focused_forecast:
-        for hour in forecast:
+        for hour in forecast[::-1]:
             if hour.focused:
                 focused_forecast = hour
             hour.draw(screen)

@@ -97,6 +97,8 @@ class Video:
 
         self.fps = self.stream.get(cv2.CAP_PROP_FPS)
 
+        self.last_frame_timestamp = None
+
         self._last_frame_time = time.time()
 
         self.total_frames = int(self.stream.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -274,6 +276,8 @@ class Video:
         makeup_frames = elapsed_frames - seeked_frames
 
         time_difference = round(self.stream.get(cv2.CAP_PROP_POS_MSEC) / 1000 - elapsed_frames / self.fps, 2)
+
+        self.last_frame_timestamp = self.stream.get(cv2.CAP_PROP_POS_MSEC) / 1000 + self.start_time - 30
 
         if seeked_frames >= elapsed_frames:
             return 0

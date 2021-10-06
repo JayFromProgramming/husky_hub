@@ -1,4 +1,5 @@
 import concurrent
+import datetime
 import http.client
 import json
 import math
@@ -35,11 +36,13 @@ class CampusCams:
         self.overlay_buffers = []
         self.linux = linux
         self.name_buffer = []
+        self.time_buffer = []
         self.stream_buffer = [None, None, None, None]
         for x in range(len(self.cameras)):
             self.buffers.append([self.husky, self.husky, self.husky, self.husky])
             self.overlay_buffers.append([self.empty_image, self.empty_image, self.empty_image, self.empty_image])
             self.name_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
+            self.time_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
         self.page = 0
         self.current_focus = None
         self.last_update = 0
@@ -105,23 +108,25 @@ class CampusCams:
                                                                                                        int((self.screen.get_height() - 35))))
         self.update()
 
-    def multicast_refresh_thread(self, ob, stream):
+    def multicast_refresh_thread(self, ob, stream, cam_id):
         clock = pygame.time.Clock()
         while stream and self.thread_run:
             process_time = stream.update_frame(anti_alias=self.high_performance_enabled)
+            # self.time_buffer[self.page][cam_id] = \
+            #     self.text(datetime.datetime.fromtimestamp(stream.last_frame_timestamp).strftime("%Y-%m-%d %H:%M:%S"))
             if not process_time > (1 / stream.fps):
                 clock.tick(stream.fps)
 
     def close_multicast(self):
-        for stream in self.stream_buffer:
-            if stream is not None:
-                stream.release()
-                stream.stop()
-                del stream
         self.stream_buffer = [None, None, None, None]
         self.thread_run = False
         for thread in self.multi_cast_threads:
             thread.join()
+        for stream in self.stream_buffer:
+            if stream is not None and stream is not False:
+                stream.release()
+                stream.stop()
+                del stream
         self.thread_run = True
         self.multi_cast_threads = []
 
@@ -142,19 +147,21 @@ class CampusCams:
                 stream.set_size((self.screen.get_width(), self.screen.get_height() - 35))
             stream.play()
         except Exception as e:
-            self.log.error(f"Attempted to create stream for cam {cam_id}, failed because ({e})")
+            self.log.error(f"Attempted to create stream for cam {self.page}-{cam_id}, failed because ({e})")
             self.overlay_buffers[self.page][0] = self.no_image
+            self.stream_buffer[cam_id] = False
+            return
 
         if self.multi_cast and self.current_focus is None:
             self.thread_run = True
             self.stream_buffer[cam_id] = stream
-            thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream))
+            thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream, cam_id))
             thread.start()
             self.multi_cast_threads.append(thread)
         else:
             self.close_multicast()
             self.thread_run = True
-            thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream))
+            thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream, cam_id))
             thread.start()
             self.multi_cast_threads.append(thread)
             self.stream = stream
@@ -187,6 +194,9 @@ class CampusCams:
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Incomplete read")
         except urllib.error.URLError as e:
+            if str(e) == "<urlopen error [Errno 11001] getaddrinfo failed>":
+                self.log.info(f"Cam {page}-{cam_id}: No network")
+                return
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
             self.name_buffer[page][cam_id] = self.text(str(e))
@@ -204,12 +214,17 @@ class CampusCams:
                                   pygame.Rect(center_w, 0, center_w * 2, (height - 35) / 2),
                                   pygame.Rect(0, (height - 35) / 2, center_w, (height - 35) / 2),
                                   pygame.Rect(center_w, (height - 35) / 2, center_w * 2, (height - 35) / 2)]
+        if height > 500:
+            self.text_font = pygame.font.SysFont('couriernew', 13)
+        else:
+            self.text_font = pygame.font.SysFont('couriernew', 11)
         self.update_all()
         if self.stream is not None or self.multi_cast:
             # self.stream = None
             if self.multi_cast and not self.current_focus:
                 for stream in self.stream_buffer:
-                    if stream: stream.set_size((self.screen.get_width() / 2, (self.screen.get_height() - 35) / 2))
+                    if stream is not None and stream is not False:
+                        if stream: stream.set_size((self.screen.get_width() / 2, (self.screen.get_height() - 35) / 2))
             else:
                 self.stream.set_size((self.screen.get_width(), self.screen.get_height() - 35))
             # thread = threading.Thread(target=self.create_stream, args=(self, self.cameras[self.page][self.current_focus]))
@@ -234,6 +249,9 @@ class CampusCams:
     def update_all(self):
         self.log.info("Updating all camera thumbnails")
         page_num = 0
+        self.name_buffer = []
+        for _ in self.cameras:
+            self.name_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
         for page in self.cameras:
             for camera in page:
                 thread = threading.Thread(target=self.load_frame, args=(self, camera, page_num))
@@ -276,6 +294,11 @@ class CampusCams:
                 if self.stream_buffer[2]: self.stream_buffer[2].draw_to(screen, (0, (height - 35) / 2))
                 if self.stream_buffer[3]: self.stream_buffer[3].draw_to(screen, (center_w, (height - 35) / 2))
 
+                # screen.blit(self.time_buffer[self.page][0], self.time_buffer[self.page][0].get_rect(topleft=(0, 0)))
+                # screen.blit(self.time_buffer[self.page][1], self.time_buffer[self.page][1].get_rect(topleft=(center_w, 0)))
+                # screen.blit(self.time_buffer[self.page][2], self.time_buffer[self.page][2].get_rect(topleft=(0, (height - 35) / 2)))
+                # screen.blit(self.time_buffer[self.page][3], self.time_buffer[self.page][3].get_rect(topleft=(center_w, (height - 35) / 2)))
+
             screen.blit(self.overlay_buffers[self.page][0], (0, 0))
             screen.blit(self.overlay_buffers[self.page][1], (center_w, 0))
             screen.blit(self.overlay_buffers[self.page][2], (0, (height - 35) / 2))
@@ -297,3 +320,5 @@ class CampusCams:
             except Exception as e:
                 self.focus(None)
                 self.log.error(f"Stream error: {e}")
+            screen.blit(self.name_buffer[self.page][self.current_focus],
+                        self.name_buffer[self.page][self.current_focus].get_rect(midtop=(center_w, 0)))
