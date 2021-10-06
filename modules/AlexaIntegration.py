@@ -14,7 +14,7 @@ pallet_two = (0, 0, 0)
 pallet_three = (255, 255, 255)
 
 api_file = "../APIKey.json"
-monkey_routines = "Assets/Configs/Monkey.json"
+monkey_routines = "../Configs/Monkey.json"
 
 
 class RoutineButton:

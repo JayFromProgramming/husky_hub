@@ -84,7 +84,7 @@ last_current_update = 0
 failed_current_updates = 0
 
 weatherAPI = Api.OpenWeatherWrapper(log)
-webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), not py, False)
+webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), not py, False, py)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
@@ -160,6 +160,11 @@ def update(dt, screen):
                     webcams.cycle(-1)
                 elif event.key == pygame.K_RIGHT:
                     webcams.cycle(1)
+                elif event.key == pygame.K_a:
+                    webcams.high_performance_enabled = not webcams.high_performance_enabled
+            if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                log.info("Saved Screenshot")
+                pygame.image.save(screen, "../screenshot.png")
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.one_call.alerts
@@ -271,7 +276,7 @@ def build_forecast(screen, start_location):
 
     if refresh_forecast:
         if loading_hour < len(weather):
-            forecast.append(ForecastEntry(screen, (x + (slot_position * 85), y), weather[loading_hour], loading_hour, icon_cache, icon))
+            forecast.append(ForecastEntry(screen, (x + (slot_position * 85), y-10), weather[loading_hour], loading_hour, icon_cache, icon))
         loading_hour += 1
         slot_position += 1
 

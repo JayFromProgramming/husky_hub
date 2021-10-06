@@ -12,7 +12,7 @@ import time
 import io
 from urllib.request import urlopen
 
-camera_path = "Assets/Configs/Cameras.json"
+camera_path = "../Configs/Cameras.json"
 pallet_one = (255, 206, 0)
 pallet_two = (255, 255, 255)
 pallet_three = (0, 0, 0)
@@ -23,7 +23,7 @@ class CampusCams:
     def text(self, text):
         return self.text_font.render(text, False, pallet_one, pallet_three)
 
-    def __init__(self, logs, static_images, live_mode_enable, multi_stream=False):
+    def __init__(self, logs, static_images, live_mode_enable, multi_stream=False, linux=False):
         if os.path.exists(camera_path):
             with open(camera_path, "r") as f:
                 self.cameras = json.load(f)
@@ -33,6 +33,7 @@ class CampusCams:
         self.text_font = pygame.font.SysFont('couriernew', 11)
         self.buffers = []
         self.overlay_buffers = []
+        self.linux = linux
         self.name_buffer = []
         self.stream_buffer = [None, None, None, None]
         for x in range(len(self.cameras)):
@@ -42,7 +43,7 @@ class CampusCams:
         self.page = 0
         self.current_focus = None
         self.last_update = 0
-        self.update_rate = 15
+        self.update_rate = 30
         self.log = logs
         self.cycle_forward = pygame.Rect(690, 450, 100, 40)
         self.cycle_forward_text = "Next"
@@ -52,7 +53,7 @@ class CampusCams:
                                   pygame.Rect(0, 220, 400, 220), pygame.Rect(400, 220, 400, 220)]
         self.focus_stream = pygame.Rect(0, 0, 800, 440)
         self.stream = None
-        self.high_preformance_enabled = live_mode_enable
+        self.high_performance_enabled = live_mode_enable
         self.requested_fps = 30
         self.stream_cooldown_timer = 0
         self.active_requests = []
@@ -78,7 +79,7 @@ class CampusCams:
     def focus(self, cam_id):
         self.close_multicast()
         if cam_id is None and self.current_focus is not None:
-            if not self.high_preformance_enabled: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/bind")
+            if self.linux: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/bind")
             if self.stream is not None:
                 self.stream.release()
                 self.stream.stop()
@@ -95,7 +96,7 @@ class CampusCams:
             try:
                 thread = threading.Thread(target=self.create_stream, args=(self, self.cameras[self.page][cam_id]))
                 thread.start()
-                if not self.high_preformance_enabled: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind")
+                if self.linux: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind")
                 self.log.info(f"Created Stream/Focus for cam {self.page}-{cam_id}")
             except Exception as e:
                 self.log.error(f"Attempted to create stream for cam {self.page}-{cam_id}, failed because ({e})")
@@ -107,7 +108,7 @@ class CampusCams:
     def multicast_refresh_thread(self, ob, stream):
         clock = pygame.time.Clock()
         while stream and self.thread_run:
-            process_time = stream.update_frame(anti_alias=self.high_preformance_enabled)
+            process_time = stream.update_frame(anti_alias=self.high_performance_enabled)
             if not process_time > (1 / stream.fps):
                 clock.tick(stream.fps)
 
@@ -188,6 +189,7 @@ class CampusCams:
         except urllib.error.URLError as e:
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
+            self.name_buffer[page][cam_id] = self.text(str(e))
         except socket.timeout:
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Timeout")
