@@ -19,7 +19,7 @@ class OpenWeatherWrapper:
                 self.owm = OWM(apikey['key'])
         else:
             log.critial("No api key file present")
-            raise FileNotFoundError
+            # raise FileNotFoundError
 
         self.mgr = self.owm.weather_manager()
         self._current_max_refresh = current_weather_refresh_rate
@@ -59,7 +59,8 @@ class OpenWeatherWrapper:
             try:
                 self.current_weather = self.mgr.weather_at_place('Houghton,US').weather
                 self._save_cache()
-            except Exception:
+            except Exception as e:
+                self.log.warning(f"Unable to load weather: {e}")
                 return True
             return True
         return None

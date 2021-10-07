@@ -83,7 +83,7 @@ class CurrentWeather:
                 current_icon = pygame.image.load(image_file)
                 self.icon_cache.update({icon_url: current_icon})
         except Exception as e:
-            print(f"Current weather icon load error: {e}")
+            # print(f"Current weather icon load error: {e}")
             current_icon = self.icon
 
         screen.blit(current_icon, current_icon.get_rect(center=(x + 42.5, y + 40)))

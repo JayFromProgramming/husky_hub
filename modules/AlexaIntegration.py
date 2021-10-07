@@ -246,7 +246,8 @@ class AlexaIntegration:
                 self.api_secret = apikey['monkey_secret']
         else:
             log.critical("No api key file found")
-            raise FileNotFoundError("No api key file found")
+            self.monkeys = {}
+            # raise FileNotFoundError("No api key file found")
         if os.path.isfile(monkey_routines):
             with open(monkey_routines) as f:
                 monkey = json.load(f)

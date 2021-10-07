@@ -167,7 +167,7 @@ def update(dt, screen):
                 pygame.image.save(screen, "../screenshot.png")
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
-            alert = weatherAPI.one_call.alerts
+            alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
             if focused_forecast:
                 focused_forecast = None
                 forecast = []
