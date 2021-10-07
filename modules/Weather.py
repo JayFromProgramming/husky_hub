@@ -19,7 +19,7 @@ import pygame
 from pygame.locals import *
 import logging as log
 
-if platform.platform() == 'Raspbian':
+if platform.platform() == 'Linux-5.10.17-v7+-armv7l-with-debian-10.9':
     py = True
 else:
     py = False
