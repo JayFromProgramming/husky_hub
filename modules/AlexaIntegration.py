@@ -253,7 +253,8 @@ class AlexaIntegration:
                 self.monkeys = monkey
         else:
             log.critical("No monkey file found")
-            raise FileNotFoundError("No monkey file found")
+            self.monkeys = {}
+            # raise FileNotFoundError("No monkey file found")
 
     def run_queued(self):
         def check_button(test_button):

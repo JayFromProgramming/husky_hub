@@ -5,5 +5,5 @@
 /modules/Caches/
 /WeatherServer/clientAuth.json
 /update_commands.command
-/Monkey.json
 
+/modules/Configs/Monkey.json
