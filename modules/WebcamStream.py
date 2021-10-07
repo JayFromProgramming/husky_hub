@@ -13,7 +13,7 @@ import time
 import io
 from urllib.request import urlopen
 
-camera_path = "../Configs/Cameras.json"
+camera_path = "Configs/Cameras.json"
 pallet_one = (255, 206, 0)
 pallet_two = (255, 255, 255)
 pallet_three = (0, 0, 0)
