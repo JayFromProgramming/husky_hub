@@ -19,10 +19,8 @@ import pygame
 from pygame.locals import *
 import logging as log
 
-if platform.platform() == 'Linux-5.10.17-v7+-armv7l-with-debian-10.9':
-    py = True
-else:
-    py = False
+py = platform.platform() == 'Linux-5.10.17-v7+-armv7l-with-debian-10.9'
+# Yes i know this will break when i update my py, and i don't care
 
 if py:
     # os.chdir("/home/pi/Downloads/modules")
