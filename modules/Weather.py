@@ -1,4 +1,5 @@
 import os
+import platform
 import statistics
 import time
 import sys
@@ -18,10 +19,13 @@ import pygame
 from pygame.locals import *
 import logging as log
 
-py = os.getcwd() != r"C:\Users\Aidan\PycharmProjects\raspberryPiWeather\modules"
+if platform.platform() == 'Raspbian':
+    py = True
+else:
+    py = False
 
 if py:
-    os.chdir("/home/pi/Downloads/modules")
+    # os.chdir("/home/pi/Downloads/modules")
     log.basicConfig(filename="../weatherLogs.txt",
                     level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
     fps = 14
