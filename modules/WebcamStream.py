@@ -22,7 +22,7 @@ pallet_three = (0, 0, 0)
 class CampusCams:
 
     def text(self, text):
-        return self.text_font.render(text, False, pallet_one, pallet_three)
+        return self.text_font.render(text, True, pallet_one, pallet_three)
 
     def __init__(self, logs, static_images, live_mode_enable, multi_stream=False, linux=False):
         if os.path.exists(camera_path):
@@ -31,7 +31,8 @@ class CampusCams:
         else:
             raise FileNotFoundError("No Camera Config")
         self.no_image, self.husky, self.empty_image = static_images
-        self.text_font = pygame.font.SysFont('couriernew', 11)
+        self.text_font = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 11)
+        self.button_font = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf", 14)
         self.buffers = []
         self.overlay_buffers = []
         self.linux = linux
@@ -161,9 +162,9 @@ class CampusCams:
         else:
             self.close_multicast()
             self.thread_run = True
-            thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream, cam_id))
-            thread.start()
-            self.multi_cast_threads.append(thread)
+            # thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream, cam_id))
+            # thread.start()
+            # self.multi_cast_threads.append(thread)
             self.stream = stream
 
     def load_frame(self, ob, camera, select_buffer=None):
@@ -215,9 +216,9 @@ class CampusCams:
                                   pygame.Rect(0, (height - 35) / 2, center_w, (height - 35) / 2),
                                   pygame.Rect(center_w, (height - 35) / 2, center_w * 2, (height - 35) / 2)]
         if height > 500:
-            self.text_font = pygame.font.SysFont('couriernew', 13)
+            self.text_font = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf", 13)
         else:
-            self.text_font = pygame.font.SysFont('couriernew', 11)
+            self.text_font = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf", 11)
         self.update_all()
         if self.stream is not None or self.multi_cast:
             # self.stream = None
@@ -261,9 +262,8 @@ class CampusCams:
 
     def draw_buttons(self, screen):
         """"""
-        button_font = pygame.font.SysFont('couriernew', 14)
-        cycle_forward_render = button_font.render(self.cycle_forward_text, True, (0, 0, 0))
-        cycle_backward_render = button_font.render(self.cycle_backward_text, True, (0, 0, 0))
+        cycle_forward_render = self.button_font.render(self.cycle_forward_text, True, (0, 0, 0))
+        cycle_backward_render = self.button_font.render(self.cycle_backward_text, True, (0, 0, 0))
 
         pygame.draw.rect(screen, [255, 206, 0], self.cycle_forward)
         screen.blit(cycle_forward_render, cycle_forward_render.get_rect(midbottom=self.cycle_forward.center))
@@ -313,7 +313,7 @@ class CampusCams:
             screen.blit(self.buffers[self.page][self.current_focus], (0, 0))
             try:
                 if self.stream is not None:
-                    self.stream.draw_to(screen, (0, 0))
+                    self.stream.stream_to(screen, (0, 0))
                     screen.blit(self.stream_info_text, self.stream_info_text.get_rect(topright=(center_w * 2, 0)))
                 else:
                     screen.blit(self.overlay_buffers[self.page][0], (0, 0))

@@ -20,8 +20,8 @@ class CurrentWeather:
         self.big_info = None
         self.icon_cache = icon_cache
         self.icon = icon
-        self.font1 = pygame.font.SysFont('timesnewroman', 48)
-        self.font2 = pygame.font.Font(os.path.join("Assets/Fonts/Merri/Merriweather-Regular.ttf"), 15)
+        self.font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 42)
+        self.font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 15)
 
     def draw_current(self, screen, location):
         """Draws the current temp with high low"""
@@ -59,7 +59,8 @@ class CurrentWeather:
         elif visibility > 1:
             visibility = f"{round(visibility, 2)} mi"
         else:
-            visibility = f"{int(visibility*5280)} ft"
+            top, bottom = float(visibility).as_integer_ratio()
+            visibility = f"{top}/{bottom} mi"
         updated = datetime.datetime.fromtimestamp(updated)
         self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
         small_info = self.font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
@@ -87,8 +88,8 @@ class CurrentWeather:
             current_icon = self.icon
 
         screen.blit(current_icon, current_icon.get_rect(center=(x + 42.5, y + 40)))
-        screen.blit(self.big_info, (x + 85, y))
-        screen.blit(small_info, (x + 85, y + 52))
-        screen.blit(small_info2, (x + 85, y + 76))
+        screen.blit(self.big_info, (x + 75, y))
+        screen.blit(small_info, (x + 75, y + 52))
+        screen.blit(small_info2, (x + 75, y + 76))
         # if precipitation_text:
         #     screen.blit(precipitation_text, (50, 350))

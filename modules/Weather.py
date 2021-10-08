@@ -7,8 +7,9 @@ import datetime
 import traceback
 import psutil
 
-import OpenWeatherWrapper as Api
-import WebcamStream
+from OpenWeatherWrapper import OpenWeatherWrapper
+from Radar import Radar
+from WebcamStream import CampusCams as WebcamStream
 from AlexaIntegration import AlexaIntegration
 from CurrentWeather import CurrentWeather
 from LoadingScreen import LoadingScreen
@@ -28,7 +29,7 @@ if py:
                     level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
     fps = 14
 else:
-    log.basicConfig(filename="../weatherLogs.txt", level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
+    log.basicConfig(filename="../weatherLogs.txt", level=log.DEBUG, format="%(levelname)s: %(asctime)s - %(message)s")
     fps = 30
 
 pygame.init()
@@ -46,9 +47,10 @@ overheat_icon = pygame.image.load(os.path.join("Assets/Images/overheat.png"))
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
 
-clock_font = pygame.font.SysFont('timesnewroman', 65)
-sys_info_font = pygame.font.SysFont('timesnewroman', 14)
-button_font = pygame.font.SysFont('couriernew', 14)
+clock_font = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf"), 55)
+sys_info_font = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf"), 14)
+# button_font = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf"), 14)
+button_font = sys_info_font
 
 current_icon = None
 pygame.mixer.quit()
@@ -85,11 +87,12 @@ last_forecast_update = 0
 last_current_update = 0
 failed_current_updates = 0
 
-weatherAPI = Api.OpenWeatherWrapper(log)
-webcams = WebcamStream.CampusCams(log, (no_image, husky, empty_image), not py, False, py)
+weatherAPI = OpenWeatherWrapper(log)
+webcams = WebcamStream(log, (no_image, husky, empty_image), not py, False, py)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
+radar = Radar(log)
 
 
 def uncaught(exctype, value, tb):
@@ -230,6 +233,11 @@ def update(dt, screen):
                             webcams.focus(None)
                             break
                     cam_id += 1
+            elif display_mode == "radar":
+                if webcams.cycle_forward.collidepoint(mouse_pos):
+                    radar.play_pause()
+                if webcams.cycle_backward.collidepoint(mouse_pos):
+                    radar.jump_too_now()
 
             elif display_mode == "home":
                 if webcam_button.collidepoint(mouse_pos):
@@ -248,6 +256,8 @@ def update(dt, screen):
                         loading_hour = selected_loading_hour
                         forecast = []
                         refresh_forecast = True
+                elif current_weather.icon.get_rect().collidepoint(mouse_pos):
+                    display_mode = "radar"
                 for hour in forecast:
                     hour.check_click(mouse_pos)
 
@@ -278,7 +288,7 @@ def build_forecast(screen, start_location):
 
     if refresh_forecast:
         if loading_hour < len(weather):
-            forecast.append(ForecastEntry(screen, (x + (slot_position * 85), y-10), weather[loading_hour], loading_hour, icon_cache, icon))
+            forecast.append(ForecastEntry(screen, (x + (slot_position * 85), y - 10), weather[loading_hour], loading_hour, icon_cache, icon))
         loading_hour += 1
         slot_position += 1
 
@@ -306,11 +316,12 @@ def draw(screen, dt):
     """
     global refresh_forecast, last_current_update, current_icon, forecast, loading_hour, fps, selected_loading_hour
     global failed_current_updates, screen_dimmed, display_mode, weather_alert_display, overheat_halt, loading_screen
+    global radar
     screen.fill((0, 0, 0))  # Fill the screen with black.
 
     def draw_clock(pallet):
-        clock = clock_font.render(datetime.datetime.now().strftime("%I:%M:%S %p"), True, pallet)
-        screen.blit(clock, (425, 40))
+        clock = clock_font.render(datetime.datetime.now().strftime("%I:%M:%S%p"), True, pallet)
+        screen.blit(clock, clock.get_rect(topright=(screen.get_width() - 6, 40)))
 
     total = psutil.virtual_memory()[0]
     avail = psutil.virtual_memory()[1]
@@ -325,10 +336,10 @@ def draw(screen, dt):
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
     sys_info = sys_info_font.render(
-        f"CPU: {str(round(cpu_average, 2)).zfill(5)}%,  Mem: {str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
-        + (f", Temp {temp}°C" if py else "") + f", {dt}FPS", True,
+        f"CPU:{str(round(cpu_average, 2)).zfill(5)}%, Mem:{str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
+        + (f", Temp:{temp}°C" if py else "") + f", {dt}FPS", True,
         pallet_one)
-    screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width()/2, screen.get_height()-30))))
+    screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width() / 2, screen.get_height() - 30))))
 
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
 
@@ -352,6 +363,7 @@ def draw(screen, dt):
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
                 if webcams.resize(screen):
                     display_mode = "home"
+                    radar.update_radar()
                     room_control.build_routines(0)
                     last_current_update = time.time()
                     webcams.page = 0
@@ -376,6 +388,7 @@ def draw(screen, dt):
         # Update Weather Info
         if last_current_update < time.time() - 45:
             log.debug("Requesting Update")
+            radar.update_radar()
             if weatherAPI.update_current_weather():
                 current_icon = None
                 failed_current_updates = 0
@@ -428,6 +441,11 @@ def draw(screen, dt):
         draw_clock(pallet_one)
         weather_alert_display.draw(screen, (10, 100))
         current_weather.draw_current(screen, (0, 0))
+        pygame.draw.rect(screen, [255, 206, 0], home_button)
+        webcams.draw_buttons(screen)
+
+    elif display_mode == "radar":
+        radar.draw(screen)
         pygame.draw.rect(screen, [255, 206, 0], home_button)
         webcams.draw_buttons(screen)
 
