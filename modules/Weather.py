@@ -29,7 +29,7 @@ if py:
                     level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
     fps = 14
 else:
-    log.basicConfig(filename="../weatherLogs.txt", level=log.DEBUG, format="%(levelname)s: %(asctime)s - %(message)s")
+    log.basicConfig(filename="../weatherLogs.txt", level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
     fps = 30
 
 pygame.init()
@@ -388,8 +388,8 @@ def draw(screen, dt):
         # Update Weather Info
         if last_current_update < time.time() - 45:
             log.debug("Requesting Update")
-            radar.update_radar()
             if weatherAPI.update_current_weather():
+                radar.update_radar()
                 current_icon = None
                 failed_current_updates = 0
                 if weatherAPI.current_weather:
