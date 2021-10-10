@@ -74,6 +74,8 @@ webcam_button = pygame.Rect(10, 450, 100, 40)
 webcam_button_text = "Webcams"
 home_button = pygame.Rect(10, 450, 100, 40)
 home_button_text = "Home"
+forecast_button = pygame.Rect(120, 450, 100, 40)
+forecast_button_text = "Future"
 alert_collider = pygame.Rect(100, 0, 200, 40)
 radar_collider = pygame.Rect(0, 0, 75, 75)
 
@@ -115,7 +117,7 @@ sys.excepthook = uncaught
 def update(dt, screen):
     global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, weather_alert_display
     global weather_alert_number, slot_position, focused_forecast
-    global room_button, room_button_text, webcam_button, webcam_button_text, home_button, home_button_text
+    global room_button, room_button_text, webcam_button, webcam_button_text, home_button, home_button_text, forecast_button
     # Go through events that are passed to the script by the window.
 
     if room_control.queued_routine:
@@ -142,6 +144,7 @@ def update(dt, screen):
             # on other operating systems too, but I don't know for sure.
         elif event.type == pygame.VIDEORESIZE:
             room_button = pygame.Rect(120, screen.get_height() - 25, 100, 40)
+            forecast_button = pygame.Rect(120, screen.get_height() - 25, 100, 40)
             webcam_button = pygame.Rect(10, screen.get_height() - 25, 100, 40)
             home_button = pygame.Rect(10, screen.get_height() - 25, 100, 40)
             webcams.resize(screen)
@@ -335,19 +338,12 @@ def draw(screen, dt):
     if len(cpu_averages) > 30 and display_mode != "webcams":
         cpu_averages.pop(0)
 
-    if py:
-        temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
-    sys_info = sys_info_font.render(
-        f"CPU:{str(round(cpu_average, 2)).zfill(5)}%, Mem:{str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
-        + (f", Temp:{temp}°C" if py else "") + f", {dt}FPS", True,
-        pallet_one)
-    screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width() / 2, screen.get_height() - 30))))
-
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
 
     room_button_render = button_font.render(room_button_text, True, pallet_four)
     webcam_button_render = button_font.render(webcam_button_text, True, pallet_four)
     home_button_render = button_font.render(home_button_text, True, pallet_four)
+    forecast_button_render = button_font.render(forecast_button_text, True, pallet_four)
 
     if display_mode == "init":
 
@@ -445,11 +441,24 @@ def draw(screen, dt):
         current_weather.draw_current(screen, (0, 0))
         pygame.draw.rect(screen, [255, 206, 0], home_button)
         webcams.draw_buttons(screen)
-
+        pygame.display.set_caption("Weather Alert")
     elif display_mode == "radar":
+
         radar.draw(screen)
         pygame.draw.rect(screen, [255, 206, 0], home_button)
         webcams.draw_buttons(screen)
+        pygame.display.set_caption("Radar")
+        pygame.draw.rect(screen, [255, 206, 0], forecast_button)
+        screen.blit(forecast_button_render, forecast_button_render.get_rect(midbottom=forecast_button.center))
+
+
+    if py:
+        temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
+    sys_info = sys_info_font.render(
+        f"CPU:{str(round(cpu_average, 2)).zfill(5)}%, Mem:{str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
+        + (f", Temp:{temp}°C" if py else "") + f", {dt}FPS", True,
+        pallet_one, pallet_four)
+    screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width() / 2, screen.get_height() - 30))))
 
     if alert:
         screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))

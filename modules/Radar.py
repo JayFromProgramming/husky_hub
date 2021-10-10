@@ -2,7 +2,6 @@ import io
 import json
 import os
 import threading
-import time
 from os import listdir
 from os.path import isfile
 
@@ -41,9 +40,13 @@ class Radar:
         surf = pygame.Surface((256, 256), pygame.SRCALPHA)
         for entry in self.weather.radar_buffer:
             e_location, tile, layer_name = entry
-            if location == e_location and layer_name in self.radar_include:
+            if location == e_location and layer_name in self.v1_layers:
                 image_file = io.BytesIO(tile)
                 layers.append(pygame.image.load(image_file))
+            for name, delta, options in self.v2_layers:
+                if location == e_location and layer_name == name:
+                    image_file = io.BytesIO(tile)
+                    layers.append(pygame.image.load(image_file))
         for layer in layers:
             surf.blit(layer, (0, 0))
         return surf
@@ -69,7 +72,9 @@ class Radar:
         self.current_frame_number = 0
         self.last_frame = None
         self.playback_buffer = []
-        self.radar_include = ["clouds_new"]
+        self.v1_layers = ["clouds_new", "precipitation_new"]
+        self.v2_layers = []
+
         self.log = log  # Zoom 6
         self.background_left = pygame.image.load(os.path.join("Assets/Tiles/left.png"))  # 15, 22 or 15, 41
         self.background_center = pygame.image.load(os.path.join("Assets/Tiles/center.png"))  # 16, 22 or 16, 41
@@ -94,19 +99,18 @@ class Radar:
         self.tile_radar_bottom_right = None
 
         try:
-            self.radar_directory = json.loads(urlopen(self.radar_directory_url).read())
+            self.radar_directory: dict = json.loads(urlopen(self.radar_directory_url).read())
         except Exception as e:
             print(f"Failed to load radar because {e}")
         self.playing = False
 
     def update_radar(self):
         self.playback_buffer = []
+        self.last_frame = None
         print("Updating radar")
-        thread = threading.Thread(target=self.weather.update_weather_map)
-        thread.start()
 
         try:
-            self.radar_directory = json.loads(urlopen(self.radar_directory_url, timeout=2).read())
+            self.radar_directory: dict = json.loads(urlopen(self.radar_directory_url, timeout=2).read())
         except Exception as e:
             print(f"Failed to load radar because {e}")
 
@@ -124,9 +128,13 @@ class Radar:
                 thread.start()
                 print(f"Queued frame load for: {name}")
             # self.playback_buffer.append((radar_raw, timestamp))
-        self.sort_and_load_frames()
+        # self.sort_and_load_frames()
 
     def sort_and_load_frames(self):
+
+        thread = threading.Thread(target=self.weather.update_weather_map, args=(self.v1_layers, self.v2_layers))
+        thread.start()
+
         self.playback_buffer = [f for f in listdir("Caches/Radar_cache/KMQT_Frames/") if isfile(os.path.join("Caches/Radar_cache/KMQT_Frames/", f))]
 
         self.playback_buffer.sort(key=lambda sort_frame: int(sort_frame.split("_")[1].split(".")[0]))
@@ -198,11 +206,13 @@ class Radar:
                         screen.get_height() / 2 + self.tile_radar_bottom_right.get_rect().height)))
 
         screen.blit(self.text(datetime.datetime.fromtimestamp(timestamp).
-                              strftime(f"Frame time: %Y-%m-%d %H:%M:%S Frame: {self.current_frame_number}/{len(self.playback_buffer) - 1}")), (0, 0))
+                              strftime(f"Frame time: %Y-%m-%d %H:%M:%S | Frame: {self.current_frame_number}/{len(self.playback_buffer) - 1}"
+                                       f" | Overlays: v1{self.v1_layers} + v2{self.v2_layers}")), (0, 0))
         screen.blit(self.text(f"Frame delta: {datetime.timedelta(seconds=timestamp - last_timestamp)}"
                               f" Time delta: T-{(datetime.datetime.now() - datetime.datetime.fromtimestamp(timestamp))}"),
                     (0, 14))
         screen.blit(radar, radar.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2 + 50)))
+
         if self.playing:
             self.current_frame_number += 1
             if self.current_frame_number > len(self.playback_buffer) - 1:
