@@ -1,6 +1,10 @@
+import io
 import json
 import os
+import threading
 import time
+from urllib.request import urlopen
+
 import dill
 from pyowmmodifed import OWM
 from pyowm.tiles.enums import MapLayerEnum
@@ -17,6 +21,7 @@ class OpenWeatherWrapper:
             with open(api_file) as f:
                 apikey = json.load(f)
                 self.owm = OWM(apikey['key'])
+                self.api_key = apikey['key']
         else:
             log.critial("No api key file present")
             # raise FileNotFoundError
@@ -24,7 +29,7 @@ class OpenWeatherWrapper:
         self.mgr = self.owm.weather_manager()
         self._current_max_refresh = current_weather_refresh_rate
         self._future_max_refresh = future_weather_refresh_rate
-        self._radar_max_refresh = 15
+        self._radar_max_refresh = 5
         self._last_current_refresh = 0
         self._last_future_refresh = 0
         self._last_radar_refresh = 0
@@ -36,7 +41,7 @@ class OpenWeatherWrapper:
             log.info("Loading weather cache")
             with open(cache_location, 'rb') as inp:
                 try:
-                    cache = dill.load(inp)
+                    cache: OpenWeatherWrapper = dill.load(inp)
                     self.current_weather = cache.current_weather
                     self.one_call = cache.one_call
                     self.radar_buffer = cache.radar_buffer
@@ -83,22 +88,52 @@ class OpenWeatherWrapper:
             return True
         return None
 
-    def _load_radar_tile(self, tile_manager, x, y):
+    def _load_future_radar_tile(self, location, layer_name, future, options=""):
+        x, y = location
+        date = time.time() + future
+        request = f"https://maps.openweathermap.org/maps/2.0/weather/{layer_name}/6/{x}/{y}?date={int(date)}{options}&appid={self.api_key}"
+        data = urlopen(request).read()
+        self.radar_buffer.append(((x, y), data, layer_name))
+
+    def _load_radar_tile(self, tile_manager, location, layer_name):
         """"""
+        x, y = location
         tile = tile_manager.get_tile(x=x, y=y, zoom=6).image.data
-        self.radar_buffer.append(((x, y), tile))
+        self.radar_buffer.append(((x, y), tile, layer_name))
+
+    def _load_layer(self, ob, layer):
+        print(f"Loading owm layer {layer}")
+        tile_manager = self.owm.tile_manager(layer)
+
+        self._load_radar_tile(tile_manager, (15, 22), layer)
+        self._load_radar_tile(tile_manager, (16, 22), layer)
+        self._load_radar_tile(tile_manager, (17, 22), layer)
+        self._load_radar_tile(tile_manager, (15, 23), layer)
+        self._load_radar_tile(tile_manager, (16, 23), layer)
+        self._load_radar_tile(tile_manager, (17, 23), layer)
+        print(f"Loaded owm layer {layer}")
+        self._last_radar_refresh = time.time()
+
+    def _load_future_layers(self, ob, layer, future, options=""):
+        print(f"Loading owm forecast layer {layer}")
+        self._load_future_radar_tile((15, 22), layer, future, options=options)
+        self._load_future_radar_tile((16, 22), layer, future, options=options)
+        self._load_future_radar_tile((17, 22), layer, future, options=options)
+        self._load_future_radar_tile((15, 23), layer, future, options=options)
+        self._load_future_radar_tile((16, 23), layer, future, options=options)
+        self._load_future_radar_tile((17, 23), layer, future, options=options)
+        print(f"Loaded owm forecast layer {layer}")
 
     def update_weather_map(self):
         """Update radar"""
         if self._last_radar_refresh < time.time() - self._radar_max_refresh * 60:
             print("Requesting Radar From OpenWeather")
             self.radar_buffer = []
-            tile_manager = self.owm.tile_manager("precipitation_new")
-            self._load_radar_tile(tile_manager, 15, 22)
-            self._load_radar_tile(tile_manager, 16, 22)
-            self._load_radar_tile(tile_manager, 17, 22)
+            # threading.Thread(target=self._load_future_layers, args=(self, "PR0", 0)).start()
+            threading.Thread(target=self._load_layer, args=(self, "wind_new")).start()
+            threading.Thread(target=self._load_layer, args=(self, "precipitation_new")).start()
+            threading.Thread(target=self._load_layer, args=(self, "clouds_new")).start()
             self._last_radar_refresh = time.time()
-            self._save_cache()
             # image_file = io.BytesIO(image_str)
             # print(self.radar_buffer)
 

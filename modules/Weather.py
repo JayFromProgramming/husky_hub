@@ -74,8 +74,8 @@ webcam_button = pygame.Rect(10, 450, 100, 40)
 webcam_button_text = "Webcams"
 home_button = pygame.Rect(10, 450, 100, 40)
 home_button_text = "Home"
-alert_collider = pygame.Rect(50, 0, 200, 40)
-radar_collider = pygame.Rect(0, 0, 50, 50)
+alert_collider = pygame.Rect(100, 0, 200, 40)
+radar_collider = pygame.Rect(0, 0, 75, 75)
 
 forecast = []
 cpu_averages = []
