@@ -74,6 +74,8 @@ webcam_button = pygame.Rect(10, 450, 100, 40)
 webcam_button_text = "Webcams"
 home_button = pygame.Rect(10, 450, 100, 40)
 home_button_text = "Home"
+alert_collider = pygame.Rect(50, 0, 200, 40)
+radar_collider = pygame.Rect(0, 0, 50, 50)
 
 forecast = []
 cpu_averages = []
@@ -92,7 +94,7 @@ webcams = WebcamStream(log, (no_image, husky, empty_image), not py, False, py)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
-radar = Radar(log)
+radar = Radar(log, weatherAPI)
 
 
 def uncaught(exctype, value, tb):
@@ -192,8 +194,7 @@ def update(dt, screen):
                 display_mode = "room_control"
                 room_control.open_since = time.time()
 
-            elif (current_weather.big_info.get_rect().collidepoint(mouse_pos) or weather_alert.get_rect().collidepoint(mouse_pos)) \
-                    and display_mode == "home" and alert:
+            elif alert_collider.collidepoint(mouse_pos) and display_mode == "home" and alert:
                 weather_alert_display = WeatherAlert(1, len(alert), alert=alert[weather_alert_number])
                 weather_alert_display.build_alert()
                 display_mode = "weather_alert"
@@ -256,8 +257,9 @@ def update(dt, screen):
                         loading_hour = selected_loading_hour
                         forecast = []
                         refresh_forecast = True
-                elif current_weather.icon.get_rect().collidepoint(mouse_pos):
+                elif radar_collider.collidepoint(mouse_pos):
                     display_mode = "radar"
+                    radar.update_radar()
                 for hour in forecast:
                     hour.check_click(mouse_pos)
 

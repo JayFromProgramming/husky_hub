@@ -24,11 +24,13 @@ class OpenWeatherWrapper:
         self.mgr = self.owm.weather_manager()
         self._current_max_refresh = current_weather_refresh_rate
         self._future_max_refresh = future_weather_refresh_rate
+        self._radar_max_refresh = 15
         self._last_current_refresh = 0
         self._last_future_refresh = 0
+        self._last_radar_refresh = 0
         self.current_weather = None
         self.one_call = None
-        self.radar_buffer = {}
+        self.radar_buffer = []
 
         if os.path.isfile(cache_location):
             log.info("Loading weather cache")
@@ -37,8 +39,10 @@ class OpenWeatherWrapper:
                     cache = dill.load(inp)
                     self.current_weather = cache.current_weather
                     self.one_call = cache.one_call
+                    self.radar_buffer = cache.radar_buffer
                     self._last_current_refresh = cache._last_current_refresh
                     self._last_future_refresh = cache._last_future_refresh
+                    self._last_radar_refresh = cache._last_radar_refresh
                 except EOFError:
                     log.warning("Cache File Corrupted")
                 except Exception as e:
@@ -79,24 +83,24 @@ class OpenWeatherWrapper:
             return True
         return None
 
-    def load_x_row(self, tile_manager, row, start, stop):
-        self.radar_buffer.update({row: {}})
-        with futures.ThreadPoolExecutor(max_workers=6) as executor:
-            future_to = {executor.submit(self.load_radar_tile, tile_manager, x, row): x for x in range(start, stop)}
-
-    def load_radar_tile(self, tile_manager, x, y):
+    def _load_radar_tile(self, tile_manager, x, y):
         """"""
-        self.radar_buffer[y].update({x: tile_manager.get_tile(x=x, y=y, zoom=13)})
+        tile = tile_manager.get_tile(x=x, y=y, zoom=6).image.data
+        self.radar_buffer.append(((x, y), tile))
 
     def update_weather_map(self):
         """Update radar"""
-        print("Requesting Radar")
-        # rangeX 519->530 2040->2210
-        # rangeY 705->720 2840->2910
-        # tile_manager = self.owm.tile_manager(MapLayerEnum.PRECIPITATION)
-        # with futures.ThreadPoolExecutor(max_workers=6) as executor:
-        #     future_to = {executor.submit(self.load_x_row, tile_manager, y, 2040, 2210): y for y in range(2840, 2910)}
-        # print(self.radar_buffer)
+        if self._last_radar_refresh < time.time() - self._radar_max_refresh * 60:
+            print("Requesting Radar From OpenWeather")
+            self.radar_buffer = []
+            tile_manager = self.owm.tile_manager("precipitation_new")
+            self._load_radar_tile(tile_manager, 15, 22)
+            self._load_radar_tile(tile_manager, 16, 22)
+            self._load_radar_tile(tile_manager, 17, 22)
+            self._last_radar_refresh = time.time()
+            self._save_cache()
+            # image_file = io.BytesIO(image_str)
+            # print(self.radar_buffer)
 
     @staticmethod
     def get_angle_arrow(degree):
