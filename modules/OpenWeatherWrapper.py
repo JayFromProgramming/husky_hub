@@ -148,19 +148,19 @@ class OpenWeatherWrapper:
 
         if 22.5 >= offset(0) >= -22.5:
             return "↑"
-        if 22.5 >= offset(45) >= -22.5:
+        elif 22.5 >= offset(45) >= -22.5:
             return "↗"
-        if 22.5 >= offset(90) >= -22.5:
+        elif 22.5 >= offset(90) >= -22.5:
             return "→"
-        if 22.5 >= offset(135) >= -22.5:
+        elif 22.5 >= offset(135) >= -22.5:
             return "↘"
-        if 22.5 >= offset(180) >= -22.5:
+        elif 22.5 >= offset(180) >= -22.5:
             return "↓"
-        if 22.5 >= offset(225) >= -22.5:
+        elif 22.5 >= offset(225) >= -22.5:
             return "↙"
-        if 22.5 >= offset(270) >= -22.5:
+        elif 22.5 >= offset(270) >= -22.5:
             return "←"
-        if 22.5 >= offset(315) >= -22.5:
+        elif 22.5 >= offset(315) >= -22.5:
             return "↖"
         return ""
 

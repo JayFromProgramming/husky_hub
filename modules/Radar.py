@@ -25,36 +25,36 @@ def scale_tile(tile, scale):
     return pygame.transform.scale(tile, (int(tile.get_width() * scale), int(tile.get_height() * scale)))
 
 
-# https://tilecache.rainviewer.com/v2/radar/nowcast_ea8d03b817d3/512/7/32/44/4/1_1.png
-# https://tilecache.rainviewer.com/v2/radar/nowcast_ea8d03b817d3/512/6/16/22/1/0_1.png
+def load_frame(name, timestamp):
+    image_str = urlopen(f"https://data.rainviewer.com/images/KMQT/{name}_0_source.png").read()
+    update_cache(image_str, f"KMQT_{timestamp}")
+    print(f"Loaded new frame [{name}] saved as [KMQT_{timestamp}.png]")
+
 
 class Radar:
 
-    def load_frame(self, name, timestamp):
-        image_str = urlopen(f"https://data.rainviewer.com/images/KMQT/{name}_0_source.png").read()
-        update_cache(image_str, f"KMQT_{timestamp}")
-        print(f"Loaded new frame [{name}] saved as [KMQT_{timestamp}.png]")
-
     def load_owm_tile(self, location):
         layers = []
-        surf = pygame.Surface((256, 256), pygame.SRCALPHA)
+        surf = pygame.Surface((256, 256), pygame.SRCALPHA | pygame.HWSURFACE)
         for entry in self.weather.radar_buffer:
             e_location, tile, layer_name = entry
             if location == e_location and layer_name in self.v1_layers:
                 image_file = io.BytesIO(tile)
-                layers.append(pygame.image.load(image_file))
+                layers.append(pygame.image.load(image_file).convert_alpha())
             for name, delta, options in self.v2_layers:
                 if location == e_location and layer_name == name:
                     image_file = io.BytesIO(tile)
-                    layers.append(pygame.image.load(image_file))
+                    layers.append(pygame.image.load(image_file).convert_alpha())
         for layer in layers:
             surf.blit(layer, (0, 0))
-        return surf
+        del layers
+        return surf.convert_alpha()
 
     def text(self, text):
         return self.text_font.render(text, True, pallet_one, pallet_three)
 
     def format_owm_tiles(self):
+        print("Reformatting tiles")
         self.tile_radar_center = scale_tile(self.load_owm_tile((16, 22)), self.scale)
         self.tile_radar_left = scale_tile(self.load_owm_tile((15, 22)), self.scale)
         self.tile_radar_right = scale_tile(self.load_owm_tile((17, 22)), self.scale)
@@ -71,8 +71,9 @@ class Radar:
         self.radar_tiles_last_amount = 0
         self.current_frame_number = 0
         self.last_frame = None
+        self.radar_display = True
         self.playback_buffer = []
-        self.v1_layers = ["clouds_new", "precipitation_new"]
+        self.v1_layers = ["clouds_new"]
         self.v2_layers = []
 
         self.log = log  # Zoom 6
@@ -124,7 +125,7 @@ class Radar:
             name = frame["name"].split("_2_map.png", 1)[0]
             timestamp = frame["timestamp"]
             if not os.path.exists(os.path.join(f"Caches/Radar_cache/KMQT_Frames/KMQT_{timestamp}.png")):
-                thread = threading.Thread(target=self.load_frame, args=(name, timestamp))
+                thread = threading.Thread(target=load_frame, args=(name, timestamp))
                 thread.start()
                 print(f"Queued frame load for: {name}")
             # self.playback_buffer.append((radar_raw, timestamp))
@@ -170,7 +171,7 @@ class Radar:
             image_str = f.read()
             f.close()
             image_file = io.BytesIO(image_str)
-            radar = pygame.image.load(image_file)
+            radar = pygame.image.load(image_file).convert_alpha()
             timestamp = int(frame_file.split("_")[1].split(".")[0])
             self.last_frame = (radar, timestamp)
         else:
@@ -189,6 +190,8 @@ class Radar:
         screen.blit(self.background_bottom_left, self.background_bottom_left.get_rect(
             center=((screen.get_width() / 2) - self.background_bottom_left.get_rect().width, (screen.get_height() / 2)
                     + self.background_bottom_left.get_rect().height)))
+        if self.radar_display:
+            screen.blit(radar, radar.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2 + 50)))
 
         if not self.playing and self.current_frame_number == len(self.playback_buffer) - 1:
             screen.blit(self.tile_radar_center, self.tile_radar_center.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2)))
@@ -211,7 +214,6 @@ class Radar:
         screen.blit(self.text(f"Frame delta: {datetime.timedelta(seconds=timestamp - last_timestamp)}"
                               f" Time delta: T-{(datetime.datetime.now() - datetime.datetime.fromtimestamp(timestamp))}"),
                     (0, 14))
-        screen.blit(radar, radar.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2 + 50)))
 
         if self.playing:
             self.current_frame_number += 1

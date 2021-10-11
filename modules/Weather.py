@@ -98,6 +98,11 @@ current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
 radar = Radar(log, weatherAPI)
 
+room_button_render = button_font.render(room_button_text, True, pallet_four)
+webcam_button_render = button_font.render(webcam_button_text, True, pallet_four)
+home_button_render = button_font.render(home_button_text, True, pallet_four)
+forecast_button_render = button_font.render(forecast_button_text, True, pallet_four)
+
 
 def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
@@ -242,6 +247,19 @@ def update(dt, screen):
                     radar.play_pause()
                 if webcams.cycle_backward.collidepoint(mouse_pos):
                     radar.jump_too_now()
+                if forecast_button.collidepoint(mouse_pos):
+                    if len(radar.v2_layers) == 0:
+                        radar.v1_layers = []
+                        radar.v2_layers = [("PR0", 3600, ""), ("CL", 3600, "")]
+                        weatherAPI._last_radar_refresh = 0
+                        radar.radar_display = False
+                        radar.update_radar()
+                    else:
+                        radar.v1_layers = ["clouds_new"]
+                        radar.v2_layers = []
+                        weatherAPI._last_radar_refresh = 0
+                        radar.radar_display = True
+                        radar.update_radar()
 
             elif display_mode == "home":
                 if webcam_button.collidepoint(mouse_pos):
@@ -339,11 +357,6 @@ def draw(screen, dt):
         cpu_averages.pop(0)
 
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
-
-    room_button_render = button_font.render(room_button_text, True, pallet_four)
-    webcam_button_render = button_font.render(webcam_button_text, True, pallet_four)
-    home_button_render = button_font.render(home_button_text, True, pallet_four)
-    forecast_button_render = button_font.render(forecast_button_text, True, pallet_four)
 
     if display_mode == "init":
 
@@ -446,11 +459,11 @@ def draw(screen, dt):
 
         radar.draw(screen)
         pygame.draw.rect(screen, [255, 206, 0], home_button)
+        screen.blit(home_button_render, home_button_render.get_rect(midbottom=home_button.center))
         webcams.draw_buttons(screen)
         pygame.display.set_caption("Radar")
         pygame.draw.rect(screen, [255, 206, 0], forecast_button)
         screen.blit(forecast_button_render, forecast_button_render.get_rect(midbottom=forecast_button.center))
-
 
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
