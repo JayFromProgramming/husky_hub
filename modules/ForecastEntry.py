@@ -172,6 +172,8 @@ class ForecastEntry:
         del self.day_text, self.time_text, self.small_info, self.forecast_temp, self.second_name, self.second_data
         del self.humidity_text, self. humidity_percent, self.wind_text, self.wind_speed
 
+        self.surf.convert()
+
     def check_click(self, mouse_pos):
         if self.clicked_rect.collidepoint(mouse_pos):
             self.focused = True

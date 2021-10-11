@@ -35,15 +35,30 @@ else:
 pygame.init()
 pygame.font.init()
 
-no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png"))
-husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png"))
-empty_image = pygame.image.load(os.path.join(f"Assets/Images/Empty.png"))
+width, height = 800, 475
+
+if py:
+    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.HWACCEL)
+    if pygame.mouse.get_pos() == (0, 0):
+        log.warning("Touch screen is not properly calibrated, attempting to recalibrate")
+        pygame.mouse.set_pos(400, 230)
+        no_mouse = True
+    pygame.display.get_wm_info()
+else:
+    screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.HWACCEL)
+    pygame.display.set_caption("Initializing...")
+    pygame.display.get_wm_info()
+
+no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png")).convert_alpha()
+husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png")).convert()
+empty_image = pygame.image.load(os.path.join(f"Assets/Images/Empty.png")).convert_alpha()
 icon = pygame.image.load(os.path.join("Assets/Images/Icon.png"))
-splash = pygame.image.load(os.path.join("Assets/Images/splash_background2.jpg"))
-no_mouse_icon = pygame.image.load(os.path.join("Assets/Images/NoMouse.png"))
-weather_alert = pygame.image.load(os.path.join("Assets/Images/alert.png"))
-no_fan_icon = pygame.image.load(os.path.join("Assets/Images/No_fan.png"))
-overheat_icon = pygame.image.load(os.path.join("Assets/Images/overheat.png"))
+splash = pygame.image.load(os.path.join("Assets/Images/splash_background2.jpg")).convert()
+no_mouse_icon = pygame.image.load(os.path.join("Assets/Images/NoMouse.png")).convert()
+weather_alert = pygame.image.load(os.path.join("Assets/Images/alert.png")).convert_alpha()
+no_fan_icon = pygame.image.load(os.path.join("Assets/Images/No_fan.png")).convert_alpha()
+overheat_icon = pygame.image.load(os.path.join("Assets/Images/overheat.png")).convert_alpha()
+pygame.display.set_icon(icon)
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
 
@@ -98,10 +113,10 @@ current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
 radar = Radar(log, weatherAPI)
 
-room_button_render = button_font.render(room_button_text, True, pallet_four)
-webcam_button_render = button_font.render(webcam_button_text, True, pallet_four)
-home_button_render = button_font.render(home_button_text, True, pallet_four)
-forecast_button_render = button_font.render(forecast_button_text, True, pallet_four)
+room_button_render = button_font.render(room_button_text, True, pallet_four).convert_alpha()
+webcam_button_render = button_font.render(webcam_button_text, True, pallet_four).convert_alpha()
+home_button_render = button_font.render(home_button_text, True, pallet_four).convert_alpha()
+forecast_button_render = button_font.render(forecast_button_text, True, pallet_four).convert_alpha()
 
 
 def uncaught(exctype, value, tb):
@@ -404,6 +419,7 @@ def draw(screen, dt):
                 current_icon = None
                 failed_current_updates = 0
                 if weatherAPI.current_weather:
+                    current_weather.update()
                     if datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunset_time(timeformat='date'):
                         # print("After sunset")
                         if py and not screen_dimmed:
@@ -507,21 +523,8 @@ def run():
     fps_clock = pygame.time.Clock()
 
     # Set up the window.
-    width, height = 800, 475
 
     log.info(f"Starting piWeather, OnPi:{py}")
-    if py:
-        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
-        if pygame.mouse.get_pos() == (0, 0):
-            log.warning("Touch screen is not properly calibrated, attempting to recalibrate")
-            pygame.mouse.set_pos(400, 230)
-            no_mouse = True
-        pygame.display.get_wm_info()
-    else:
-        screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE)
-        pygame.display.set_caption("Initializing...")
-        pygame.display.set_icon(icon)
-        pygame.display.get_wm_info()
 
     # Main game loop.
     dt = 1 / fps  # dt is the time since last frame.

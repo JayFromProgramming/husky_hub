@@ -183,12 +183,12 @@ class CampusCams:
             # self.get_exif(url)
             if self.current_focus is None:
                 self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (int((self.screen.get_width() / 2)),
-                                                                                int((self.screen.get_height() - 35) / 2)))
+                                                                                int((self.screen.get_height() - 35) / 2))).convert()
                 self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated")
             elif self.current_focus == cam_id:
                 self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (int((self.screen.get_width())),
-                                                                                int((self.screen.get_height() - 35))))
+                                                                                int((self.screen.get_height() - 35)))).convert()
                 # self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated and focused")
         except http.client.IncompleteRead:

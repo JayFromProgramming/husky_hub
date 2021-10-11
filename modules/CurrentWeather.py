@@ -18,16 +18,16 @@ class CurrentWeather:
         """"""
         self.weather_api = weather_api
         self.big_info = None
+        self.small_info = None
+        self.small_info2 = None
         self.icon_cache = icon_cache
         self.icon = icon
+        self.current_icon = None
         self.font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 42)
         self.font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 15)
+        self.update()
 
-    def draw_current(self, screen, location):
-        """Draws the current temp with high low"""
-        x, y = location
-        # Load temp
-
+    def update(self):
         if self.weather_api.current_weather is not None:
             temp = self.weather_api.current_weather.temperature('fahrenheit')
             wind = self.weather_api.current_weather.wind('miles_hour')
@@ -62,34 +62,31 @@ class CurrentWeather:
             top, bottom = float(visibility).as_integer_ratio()
             visibility = f"{top}/{bottom} mi"
         updated = datetime.datetime.fromtimestamp(updated)
-        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
-        small_info = self.font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
-                                       f"; Humidity: {humidity}%", True, pallet_three)
-        small_info2 = self.font2.render(f"Vis: {visibility}; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
-                                        f"; {updated.strftime('%I:%M %p')}", True, pallet_three)
-
-        # if rain:
-        #     precipitation_text = font2.render(f"Rain: {rain}", True, (255, 255, 255))
-        # elif snow:
-        #     precipitation_text = font2.render(f"Snow: {snow}", True, (255, 255, 255))
-        # else:
-        #     precipitation_text = font2.render(f"No precipitation", True, (255, 255, 255))
+        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one).convert_alpha()
+        self.small_info = self.font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
+                                            f"; Humidity: {humidity}%", True, pallet_three).convert_alpha()
+        self.small_info2 = self.font2.render(f"Vis: {visibility}; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
+                                             f"; {updated.strftime('%I:%M %p')}", True, pallet_three).convert_alpha()
 
         try:
             if icon_url in self.icon_cache:
-                current_icon = self.icon_cache[icon_url]
+                self.current_icon = self.icon_cache[icon_url]
             else:
                 image_str = urlopen(icon_url, timeout=0.5).read()
                 image_file = io.BytesIO(image_str)
-                current_icon = pygame.image.load(image_file)
-                self.icon_cache.update({icon_url: current_icon})
+                self.current_icon = pygame.image.load(image_file).convert_alpha()
+                self.icon_cache.update({icon_url: self.current_icon})
         except Exception as e:
             # print(f"Current weather icon load error: {e}")
-            current_icon = self.icon
+            self.current_icon = self.icon
 
-        screen.blit(current_icon, current_icon.get_rect(center=(x + 42.5, y + 40)))
+    def draw_current(self, screen, location):
+        """Draws the current temp with high low"""
+        x, y = location
+        # Load temp
+        screen.blit(self.current_icon, self.current_icon.get_rect(center=(x + 42.5, y + 40)))
         screen.blit(self.big_info, (x + 75, y))
-        screen.blit(small_info, (x + 75, y + 52))
-        screen.blit(small_info2, (x + 75, y + 76))
+        screen.blit(self.small_info, (x + 75, y + 52))
+        screen.blit(self.small_info2, (x + 75, y + 76))
         # if precipitation_text:
         #     screen.blit(precipitation_text, (50, 350))

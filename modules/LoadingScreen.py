@@ -56,7 +56,7 @@ class LoadingScreen:
                 update_cache(image_str)
 
             image_file = io.BytesIO(image_str)
-            return pygame.image.load(image_file)
+            return pygame.image.load(image_file).convert_alpha()
 
         self.loading_percentage += (self.loading_percent_bias['Icons'] / (len(self._common_icons) * 2)) * 0.1
         icon_url = f"http://openweathermap.org/img/wn/{icon}@2x.png"
