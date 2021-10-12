@@ -35,7 +35,7 @@ class Radar:
 
     def load_owm_tile(self, location):
         layers = []
-        surf = pygame.Surface((256, 256), pygame.SRCALPHA | pygame.HWSURFACE)
+        surf = pygame.Surface((256, 256), pygame.SRCALPHA | pygame.HWSURFACE | pygame.ASYNCBLIT)
         for entry in self.weather.radar_buffer:
             e_location, tile, layer_name = entry
             if location == e_location and layer_name in self.v1_layers:
@@ -77,20 +77,14 @@ class Radar:
         self.v2_layers = []
 
         self.log = log  # Zoom 6
-        self.background_left = pygame.image.load(os.path.join("Assets/Tiles/left.png"))  # 15, 22 or 15, 41
-        self.background_center = pygame.image.load(os.path.join("Assets/Tiles/center.png"))  # 16, 22 or 16, 41
-        self.background_right = pygame.image.load(os.path.join("Assets/Tiles/right.png"))  # 17, 22 or 17, 41
-        self.background_bottom = pygame.image.load(os.path.join("Assets/Tiles/bottom.png"))  # 16, 23 or 16, 40
-        self.background_bottom_left = pygame.image.load(os.path.join("Assets/Tiles/bottom_left.png"))
-        self.background_bottom_right = pygame.image.load(os.path.join("Assets/Tiles/bottom_right.png"))
+        self.background_left = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/left.png")), self.scale).convert()  # 15, 22 or 15, 41
+        self.background_center = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/center.png")), self.scale).convert()  # 16, 22 or 16, 41
+        self.background_right = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/right.png")), self.scale).convert()  # 17, 22 or 17, 41
+        self.background_bottom = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/bottom.png")), self.scale).convert()  # 16, 23 or 16, 40
+        self.background_bottom_left = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/bottom_left.png")), self.scale).convert()
+        self.background_bottom_right = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/bottom_right.png")), self.scale).convert()
         self.text_font = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 11)
         self.radar_directory_url = "https://data.rainviewer.com/images/KMQT/0_products.json"
-        self.background_left = scale_tile(self.background_left, self.scale)
-        self.background_center = scale_tile(self.background_center, self.scale)
-        self.background_right = scale_tile(self.background_right, self.scale)
-        self.background_bottom = scale_tile(self.background_bottom, self.scale)
-        self.background_bottom_left = scale_tile(self.background_bottom_left, self.scale)
-        self.background_bottom_right = scale_tile(self.background_bottom_right, self.scale)
 
         self.tile_radar_left = None  # to be initialized later
         self.tile_radar_center = None
@@ -154,7 +148,7 @@ class Radar:
         self.current_frame_number = len(self.playback_buffer) - 1
         self.playing = False
 
-    def draw(self, screen):
+    def draw(self, screen: pygame.Surface):
 
         if len(self.weather.radar_buffer) != self.radar_tiles_last_amount:
             self.format_owm_tiles()
@@ -191,6 +185,8 @@ class Radar:
             center=((screen.get_width() / 2) - self.background_bottom_left.get_rect().width, (screen.get_height() / 2)
                     + self.background_bottom_left.get_rect().height)))
         if self.radar_display:
+            overscan_x = screen.get_width() - radar.get_width()
+            overscan_y = screen.get_height() - radar.get_height()
             screen.blit(radar, radar.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2 + 50)))
 
         if not self.playing and self.current_frame_number == len(self.playback_buffer) - 1:

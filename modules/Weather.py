@@ -38,19 +38,19 @@ pygame.font.init()
 width, height = 800, 475
 
 if py:
-    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.HWACCEL)
+    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
     if pygame.mouse.get_pos() == (0, 0):
         log.warning("Touch screen is not properly calibrated, attempting to recalibrate")
         pygame.mouse.set_pos(400, 230)
         no_mouse = True
     pygame.display.get_wm_info()
 else:
-    screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.HWACCEL)
+    screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.ASYNCBLIT)
     pygame.display.set_caption("Initializing...")
     pygame.display.get_wm_info()
 
 no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png")).convert_alpha()
-husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png")).convert()
+husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png")).convert_alpha()
 empty_image = pygame.image.load(os.path.join(f"Assets/Images/Empty.png")).convert_alpha()
 icon = pygame.image.load(os.path.join("Assets/Images/Icon.png"))
 splash = pygame.image.load(os.path.join("Assets/Images/splash_background2.jpg")).convert()
@@ -265,7 +265,7 @@ def update(dt, screen):
                 if forecast_button.collidepoint(mouse_pos):
                     if len(radar.v2_layers) == 0:
                         radar.v1_layers = []
-                        radar.v2_layers = [("PR0", 3600, ""), ("CL", 3600, "")]
+                        radar.v2_layers = [("PR0", 5800, ""), ("CL", 5800, "")]
                         weatherAPI._last_radar_refresh = 0
                         radar.radar_display = False
                         radar.update_radar()

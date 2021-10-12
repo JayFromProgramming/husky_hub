@@ -10,6 +10,7 @@ import logging as log
 pallet_one = (255, 206, 0)
 pallet_two = (255, 206, 0)
 pallet_three = (255, 255, 255)
+pallet_four = (0, 0, 0)
 
 
 class CurrentWeather:
@@ -62,11 +63,11 @@ class CurrentWeather:
             top, bottom = float(visibility).as_integer_ratio()
             visibility = f"{top}/{bottom} mi"
         updated = datetime.datetime.fromtimestamp(updated)
-        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one).convert_alpha()
+        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one, pallet_four).convert_alpha()
         self.small_info = self.font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
-                                            f"; Humidity: {humidity}%", True, pallet_three).convert_alpha()
+                                            f"; Humidity: {humidity}%", True, pallet_three, pallet_four).convert()
         self.small_info2 = self.font2.render(f"Vis: {visibility}; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
-                                             f"; {updated.strftime('%I:%M %p')}", True, pallet_three).convert_alpha()
+                                             f"; {updated.strftime('%I:%M %p')}", True, pallet_three, pallet_four).convert()
 
         try:
             if icon_url in self.icon_cache:

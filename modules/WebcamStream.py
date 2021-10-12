@@ -53,6 +53,8 @@ class CampusCams:
         self.cycle_forward_text = "Next"
         self.cycle_backward = pygame.Rect(580, 450, 100, 40)
         self.cycle_backward_text = "Back"
+        self.cycle_forward_render = self.button_font.render(self.cycle_forward_text, True, (0, 0, 0)).convert_alpha()
+        self.cycle_backward_render = self.button_font.render(self.cycle_backward_text, True, (0, 0, 0)).convert_alpha()
         self.image_frame_boxes = [pygame.Rect(0, 0, 400, 220), pygame.Rect(400, 0, 400, 220),
                                   pygame.Rect(0, 220, 400, 220), pygame.Rect(400, 220, 400, 220)]
         self.focus_stream = pygame.Rect(0, 0, 800, 440)
@@ -176,7 +178,7 @@ class CampusCams:
             page = self.page
 
         try:
-            self.name_buffer[page][cam_id] = self.text(name)
+            self.name_buffer[page][cam_id] = self.text(name).convert()
             image_str = urlopen(url, timeout=10).read()
             image_file = io.BytesIO(image_str)
             raw_frame = pygame.image.load(image_file)
@@ -200,7 +202,7 @@ class CampusCams:
                 return
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
-            self.name_buffer[page][cam_id] = self.text(str(e))
+            self.name_buffer[page][cam_id] = self.text(str(e)).convert()
         except socket.timeout:
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Timeout")
@@ -262,13 +264,10 @@ class CampusCams:
 
     def draw_buttons(self, screen):
         """"""
-        cycle_forward_render = self.button_font.render(self.cycle_forward_text, True, (0, 0, 0))
-        cycle_backward_render = self.button_font.render(self.cycle_backward_text, True, (0, 0, 0))
-
         pygame.draw.rect(screen, [255, 206, 0], self.cycle_forward)
-        screen.blit(cycle_forward_render, cycle_forward_render.get_rect(midbottom=self.cycle_forward.center))
+        screen.blit(self.cycle_forward_render, self.cycle_forward_render.get_rect(midbottom=self.cycle_forward.center))
         pygame.draw.rect(screen, [255, 206, 0], self.cycle_backward)
-        screen.blit(cycle_backward_render, cycle_backward_render.get_rect(midbottom=self.cycle_backward.center))
+        screen.blit(self.cycle_backward_render, self.cycle_backward_render.get_rect(midbottom=self.cycle_backward.center))
 
     def draw(self, screen):
         """Draw all buffered frames to the screen"""
