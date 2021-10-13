@@ -6,7 +6,7 @@ import time
 from urllib.request import urlopen
 
 import dill
-from pyowmmodifed import OWM
+from pyowm.owm import OWM
 
 api_file = "../APIKey.json"
 cache_location = "Caches/weather.cache"
@@ -96,8 +96,7 @@ class OpenWeatherWrapper:
         if self._last_future_refresh < time.time() - self._future_max_refresh * 60 or True:
             print("Updating Future")
             self._last_future_refresh = time.time()
-            self.weather_forecast = self.mgr.forecast_at_place('Houghton,US', 'hourly', limit=None).forecast()
-            print(self.weather_forecast)
+            self.weather_forecast = self.mgr.forecast_at_place('Houghton,US', '1h', limit=None).weathers
             self._save_cache()
 
     def _load_future_radar_tile(self, location, layer_name, future, options=""):
