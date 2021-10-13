@@ -7,6 +7,7 @@ import datetime
 from urllib.request import urlopen
 import logging as log
 
+import pyowm.weatherapi25.forecast
 from OpenWeatherWrapper import OpenWeatherWrapper
 
 pallet_one = (255, 206, 0)
@@ -29,8 +30,8 @@ class FocusedForecast:
         # font3 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 48)
         font4 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 25)
 
-        temp = self.weather.temperature()
-        wind = self.weather.wind()
+        temp = self.weather.temperature('fahrenheit')
+        wind = self.weather.wind('miles_hour')
         humidity = self.weather.humidity
         status = self.weather.detailed_status
         sky_icon = self.weather.weather_icon_name
@@ -47,7 +48,8 @@ class FocusedForecast:
         self.lines.append(font2.render(f"It will feel like {round(temp['feels_like'])}°F with an expected humidity of {humidity}%",
                                        True, pallet_three))
 
-        self.lines.append(font2.render(f"Expected cloud cover of {round(clouds)}% with a {OpenWeatherWrapper.uvi_scale(uvi).lower()} UV index of {uvi}"
+        self.lines.append(font2.render(f"Expected cloud cover of {round(clouds)}%  "
+                                       + (f"with a {OpenWeatherWrapper.uvi_scale(uvi).lower()} UV index of {uvi}" if uvi else '')
                                        , True, pallet_three))
 
         self.lines.append(font2.render(f"Expected wind speed of {OpenWeatherWrapper.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph "
@@ -104,10 +106,10 @@ class ForecastEntry:
             icon_url = f"http://openweathermap.org/img/wn/{icon_name}@2x.png"
             status = weather.status
             d_status = weather.detailed_status
-            temp = weather.temperature()['temp']
-            feels_like = weather.temperature()['feels_like']
+            temp = weather.temperature('fahrenheit')['temp']
+            feels_like = weather.temperature('fahrenheit')['feels_like']
             humidity = weather.humidity
-            wind = weather.wind()
+            wind = weather.wind('miles_hour')
             reference_time = weather.reference_time()
             reference_time = datetime.datetime.fromtimestamp(reference_time)
             percip_percent = weather.precipitation_probability

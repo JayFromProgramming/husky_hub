@@ -83,7 +83,7 @@ class OpenWeatherWrapper:
             print("Updating Forecast")
             self._last_forecast_refresh = time.time()
             try:
-                self.one_call = self.mgr.one_call(lat=47.1219, lon=-88.569, units='imperial')
+                self.one_call = self.mgr.one_call(lat=47.1219, lon=-88.569)
                 self._save_cache()
             except Exception as e:
                 self.log.warning(f"Unable to load forecast: {e}")
@@ -93,7 +93,7 @@ class OpenWeatherWrapper:
 
     def update_future_weather(self):
         """Update the next 4 day forecast"""
-        if self._last_future_refresh < time.time() - self._future_max_refresh * 60 or True:
+        if self._last_future_refresh < time.time() - self._future_max_refresh * 60:
             print("Updating Future")
             self._last_future_refresh = time.time()
             self.weather_forecast = self.mgr.forecast_at_place('Houghton,US', '1h', limit=None).weathers
@@ -177,7 +177,9 @@ class OpenWeatherWrapper:
 
     @staticmethod
     def uvi_scale(uvi):
-        if uvi < 3:
+        if uvi is None:
+            return "Unknown"
+        elif uvi < 3:
             return "Low"
         elif uvi < 6:
             return "Moderate"
