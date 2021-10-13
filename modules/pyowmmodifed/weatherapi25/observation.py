@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import time
-from pyowm.commons import exceptions
-from pyowm.utils import formatting
-from pyowm.weatherapi25 import location
-from pyowm.weatherapi25 import weather
+from ..commons import exceptions
+from ..utils import formatting
+from ..weatherapi25 import location
+from ..weatherapi25 import weather
 
 
 class Observation:

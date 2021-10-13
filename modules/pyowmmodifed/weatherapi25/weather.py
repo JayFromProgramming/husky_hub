@@ -3,9 +3,9 @@
 
 import json
 
-from pyowm.commons import exceptions
-from pyowm.utils import formatting, measurables
-from pyowm.weatherapi25.uris import ICONS_BASE_URI
+from ..commons import exceptions
+from ..utils import formatting, measurables
+from ..weatherapi25.uris import ICONS_BASE_URI
 
 
 class Weather:

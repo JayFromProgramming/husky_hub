@@ -3,10 +3,10 @@
 
 import time
 
-from pyowm.commons import  exceptions
-from pyowm.utils import timestamps, formatting
-from pyowm.weatherapi25 import location
-from pyowm.weatherapi25 import weather
+from ..commons import  exceptions
+from ..utils import timestamps, formatting
+from ..weatherapi25 import location
+from ..weatherapi25 import weather
 
 
 class Forecast:

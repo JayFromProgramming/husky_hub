@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from operator import itemgetter
-from pyowm.utils import measurables
+from ..utils import measurables
 
 
 class Historian:

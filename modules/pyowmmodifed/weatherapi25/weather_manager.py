@@ -3,12 +3,12 @@
 from datetime import datetime, timedelta, timezone
 from typing import Union
 
-from pyowm.commons.http_client import HttpClient
-from pyowm.constants import WEATHER_API_VERSION
-from pyowm.utils import geo
-from pyowm.weatherapi25 import forecaster, historian, observation, forecast, stationhistory, one_call
-from pyowm.weatherapi25.uris import ROOT_WEATHER_API, OBSERVATION_URI, GROUP_OBSERVATIONS_URI, FIND_OBSERVATIONS_URI, \
-    BBOX_CITY_URI, THREE_HOURS_FORECAST_URI, DAILY_FORECAST_URI, STATION_WEATHER_HISTORY_URI, ONE_CALL_URI, \
+from ..commons.http_client import HttpClient
+from ..constants import WEATHER_API_VERSION
+from ..utils import geo
+from ..weatherapi25 import forecaster, historian, observation, forecast, stationhistory, one_call
+from ..weatherapi25.uris import ROOT_WEATHER_API, OBSERVATION_URI, GROUP_OBSERVATIONS_URI, FIND_OBSERVATIONS_URI, \
+    BBOX_CITY_URI, ONE_HOURS_FORECAST_URI, THREE_HOURS_FORECAST_URI, DAILY_FORECAST_URI, STATION_WEATHER_HISTORY_URI, ONE_CALL_URI, \
     ONE_CALL_HISTORICAL_URI
 
 
@@ -282,7 +282,9 @@ class WeatherManager:
         params = {'q': name}
         if limit is not None:
             params['cnt'] = limit
-        if interval == '3h':
+        if interval == '1h':
+            uri = ONE_HOURS_FORECAST_URI
+        elif interval == '3h':
             uri = THREE_HOURS_FORECAST_URI
         elif interval == 'daily':
             uri = DAILY_FORECAST_URI

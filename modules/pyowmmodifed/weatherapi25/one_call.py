@@ -1,8 +1,8 @@
 from typing import Union, Optional
 
-from pyowm.commons import exceptions
-from pyowm.utils import geo
-from pyowm.weatherapi25.weather import Weather
+from ..commons import exceptions
+from ..utils import geo
+from ..weatherapi25.weather import Weather
 
 
 class OneCall:

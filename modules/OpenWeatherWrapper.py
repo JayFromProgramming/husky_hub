@@ -7,8 +7,6 @@ from urllib.request import urlopen
 
 import dill
 from pyowmmodifed import OWM
-from pyowm.tiles.enums import MapLayerEnum
-from concurrent import futures
 
 api_file = "../APIKey.json"
 cache_location = "Caches/weather.cache"
@@ -98,7 +96,7 @@ class OpenWeatherWrapper:
         if self._last_future_refresh < time.time() - self._future_max_refresh * 60 or True:
             print("Updating Future")
             self._last_future_refresh = time.time()
-            self.weather_forecast = self.mgr.forecast_at_place('Houghton,US', '1h', limit=None).forecast()
+            self.weather_forecast = self.mgr.forecast_at_place('Houghton,US', 'hourly', limit=None).forecast()
             print(self.weather_forecast)
             self._save_cache()
 

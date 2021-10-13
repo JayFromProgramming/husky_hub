@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from pyowm.utils import formatting, weather
-from pyowm.weatherapi25 import weathercoderegistry
+from ..utils import formatting, weather
+from ..weatherapi25 import weathercoderegistry
 
 
 class Forecaster:

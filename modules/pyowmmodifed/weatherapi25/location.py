@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from pyowm.commons import exceptions
-from pyowm.utils import geo
+from ..commons import exceptions
+from ..utils import geo
 
 
 class Location:

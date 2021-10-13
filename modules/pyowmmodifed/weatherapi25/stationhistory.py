@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import time
-from pyowm.commons import exceptions
-from pyowm.utils import formatting
+from ..commons import exceptions
+from ..utils import formatting
 
 
 class StationHistory:
