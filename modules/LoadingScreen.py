@@ -9,6 +9,8 @@ from concurrent import futures
 from urllib.request import urlopen
 import logging as log
 
+from OpenWeatherWrapper import OpenWeatherWrapper
+
 pallet_one = (255, 206, 0)
 pallet_two = (0, 0, 0)
 pallet_three = (255, 255, 255)
@@ -16,7 +18,7 @@ pallet_three = (255, 255, 255)
 
 class LoadingScreen:
 
-    def __init__(self, weather_api, icon_cache, forecast, icons, modules, ignore_cache=False):
+    def __init__(self, weather_api: OpenWeatherWrapper, icon_cache, forecast, icons, modules, ignore_cache=False):
         """"""
         self.weather_api = weather_api
         self.icon_cache = icon_cache
@@ -36,6 +38,7 @@ class LoadingScreen:
         """"""
         self.loading_status_strings.append("Loading weather data from OpenWeatherMap.org")
         self.weather_api.update_current_weather()
+        self.weather_api.update_forecast_weather()
         self.weather_api.update_future_weather()
         self.loading_status_strings.append("Loaded weather data from OpenWeatherMap.org")
 

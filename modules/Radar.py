@@ -73,8 +73,8 @@ class Radar:
         self.last_frame = None
         self.radar_display = True
         self.playback_buffer = []
-        self.v1_layers = ["clouds_new"]
-        self.v2_layers = []
+        self.v1_layers = []
+        self.v2_layers = [("CL", 0, "")]
 
         self.log = log  # Zoom 6
         self.background_left = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/left.png")), self.scale).convert()  # 15, 22 or 15, 41
@@ -185,9 +185,10 @@ class Radar:
             center=((screen.get_width() / 2) - self.background_bottom_left.get_rect().width, (screen.get_height() / 2)
                     + self.background_bottom_left.get_rect().height)))
         if self.radar_display:
-            overscan_x = screen.get_width() - radar.get_width()
-            overscan_y = screen.get_height() - radar.get_height()
-            screen.blit(radar, radar.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2 + 50)))
+            overscan_x = int((radar.get_width() - 800) / 2)
+            overscan_y = int((radar.get_height() - 445) / 2)
+            screen.blit(radar, radar.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2 + 50)),
+                        area=(0, 0, radar.get_width() - overscan_x, radar.get_width() - overscan_y))
 
         if not self.playing and self.current_frame_number == len(self.playback_buffer) - 1:
             screen.blit(self.tile_radar_center, self.tile_radar_center.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2)))

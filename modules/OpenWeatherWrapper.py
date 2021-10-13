@@ -28,12 +28,15 @@ class OpenWeatherWrapper:
 
         self.mgr = self.owm.weather_manager()
         self._current_max_refresh = current_weather_refresh_rate
-        self._future_max_refresh = future_weather_refresh_rate
+        self._forecast_max_refresh = future_weather_refresh_rate
         self._radar_max_refresh = 5
+        self._future_max_refresh = 45
         self._last_current_refresh = 0
-        self._last_future_refresh = 0
+        self._last_forecast_refresh = 0
         self._last_radar_refresh = 0
+        self._last_future_refresh = 0
         self.current_weather = None
+        self.weather_forecast = None
         self.one_call = None
         self.radar_buffer = []
 
@@ -45,9 +48,11 @@ class OpenWeatherWrapper:
                     self.current_weather = cache.current_weather
                     self.one_call = cache.one_call
                     self.radar_buffer = cache.radar_buffer
+                    self.weather_forecast = cache.weather_forecast
                     self._last_current_refresh = cache._last_current_refresh
-                    self._last_future_refresh = cache._last_future_refresh
+                    self._last_forecast_refresh = cache._last_forecast_refresh
                     self._last_radar_refresh = cache._last_radar_refresh
+                    self._last_future_refresh = cache._last_future_refresh
                 except EOFError:
                     log.warning("Cache File Corrupted")
                 except Exception as e:
@@ -74,11 +79,11 @@ class OpenWeatherWrapper:
             return True
         return None
 
-    def update_future_weather(self):
-        """Update future weather values"""
-        if self._last_future_refresh < time.time() - self._future_max_refresh * 60:
+    def update_forecast_weather(self):
+        """Update one call forecast weather values"""
+        if self._last_forecast_refresh < time.time() - self._forecast_max_refresh * 60:
             print("Updating Forecast")
-            self._last_future_refresh = time.time()
+            self._last_forecast_refresh = time.time()
             try:
                 self.one_call = self.mgr.one_call(lat=47.1219, lon=-88.569, units='imperial')
                 self._save_cache()
@@ -87,6 +92,15 @@ class OpenWeatherWrapper:
                 return True
             return True
         return None
+
+    def update_future_weather(self):
+        """Update the next 4 day forecast"""
+        if self._last_future_refresh < time.time() - self._future_max_refresh * 60 or True:
+            print("Updating Future")
+            self._last_future_refresh = time.time()
+            self.weather_forecast = self.mgr.forecast_at_place('Houghton,US', '1h', limit=None).forecast()
+            print(self.weather_forecast)
+            self._save_cache()
 
     def _load_future_radar_tile(self, location, layer_name, future, options=""):
         x, y = location

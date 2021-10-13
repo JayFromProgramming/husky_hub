@@ -42,9 +42,9 @@ class WeatherAlert:
         if self.built:
             return True
 
-        font1 = pygame.font.SysFont('NoticaText', 44)
-        font2 = pygame.font.SysFont('couriernew', 24)
-        font3 = pygame.font.SysFont('couriernew', 16)
+        font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 32)
+        font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 22)
+        font3 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 15)
 
         if not self.initialized:
             if self.alert:
@@ -62,7 +62,7 @@ class WeatherAlert:
             self.time_range_text = font2.render(f"In Effect From: ", True, pallet_one)
             self.initialized = True
         if self.built_line == 0:
-            self.description_lines.append(font3.render(f"--------------------------------Begin Alert---------------------------------",
+            self.description_lines.append(font3.render(f"--------------------------------------Begin Alert--------------------------------------",
                                                        True, pallet_one))
             self.built_line += 1
         elif self.built_line <= len(self.description_raw):
@@ -70,7 +70,7 @@ class WeatherAlert:
             self.description_lines.append(font3.render(f"{str(self.built_line).zfill(2)}: {line}", True, pallet_one))
             self.built_line += 1
         else:
-            self.description_lines.append(font3.render(f"---------------------------------End Alert----------------------------------",
+            self.description_lines.append(font3.render(f"---------------------------------------End Alert---------------------------------------",
                                                        True, pallet_one))
             self.built = True
 
@@ -83,7 +83,7 @@ class WeatherAlert:
         # screen.blit(self.time_range_text, (x, y + 49))
         count = 0  # 17
         for line in self.description_lines[self.scroll:self.scroll+17]:
-            screen.blit(line, (x, y + 72 + (16 * count)))
+            screen.blit(line, (x, y + 72 + (17 * count)))
             count += 1
 
             if len(self.description_lines) > 17 and time.time() > self.scroll_time + 5:

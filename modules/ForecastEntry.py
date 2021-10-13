@@ -103,6 +103,7 @@ class ForecastEntry:
             icon_name = weather.weather_icon_name
             icon_url = f"http://openweathermap.org/img/wn/{icon_name}@2x.png"
             status = weather.status
+            d_status = weather.detailed_status
             temp = weather.temperature()['temp']
             feels_like = weather.temperature()['feels_like']
             humidity = weather.humidity
@@ -113,6 +114,7 @@ class ForecastEntry:
         else:
             icon_url = None
             status = "None"
+            d_status = None
             temp = -10
             feels_like = 67
             wind = {'speed': 60, 'deg': 0}
@@ -122,6 +124,10 @@ class ForecastEntry:
 
         if status == "Thunderstorm":
             status = "Storm"
+        elif status == "Rain":
+            status = f"{d_status[0].capitalize()}.{status.capitalize()}"
+        else:
+            status = status.capitalize()
 
         # self.forecast_time = datetime.datetime.now() + datetime.timedelta(hours=delta_time)
         self.forecast_time = reference_time
@@ -129,7 +135,7 @@ class ForecastEntry:
         self.time_formatted = self.forecast_time.strftime("%I %p")
         self.day_text = font3.render(f"{self.day_formatted}", True, pallet_one)
         self.time_text = font3.render(f"{self.time_formatted}", True, pallet_one)
-        self.small_info = font3.render(f"{status.capitalize()}", True, pallet_three)
+        self.small_info = font3.render(f"{status}", True, pallet_three)
         self.forecast_temp = font1.render(f"{round(temp)}°F", True, pallet_one)
         if percip_percent > 0.2:
             self.second_name = font3.render("Chance", True, pallet_three)

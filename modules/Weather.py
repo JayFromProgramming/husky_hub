@@ -263,15 +263,15 @@ def update(dt, screen):
                 if webcams.cycle_backward.collidepoint(mouse_pos):
                     radar.jump_too_now()
                 if forecast_button.collidepoint(mouse_pos):
-                    if len(radar.v2_layers) == 0:
+                    if radar.radar_display:
                         radar.v1_layers = []
                         radar.v2_layers = [("PR0", 5800, ""), ("CL", 5800, "")]
                         weatherAPI._last_radar_refresh = 0
                         radar.radar_display = False
                         radar.update_radar()
                     else:
-                        radar.v1_layers = ["clouds_new"]
-                        radar.v2_layers = []
+                        radar.v1_layers = []
+                        radar.v2_layers = [("CL", 0, "")]
                         weatherAPI._last_radar_refresh = 0
                         radar.radar_display = True
                         radar.update_radar()
@@ -320,7 +320,7 @@ def build_forecast(screen, start_location):
         slot_position = 1
 
     if weatherAPI.one_call is not None:
-        weather = weatherAPI.one_call.forecast_hourly
+        weather = weatherAPI.one_call.forecast_hourly + weatherAPI.weather_forecast[48:]
     else:
         weather = [None for x in range(48)]
 
@@ -434,7 +434,7 @@ def draw(screen, dt):
                 failed_current_updates += 1
                 if failed_current_updates >= 4:
                     weatherAPI.current_weather = None
-            if weatherAPI.update_future_weather():
+            if weatherAPI.update_forecast_weather():
                 forecast = []
                 refresh_forecast = True
                 selected_loading_hour = 1
