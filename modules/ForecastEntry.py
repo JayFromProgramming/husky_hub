@@ -9,6 +9,7 @@ import logging as log
 
 import pyowm.weatherapi25.forecast
 from OpenWeatherWrapper import OpenWeatherWrapper
+from Utils import buttonGenerator
 
 pallet_one = (255, 206, 0)
 pallet_two = (255, 206, 0)
@@ -27,8 +28,9 @@ class FocusedForecast:
 
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 42)
         font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 18)
-        # font3 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 48)
+        font3 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 14)
         font4 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 25)
+        self.radar_button = buttonGenerator.button(font3, (75, 115, 100, 25), "Radar View", [255, 206, 0], (0, 0, 0))
 
         temp = self.weather.temperature('fahrenheit')
         wind = self.weather.wind('miles_hour')
@@ -72,6 +74,7 @@ class FocusedForecast:
     def draw(self, screen):
         x = self.x
         y = self.y
+        self.radar_button.blit(screen)
         screen.blit(self.time_info, (x + 85, y))
         screen.blit(self.forecast.pic, self.forecast.pic.get_rect(center=(x + 42.5, y + 40)))
         screen.blit(self.big_info, (x + 85, y + 25))

@@ -36,15 +36,17 @@ class Radar:
     def load_owm_tile(self, location):
         layers = []
         surf = pygame.Surface((256, 256), pygame.SRCALPHA | pygame.HWSURFACE | pygame.ASYNCBLIT)
-        for entry in self.weather.radar_buffer:
-            e_location, tile, layer_name = entry
-            if location == e_location and layer_name in self.v1_layers:
-                image_file = io.BytesIO(tile)
-                layers.append(pygame.image.load(image_file).convert_alpha())
-            for name, delta, options in self.v2_layers:
-                if location == e_location and layer_name == name:
+        for _, time in self.weather.radar_buffer.items():
+            for entry in time:
+                e_location, tile, layer_name, time = entry
+                # print(f"{layer_name} {e_location} {time}")
+                if location == e_location and layer_name in self.v1_layers:
                     image_file = io.BytesIO(tile)
                     layers.append(pygame.image.load(image_file).convert_alpha())
+                for name, delta, options in self.v2_layers:
+                    if location == e_location and layer_name == name and _ == 1:
+                        image_file = io.BytesIO(tile)
+                        layers.append(pygame.image.load(image_file).convert_alpha())
         for layer in layers:
             surf.blit(layer, (0, 0))
         del layers
@@ -61,7 +63,7 @@ class Radar:
         self.tile_radar_bottom_center = scale_tile(self.load_owm_tile((16, 23)), self.scale)
         self.tile_radar_bottom_left = scale_tile(self.load_owm_tile((15, 23)), self.scale)
         self.tile_radar_bottom_right = scale_tile(self.load_owm_tile((17, 23)), self.scale)
-        self.radar_tiles_last_amount = len(self.weather.radar_buffer)
+        self.radar_tiles_last_amount = self.weather.radar_refresh_amount
 
     def __init__(self, log, weather):
         # 2,445.984905 meters per pixel on tile 22
@@ -85,6 +87,7 @@ class Radar:
         self.background_bottom_right = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/bottom_right.png")), self.scale).convert()
         self.text_font = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 11)
         self.radar_directory_url = "https://data.rainviewer.com/images/KMQT/0_products.json"
+        threading.Thread(target=self.weather.update_weather_map, args=(self.v1_layers, self.v2_layers)).start()
 
         self.tile_radar_left = None  # to be initialized later
         self.tile_radar_center = None
@@ -108,6 +111,7 @@ class Radar:
             self.radar_directory: dict = json.loads(urlopen(self.radar_directory_url, timeout=2).read())
         except Exception as e:
             print(f"Failed to load radar because {e}")
+            return
 
         # image_str = urlopen("https://tilecache.rainviewer.com/v2/radar/nowcast_d63c46f420ce/256/6/16/22/1/1_0.png").read()
         #
@@ -127,8 +131,7 @@ class Radar:
 
     def sort_and_load_frames(self):
 
-        thread = threading.Thread(target=self.weather.update_weather_map, args=(self.v1_layers, self.v2_layers))
-        thread.start()
+        threading.Thread(target=self.weather.update_weather_map, args=(self.v1_layers, self.v2_layers)).start()
 
         self.playback_buffer = [f for f in listdir("Caches/Radar_cache/KMQT_Frames/") if isfile(os.path.join("Caches/Radar_cache/KMQT_Frames/", f))]
 
@@ -150,7 +153,7 @@ class Radar:
 
     def draw(self, screen: pygame.Surface):
 
-        if len(self.weather.radar_buffer) != self.radar_tiles_last_amount:
+        if self.weather.radar_refresh_amount != self.radar_tiles_last_amount:
             self.format_owm_tiles()
 
         if self.last_frame:

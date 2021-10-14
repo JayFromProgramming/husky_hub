@@ -11,7 +11,7 @@ class button:
         text_render = font.render(text, True, font_color).convert_alpha()
         surf.blit(text_render, text_render.get_rect(center=rect.center))
         self.surf = surf
-        self.rect = rect
+        self.rect = pygame.Rect(rect_bounds)
 
     def blit(self, screen):
         screen.blit(self.surf, (self.x, self.y))
