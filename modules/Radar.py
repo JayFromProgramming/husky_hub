@@ -44,7 +44,7 @@ class Radar:
                     image_file = io.BytesIO(tile)
                     layers.append(pygame.image.load(image_file).convert_alpha())
                 for name, delta, options in self.v2_layers:
-                    if location == e_location and layer_name == name and _ == 1:
+                    if location == e_location and layer_name == name and _ == delta:
                         image_file = io.BytesIO(tile)
                         layers.append(pygame.image.load(image_file).convert_alpha())
         for layer in layers:

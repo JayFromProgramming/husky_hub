@@ -25,13 +25,18 @@ class FocusedForecast:
         self.weather = forecast.weather
         self.open_since = time.time()
         self.lines = []
+        ref = self.weather.reference_time()
+        self.delta = int((ref - ref % 3600) - (time.time() - time.time() % 3600))
 
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 42)
         font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 18)
         font3 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 14)
         font4 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 25)
-        self.radar_button = buttonGenerator.button(font3, (75, 115, 100, 25), "Radar View", [255, 206, 0], (0, 0, 0))
-
+        self.radar_buttons = []
+        self.radar_buttons.append(buttonGenerator.Button(font3, (75, 115, 100, 25), "Radar View", [255, 206, 0], (0, 0, 0),
+                                                         button_data=[("PR0", self.delta, ""), ("CL", self.delta, "")]))
+        self.radar_buttons.append(buttonGenerator.Button(font3, (185, 115, 100, 25), "Wind View", [255, 206, 0], (0, 0, 0),
+                                                         button_data=[("WND", self.delta, "&use_norm=true&arrow_step=16")]))
         temp = self.weather.temperature('fahrenheit')
         wind = self.weather.wind('miles_hour')
         humidity = self.weather.humidity
@@ -62,10 +67,10 @@ class FocusedForecast:
                                        True, pallet_three))
         if rain:
             self.lines.append(font2.render(f"There is a {round(self.weather.precipitation_probability * 100)}% chance of rain "
-                                           f"with {round(rain['1h']/25.4, 4)} inches of rain expected", True, pallet_three))
+                                           f"with {round(rain['1h'] / 25.4, 4)} inches of rain expected", True, pallet_three))
         if snow:
             self.lines.append(font2.render(f"There is a {round(self.weather.precipitation_probability * 100)}% chance of snow "
-                                           f"with {round(snow['1h']/25.4, 4)} inches of snow expected", True, pallet_three))
+                                           f"with {round(snow['1h'] / 25.4, 4)} inches of snow expected", True, pallet_three))
 
         if not rain and not snow and self.weather.precipitation_probability > 0.1:
             self.lines.append(font2.render(f"There is a {round(self.weather.precipitation_probability * 100)}% chance of precipitation expected"
@@ -74,7 +79,8 @@ class FocusedForecast:
     def draw(self, screen):
         x = self.x
         y = self.y
-        self.radar_button.blit(screen)
+        for button in self.radar_buttons:
+            button.blit(screen)
         screen.blit(self.time_info, (x + 85, y))
         screen.blit(self.forecast.pic, self.forecast.pic.get_rect(center=(x + 42.5, y + 40)))
         screen.blit(self.big_info, (x + 85, y + 25))
@@ -181,7 +187,7 @@ class ForecastEntry:
         screen.blit(self.wind_speed, self.wind_speed.get_rect(center=(42.5, 300)))
 
         del self.day_text, self.time_text, self.small_info, self.forecast_temp, self.second_name, self.second_data
-        del self.humidity_text, self. humidity_percent, self.wind_text, self.wind_speed
+        del self.humidity_text, self.humidity_percent, self.wind_text, self.wind_speed
 
         self.surf.convert()
 

@@ -108,7 +108,7 @@ class Video:
 
         self.keep_aspect_ratio = False
 
-        self.frame_surf = pygame.Surface((self.frame_width, self.frame_height))
+        self.frame_surf = pygame.Surface((self.frame_width, self.frame_height), pygame.HWSURFACE | pygame.ASYNCBLIT).convert()
 
         self.is_ready = True
 
@@ -240,21 +240,21 @@ class Video:
 
     def set_size(self, size):
         self.frame_width, self.frame_height = size
-        self.frame_surf = pygame.Surface((self.frame_width, self.frame_height))
+        self.frame_surf = pygame.Surface((self.frame_width, self.frame_height), pygame.HWSURFACE | pygame.ASYNCBLIT).convert()
 
         if not (self.frame_width > 0 and self.frame_height > 0):
             raise ValueError(f"Size must be positive")
 
     def change_width(self, width: int):
         self.frame_width = width
-        self.frame_surf = pygame.Surface((width, self.frame_height))
+        self.frame_surf = pygame.Surface((width, self.frame_height), pygame.HWSURFACE | pygame.ASYNCBLIT).convert()
 
         if self.frame_width <= 0:
             raise ValueError(f"Width must be positive")
 
     def change_height(self, height: int):
         self.frame_height = height
-        self.frame_surf = pygame.Surface((self.frame_width, height))
+        self.frame_surf = pygame.Surface((self.frame_width, height), pygame.HWSURFACE | pygame.ASYNCBLIT).convert()
 
         if self.frame_height <= 0:
             raise ValueError(f"Height must be positive")

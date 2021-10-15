@@ -36,7 +36,7 @@ else:
 pygame.init()
 pygame.font.init()
 
-width, height = 800, 475
+width, height = 800, 480
 
 if py:
     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
@@ -115,10 +115,10 @@ current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
 radar = Radar(log, weatherAPI)
 
-room_button_render = buttonGenerator.button(button_font, (120, 450, 100, 30), room_button_text, [255, 206, 0], pallet_four)
-webcam_button_render = buttonGenerator.button(button_font, (10, 450, 100, 30), webcam_button_text, [255, 206, 0], pallet_four)
-home_button_render = buttonGenerator.button(button_font, (10, 450, 100, 30), home_button_text, [255, 206, 0], pallet_four)
-forecast_button_render = buttonGenerator.button(button_font, (120, 450, 100, 30), forecast_button_text, [255, 206, 0], pallet_four)
+room_button_render = buttonGenerator.Button(button_font, (120, 450, 100, 30), room_button_text, [255, 206, 0], pallet_four)
+webcam_button_render = buttonGenerator.Button(button_font, (10, 450, 100, 30), webcam_button_text, [255, 206, 0], pallet_four)
+home_button_render = buttonGenerator.Button(button_font, (10, 450, 100, 30), home_button_text, [255, 206, 0], pallet_four)
+forecast_button_render = buttonGenerator.Button(button_font, (120, 450, 100, 30), forecast_button_text, [255, 206, 0], pallet_four)
 
 
 def uncaught(exctype, value, tb):
@@ -165,10 +165,10 @@ def update(dt, screen):
             sys.exit()  # Not including this line crashes the script on Windows. Possibly
             # on other operating systems too, but I don't know for sure.
         elif event.type == pygame.VIDEORESIZE:
-            room_button = pygame.Rect(120, screen.get_height() - 25, 100, 40)
-            forecast_button = pygame.Rect(120, screen.get_height() - 25, 100, 40)
-            webcam_button = pygame.Rect(10, screen.get_height() - 25, 100, 40)
-            home_button = pygame.Rect(10, screen.get_height() - 25, 100, 40)
+            room_button_render.move(120, screen.get_height() - 25)
+            forecast_button_render.move(120, screen.get_height() - 25)
+            webcam_button_render.move(10, screen.get_height() - 25)
+            home_button_render.move(10, screen.get_height() - 25)
             webcams.resize(screen)
             webcams.cycle_forward = pygame.Rect(screen.get_width() - 110, screen.get_height() - 25, 100, 40)
             webcams.cycle_backward = pygame.Rect(screen.get_width() - 220, screen.get_height() - 25, 100, 40)
@@ -201,15 +201,14 @@ def update(dt, screen):
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
             if focused_forecast:
-                if focused_forecast.focused_object.radar_button.rect.collidepoint(mouse_pos):
-                    display_mode = "radar"
-                    radar.v1_layers = []
-                    ref = focused_forecast.weather.reference_time()
-                    delta = int((ref - ref % 3600) - time.time())
-                    radar.v2_layers = [("PR0", delta, ""), ("CL", delta, "")]
-                    weatherAPI._last_radar_refresh = 0
-                    radar.radar_display = False
-                    radar.update_radar()
+                for button in focused_forecast.focused_object.radar_buttons:
+                    if button.rect.collidepoint(mouse_pos):
+                        display_mode = "radar"
+                        radar.v1_layers = []
+                        radar.v2_layers = button.button_data
+                        weatherAPI._last_radar_refresh = 0
+                        radar.radar_display = False
+                        radar.update_radar()
                 focused_forecast = None
                 forecast = []
                 refresh_forecast = True

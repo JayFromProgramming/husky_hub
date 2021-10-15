@@ -103,14 +103,15 @@ class OpenWeatherWrapper:
     def _load_future_radar_tile(self, location, layer_name, future, options=""):
         x, y = location
         date = int(time.time()) + future
-        # print(f"Loading {location} {layer_name} {future}")
-        # if [item for item in self.radar_buffer[future] if item[0] == location and item[2] == layer_name]:
-        #     print(f"{location} in cache for {layer_name}:{future}")
-        #     self.radar_refresh_amount += 1
-        #     return
-        data = urlopen(f"https://maps.openweathermap.org/maps/2.0/weather/"
-                       f"{layer_name}/6/{x}/{y}?date={int(date)}{options}&appid={self.api_key}").read()
-        self.radar_buffer[1].append(((x, y), data, layer_name, (future, date, time.time())))
+        print(f"Loading {location} {layer_name}+{options} {future}")
+        if [item for item in self.radar_buffer[future] if item[0] == location and item[2] == layer_name]:
+            print(f"{location} in cache for {layer_name}:{future}")
+            self.radar_refresh_amount += 1
+            return
+        url = f"https://maps.openweathermap.org/maps/2.0/weather/{layer_name}/6/{x}/{y}?date={int(date)}{options}&appid={self.api_key}"
+        data = urlopen(url).read()
+        self.radar_buffer[future].append(((x, y), data, layer_name, (future, date, time.time())))
+        self.radar_refresh_amount += 1
 
     def _load_radar_tile(self, tile_manager, location, layer_name):
         """"""
@@ -133,7 +134,8 @@ class OpenWeatherWrapper:
 
     def _load_future_layers(self, ob, layer: str, future: int, options=""):
         print(f"Loading owm forecast layer {layer}")
-        self.radar_buffer[1] = []
+        if future not in self.radar_buffer:
+            self.radar_buffer[future] = []
         self._load_future_radar_tile((15, 22), layer, future, options=options)
         self._load_future_radar_tile((16, 22), layer, future, options=options)
         self._load_future_radar_tile((17, 22), layer, future, options=options)
@@ -153,7 +155,7 @@ class OpenWeatherWrapper:
                 threading.Thread(target=self._load_layer, args=(self, layer)).start()
 
             for layer, delta, args in v2_layers:
-                threading.Thread(target=self._load_future_layers, args=(self, layer, delta)).start()
+                threading.Thread(target=self._load_future_layers, args=(self, layer, delta, args)).start()
 
             self._last_radar_refresh = time.time()
             # image_file = io.BytesIO(image_str)
