@@ -37,6 +37,13 @@ class Radar:
         layers = []
         surf = pygame.Surface((256, 256), pygame.SRCALPHA | pygame.HWSURFACE | pygame.ASYNCBLIT)
         for _, time in self.weather.radar_buffer.items():
+            if self.v2_layers:
+                name, delta, options = self.v2_layers[0]
+                if _ != delta:
+                    continue
+            else:
+                if _ != 0:
+                    break
             for entry in time:
                 e_location, tile, layer_name, time = entry
                 # print(f"{layer_name} {e_location} {time}")

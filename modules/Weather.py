@@ -92,7 +92,7 @@ webcam_button_text = "Webcams"
 # home_button = pygame.Rect(10, 450, 100, 40)
 home_button_text = "Home"
 # forecast_button = pygame.Rect(120, 450, 100, 40)
-forecast_button_text = "Future"
+forecast_button_text = "Live"
 alert_collider = pygame.Rect(100, 0, 200, 40)
 radar_collider = pygame.Rect(0, 0, 75, 75)
 
@@ -206,8 +206,8 @@ def update(dt, screen):
                         display_mode = "radar"
                         radar.v1_layers = []
                         radar.v2_layers = button.button_data
-                        weatherAPI._last_radar_refresh = 0
                         radar.radar_display = False
+                        radar.playing = False
                         radar.update_radar()
                 focused_forecast = None
                 forecast = []
@@ -273,18 +273,10 @@ def update(dt, screen):
                 if webcams.cycle_backward.collidepoint(mouse_pos):
                     radar.jump_too_now()
                 if forecast_button_render.rect.collidepoint(mouse_pos):
-                    if radar.radar_display:
-                        radar.v1_layers = []
-                        radar.v2_layers = [("PR0", 5800, ""), ("CL", 5800, "")]
-                        weatherAPI._last_radar_refresh = 0
-                        radar.radar_display = False
-                        radar.update_radar()
-                    else:
-                        radar.v1_layers = []
-                        radar.v2_layers = [("CL", 0, "")]
-                        weatherAPI._last_radar_refresh = 0
-                        radar.radar_display = True
-                        radar.update_radar()
+                    radar.v1_layers = []
+                    radar.v2_layers = [("CL", 0, "")]
+                    radar.radar_display = True
+                    radar.update_radar()
 
             elif display_mode == "home":
                 if webcam_button_render.rect.collidepoint(mouse_pos):

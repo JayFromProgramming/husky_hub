@@ -3,6 +3,7 @@ import json
 import os
 import threading
 import time
+import urllib.error
 from urllib.request import urlopen
 
 import dill
@@ -27,7 +28,7 @@ class OpenWeatherWrapper:
         self.mgr = self.owm.weather_manager()
         self._current_max_refresh = current_weather_refresh_rate
         self._forecast_max_refresh = future_weather_refresh_rate
-        self._radar_max_refresh = 5
+        self._radar_max_refresh = 30
         self._future_max_refresh = 45
         self._last_current_refresh = 0
         self._last_forecast_refresh = 0
@@ -104,14 +105,23 @@ class OpenWeatherWrapper:
         x, y = location
         date = int(time.time()) + future
         print(f"Loading {location} {layer_name}+{options} {future}")
-        if [item for item in self.radar_buffer[future] if item[0] == location and item[2] == layer_name]:
-            print(f"{location} in cache for {layer_name}:{future}")
-            self.radar_refresh_amount += 1
-            return
+        entry = [item for item in self.radar_buffer[future] if item[0] == location and item[2] == layer_name]
+
+        if len(entry):
+            if entry[0][3][2] > time.time() - 30 * 60:
+                print(f"{location} in cache for {layer_name}:{future}")
+                self.radar_refresh_amount += 1
+                return
+            else:
+                print(f"{location} expired in cache for {layer_name}:{future} evicting cache")
+                self.radar_buffer[future] = []
         url = f"https://maps.openweathermap.org/maps/2.0/weather/{layer_name}/6/{x}/{y}?date={int(date)}{options}&appid={self.api_key}"
-        data = urlopen(url).read()
-        self.radar_buffer[future].append(((x, y), data, layer_name, (future, date, time.time())))
-        self.radar_refresh_amount += 1
+        try:
+            data = urlopen(url).read()
+            self.radar_buffer[future].append(((x, y), data, layer_name, (future, date, time.time())))
+            self.radar_refresh_amount += 1
+        except urllib.error.HTTPError as e:
+            print(f"Tile get HTTP Error({e}): {url}")
 
     def _load_radar_tile(self, tile_manager, location, layer_name):
         """"""
@@ -148,18 +158,20 @@ class OpenWeatherWrapper:
     def update_weather_map(self, v1_layers, v2_layers):
         """Update radar"""
         # v1_layers, v2_layers = layers
-        if self._last_radar_refresh < time.time() - self._radar_max_refresh * 60 or True:
-            print("Requesting Radar From OpenWeather")
-            # self.radar_buffer[0] = []
-            for layer in v1_layers:
-                threading.Thread(target=self._load_layer, args=(self, layer)).start()
-
-            for layer, delta, args in v2_layers:
-                threading.Thread(target=self._load_future_layers, args=(self, layer, delta, args)).start()
-
+        if self._last_radar_refresh < time.time() - self._radar_max_refresh * 60:
+            self.log.info("Clearing radar cache")
+            # self.radar_buffer = {}
             self._last_radar_refresh = time.time()
-            # image_file = io.BytesIO(image_str)
-            # print(self.radar_buffer)
+
+        if self._last_radar_refresh < time.time() - (self._radar_max_refresh / 2) * 60:
+            print("Refreshing current cloud cover layer")
+            # self.radar_buffer[0] = []
+
+        for layer in v1_layers:
+            threading.Thread(target=self._load_layer, args=(self, layer)).start()
+
+        for layer, delta, args in v2_layers:
+            threading.Thread(target=self._load_future_layers, args=(self, layer, delta, args)).start()
 
     @staticmethod
     def get_angle_arrow(degree):

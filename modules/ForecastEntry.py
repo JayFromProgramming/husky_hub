@@ -26,17 +26,21 @@ class FocusedForecast:
         self.open_since = time.time()
         self.lines = []
         ref = self.weather.reference_time()
-        self.delta = int((ref - ref % 3600) - (time.time() - time.time() % 3600))
+        self.delta = int((ref - ref % (3600*3)) - (time.time() - time.time() % (3600*3)))
 
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 42)
         font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 18)
-        font3 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 14)
+        font3 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 15)
         font4 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 25)
         self.radar_buttons = []
-        self.radar_buttons.append(buttonGenerator.Button(font3, (75, 115, 100, 25), "Radar View", [255, 206, 0], (0, 0, 0),
+        self.radar_buttons.append(buttonGenerator.Button(font3, (75, 115, 100, 35), "Radar View", [255, 206, 0], (0, 0, 0),
                                                          button_data=[("PR0", self.delta, ""), ("CL", self.delta, "")]))
-        self.radar_buttons.append(buttonGenerator.Button(font3, (185, 115, 100, 25), "Wind View", [255, 206, 0], (0, 0, 0),
-                                                         button_data=[("WND", self.delta, "&use_norm=true&arrow_step=16")]))
+        self.radar_buttons.append(buttonGenerator.Button(font3, (185, 115, 100, 35), "Wind View", [255, 206, 0], (0, 0, 0),
+                                                         button_data=[("WND", self.delta, "&use_norm=false&arrow_step=16")]))
+        self.radar_buttons.append(buttonGenerator.Button(font3, (295, 115, 100, 35), "Temp Map", [255, 206, 0], (0, 0, 0),
+                                                         button_data=[("TA2", self.delta, "")]))
+        self.radar_buttons.append(buttonGenerator.Button(font3, (405, 115, 120, 35), "Humidity Map", [255, 206, 0], (0, 0, 0),
+                                                         button_data=[("HRD0", self.delta, "")]))
         temp = self.weather.temperature('fahrenheit')
         wind = self.weather.wind('miles_hour')
         humidity = self.weather.humidity
