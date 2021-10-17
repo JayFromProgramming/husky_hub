@@ -105,7 +105,7 @@ class OpenWeatherWrapper:
         x, y = location
         date = int(time.time()) + future
         print(f"Loading {location} {layer_name}+{options} {future}")
-        entry = [item for item in self.radar_buffer[future] if item[0] == location and item[2] == layer_name]
+        entry = [item for item in self.radar_buffer[future] if item[0] == location and item[2] == layer_name and item[4] == options]
 
         if len(entry):
             if entry[0][3][2] > time.time() - 30 * 60:
@@ -118,7 +118,7 @@ class OpenWeatherWrapper:
         url = f"https://maps.openweathermap.org/maps/2.0/weather/{layer_name}/6/{x}/{y}?date={int(date)}{options}&appid={self.api_key}"
         try:
             data = urlopen(url).read()
-            self.radar_buffer[future].append(((x, y), data, layer_name, (future, date, time.time())))
+            self.radar_buffer[future].append(((x, y), data, layer_name, (future, date, time.time()), options))
             self.radar_refresh_amount += 1
         except urllib.error.HTTPError as e:
             print(f"Tile get HTTP Error({e}): {url}")

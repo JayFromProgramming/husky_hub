@@ -41,6 +41,9 @@ class FocusedForecast:
                                                          button_data=[("TA2", self.delta, "")]))
         self.radar_buttons.append(buttonGenerator.Button(font3, (405, 115, 120, 35), "Humidity Map", [255, 206, 0], (0, 0, 0),
                                                          button_data=[("HRD0", self.delta, "")]))
+        self.radar_buttons.append(buttonGenerator.Button(font3, (535, 115, 120, 35), "Combined Map", [255, 206, 0], (0, 0, 0),
+                                                         button_data=[("PR0", self.delta, ""),
+                                                                      ("WND", self.delta, "&use_norm=true&arrow_step=16")]))
         temp = self.weather.temperature('fahrenheit')
         wind = self.weather.wind('miles_hour')
         humidity = self.weather.humidity

@@ -37,7 +37,7 @@ class Radar:
         layers = []
         surf = pygame.Surface((256, 256), pygame.SRCALPHA | pygame.HWSURFACE | pygame.ASYNCBLIT)
         for _, time in self.weather.radar_buffer.items():
-            if self.v2_layers:
+            if len(self.v2_layers):
                 name, delta, options = self.v2_layers[0]
                 if _ != delta:
                     continue
@@ -45,13 +45,13 @@ class Radar:
                 if _ != 0:
                     break
             for entry in time:
-                e_location, tile, layer_name, time = entry
+                e_location, tile, layer_name, time, e_options = entry
                 # print(f"{layer_name} {e_location} {time}")
                 if location == e_location and layer_name in self.v1_layers:
                     image_file = io.BytesIO(tile)
                     layers.append(pygame.image.load(image_file).convert_alpha())
                 for name, delta, options in self.v2_layers:
-                    if location == e_location and layer_name == name and _ == delta:
+                    if location == e_location and layer_name == name and _ == delta and e_options == options:
                         image_file = io.BytesIO(tile)
                         layers.append(pygame.image.load(image_file).convert_alpha())
         for layer in layers:
