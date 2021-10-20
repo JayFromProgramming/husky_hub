@@ -8,9 +8,11 @@ import socket
 import threading
 import urllib.error
 
+import numpy
 import pygame
 import time
 import io
+from PIL import Image
 from urllib.request import urlopen
 
 camera_path = "Configs/Cameras.json"
@@ -38,12 +40,14 @@ class CampusCams:
         self.linux = linux
         self.name_buffer = []
         self.time_buffer = []
+        self.updated_buffer = []
         self.stream_buffer = [None, None, None, None]
         for x in range(len(self.cameras)):
             self.buffers.append([self.husky, self.husky, self.husky, self.husky])
             self.overlay_buffers.append([self.empty_image, self.empty_image, self.empty_image, self.empty_image])
             self.name_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
             self.time_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
+            self.updated_buffer.append([time.time(), time.time(), time.time(), time.time()])
         self.page = 0
         self.current_focus = None
         self.last_update = 0
@@ -120,6 +124,11 @@ class CampusCams:
             if not process_time > (1 / stream.fps):
                 clock.tick(stream.fps)
 
+    def pause_multicast(self):
+        for stream in self.stream_buffer:
+            if stream is not None and stream is not False:
+                stream.toggle_pause()
+
     def close_multicast(self):
         self.stream_buffer = [None, None, None, None]
         self.thread_run = False
@@ -181,11 +190,26 @@ class CampusCams:
             self.name_buffer[page][cam_id] = self.text(name).convert()
             image_str = urlopen(url, timeout=10).read()
             image_file = io.BytesIO(image_str)
-            raw_frame = pygame.image.load(image_file)
+            ima = Image.open(image_file)
+            with io.BytesIO() as f:  # This is a really jank way around pygame 32bit not being able to read jpgs
+                ima.save(f, format='PNG')
+                f.seek(0)
+                im = f.getvalue()
+                image = io.BytesIO(im)
+            # print(f)
+            raw_frame = pygame.image.load(image)
             # self.get_exif(url)
             if self.current_focus is None:
-                self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (int((self.screen.get_width() / 2)),
-                                                                                int((self.screen.get_height() - 35) / 2))).convert()
+                temp: pygame.Surface = self.buffers[page][cam_id]
+                self.buffers[page][cam_id]: pygame.Surface = pygame.transform.scale(raw_frame, (int((self.screen.get_width() / 2)),
+                                                                                                int((self.screen.get_height() - 35) / 2))).convert()
+                try:
+                    if not numpy.array_equal(pygame.surfarray.pixels2d(temp), pygame.surfarray.pixels2d(self.buffers[page][cam_id].copy())):
+                        self.updated_buffer[page][cam_id] = time.time()
+                        # print(f"New frame {page}-{cam_id}")
+                except Exception as e:
+                    print(f"Cam {page}-{cam_id} warning: {e}")
+
                 self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated")
             elif self.current_focus == cam_id:
@@ -193,6 +217,9 @@ class CampusCams:
                                                                                 int((self.screen.get_height() - 35)))).convert()
                 # self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated and focused")
+            # print(f"Cam {page}-{cam_id} last updated: {time.time() - self.updated_buffer[page][cam_id]}")
+            if self.updated_buffer[page][cam_id] < time.time() - 45 and not (page != 3 and cam_id != 3):
+                self.name_buffer[page][cam_id] = self.text(f"{name}: Unavailable").convert()
         except http.client.IncompleteRead:
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Incomplete read")
@@ -202,12 +229,13 @@ class CampusCams:
                 return
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
-            self.name_buffer[page][cam_id] = self.text(str(e)).convert()
+            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {e}")).convert()
         except socket.timeout:
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Timeout")
         except Exception as e:
-            print(f"Cam {page}-{cam_id}: {e}")
+            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {e}")).convert()
+            print(f"Cam {page}-{cam_id} error: {e}")
 
     def resize(self, screen):
         self.screen = screen

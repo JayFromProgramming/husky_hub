@@ -158,13 +158,19 @@ class Video:
 
             self.release()
 
+    def toggle_pause(self):
+        if self.is_paused:
+            self.resume()
+        else:
+            self.pause()
+
     def pause(self):
         self.is_paused = True
-        self.ff.set_pause(True)
+        # self.ff.set_pause(True)
 
     def resume(self):
         self.is_paused = False
-        self.ff.set_pause(False)
+        # self.ff.set_pause(False)
 
     # Audio methods
 

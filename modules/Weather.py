@@ -22,21 +22,27 @@ from pygame.locals import *
 import logging as log
 
 py = platform.platform() == 'Linux-5.10.17-v7+-armv7l-with-debian-10.9'
+tablet = platform.platform() == 'Windows-10-10.0.14393-SP0'
 # Yes i know this will break when i update my py, and i don't care
 
 if py:
     # os.chdir("/home/pi/Downloads/modules")
     log.basicConfig(filename="../weatherLogs.txt",
                     level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
-    fps = 14
+    base_fps = 14
+    width, height = 800, 480
+elif tablet:
+    log.basicConfig(filename="../weatherLogs.txt",
+                    level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
+    base_fps = 14
+    width, height = 800, 480
 else:
     log.basicConfig(filename="../weatherLogs.txt", level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
-    fps = 30
+    base_fps = 30
+    width, height = 800, 480
 
 pygame.init()
 pygame.font.init()
-
-width, height = 800, 480
 
 if py:
     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
@@ -45,6 +51,8 @@ if py:
         pygame.mouse.set_pos(400, 230)
         no_mouse = True
     pygame.display.get_wm_info()
+elif tablet:
+    screen = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
 else:
     screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.ASYNCBLIT)
     pygame.display.set_caption("Initializing...")
@@ -82,6 +90,7 @@ screen_dimmed = False
 no_mouse = False
 overheat_halt = False
 weather_alert_display = None
+low_refresh = time.time()
 weather_alert_number = 0
 display_mode = "init"
 
@@ -107,6 +116,7 @@ icon_cache = {}
 last_forecast_update = 0
 last_current_update = 0
 failed_current_updates = 0
+fps = 0
 
 weatherAPI = OpenWeatherWrapper(log)
 webcams = WebcamStream(log, (no_image, husky, empty_image), not py, False, py)
@@ -135,10 +145,22 @@ def uncaught(exctype, value, tb):
 
 sys.excepthook = uncaught
 
+def resize(screen):
+    room_button_render.move(120, screen.get_height() - 25)
+    forecast_button_render.move(120, screen.get_height() - 25)
+    webcam_button_render.move(10, screen.get_height() - 25)
+    home_button_render.move(10, screen.get_height() - 25)
+    webcams.resize(screen)
+    webcams.cycle_forward = pygame.Rect(screen.get_width() - 110, screen.get_height() - 25, 100, 40)
+    webcams.cycle_backward = pygame.Rect(screen.get_width() - 220, screen.get_height() - 25, 100, 40)
+    radar.update_radar()
+    # for fore in forecast:
+    #     fore.resize(screen)
+
 
 def update(dt, screen):
     global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, weather_alert_display
-    global weather_alert_number, slot_position, focused_forecast
+    global weather_alert_number, slot_position, focused_forecast, fps, low_refresh
     global room_button, room_button_text, webcam_button, webcam_button_text, home_button, home_button_text, forecast_button
     # Go through events that are passed to the script by the window.
 
@@ -154,6 +176,9 @@ def update(dt, screen):
         room_control.run_routine("f", "big-wind-off")
         room_control.raincheck = True
 
+    if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams'):
+        fps = 1
+
     for event in pygame.event.get():
         # We need to handle these events. Initially the only one you'll want to care
         # about is the QUIT event, because if you don't handle it, your game will crash
@@ -165,16 +190,10 @@ def update(dt, screen):
             sys.exit()  # Not including this line crashes the script on Windows. Possibly
             # on other operating systems too, but I don't know for sure.
         elif event.type == pygame.VIDEORESIZE:
-            room_button_render.move(120, screen.get_height() - 25)
-            forecast_button_render.move(120, screen.get_height() - 25)
-            webcam_button_render.move(10, screen.get_height() - 25)
-            home_button_render.move(10, screen.get_height() - 25)
-            webcams.resize(screen)
-            webcams.cycle_forward = pygame.Rect(screen.get_width() - 110, screen.get_height() - 25, 100, 40)
-            webcams.cycle_backward = pygame.Rect(screen.get_width() - 220, screen.get_height() - 25, 100, 40)
-            # for fore in forecast:
-            #     fore.resize(screen)
+            resize(screen)
         elif event.type == pygame.KEYDOWN:
+            low_refresh = time.time()
+            fps = base_fps
             if event.key == pygame.K_ESCAPE:
                 webcams.focus(None)
                 pygame.quit()
@@ -194,12 +213,16 @@ def update(dt, screen):
                     webcams.cycle(1)
                 elif event.key == pygame.K_a:
                     webcams.high_performance_enabled = not webcams.high_performance_enabled
+                elif event.key == pygame.K_p:
+                    webcams.pause_multicast()
             if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_CTRL:
                 log.info("Saved Screenshot")
                 pygame.image.save(screen, "../screenshot.png")
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
+            low_refresh = time.time()
+            fps = base_fps
             if focused_forecast:
                 for button in focused_forecast.focused_object.radar_buttons:
                     if button.rect.collidepoint(mouse_pos):
@@ -312,7 +335,7 @@ def update(dt, screen):
 def build_forecast(screen, start_location):
     """Load todays hourly weather"""
     x, y = start_location
-    global loading_hour, refresh_forecast, selected_loading_hour, slot_position
+    global loading_hour, refresh_forecast, selected_loading_hour, slot_position, fps
 
     # pygame.draw.line(screen, (255, 255, 255), (x+42, y), (x+42, y + 145))
 
@@ -327,6 +350,7 @@ def build_forecast(screen, start_location):
         weather = [None for x in range(48)]
 
     if refresh_forecast:
+        fps = base_fps
         if loading_hour < len(weather):
             forecast.append(ForecastEntry(screen, (x + (slot_position * 85), y - 10), weather[loading_hour], loading_hour, icon_cache, icon))
         loading_hour += 1
@@ -370,7 +394,7 @@ def draw(screen, dt):
         cpu_average = statistics.mean(cpu_averages)
     else:
         cpu_average = psutil.cpu_percent()
-    if len(cpu_averages) > 30 and display_mode != "webcams":
+    if len(cpu_averages) > fps and display_mode != "webcams":
         cpu_averages.pop(0)
 
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
@@ -381,6 +405,7 @@ def draw(screen, dt):
 
         if loading_screen.cache_icons():
             loading_screen.load_weather()
+            current_weather.update()
             current_weather.draw_current(screen, (0, 0))
             build_forecast(screen, (-80, 125))
             loading_screen.loading_percentage += \
@@ -483,7 +508,9 @@ def draw(screen, dt):
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
     sys_info = sys_info_font.render(
         f"CPU:{str(round(cpu_average, 2)).zfill(5)}%, Mem:{str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
-        + (f", Temp:{temp}°C" if py else "") + f", {dt}FPS", True,
+        + (f", Temp:{temp}°C" if py else "")
+        + f", {dt}FPS" + (f", Battery:{datetime.timedelta(seconds=psutil.sensors_battery()[1]) if not True else ''}"
+                          f" {psutil.sensors_battery()[0]}%" if not py else ""), True,
         pallet_one, pallet_four)
     screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width() / 2, screen.get_height() - 30))))
 
@@ -512,7 +539,7 @@ def draw(screen, dt):
 
 
 def run():
-    global fps, no_mouse
+    global base_fps, fps, no_mouse
     # Initialise PyGame.
 
     # weatherAPI.update_weather_map()
@@ -522,10 +549,13 @@ def run():
 
     # Set up the window.
 
-    log.info(f"Starting piWeather, OnPi:{py}")
+    log.info(f"Starting piWeather, Platform: {platform.platform()}; OnTablet:{tablet}, OnPi:{py}"
+             f"\nExtended images supported?{pygame.image.get_extended()}")
 
     # Main game loop.
+    fps = base_fps
     dt = 1 / fps  # dt is the time since last frame.
+    resize(screen)
     while True:  # Loop forever!
         update(dt, screen)  # You can update/draw here, I've just moved the code for neatness.
         draw(screen, dt)

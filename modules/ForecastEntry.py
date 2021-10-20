@@ -26,7 +26,7 @@ class FocusedForecast:
         self.open_since = time.time()
         self.lines = []
         ref = self.weather.reference_time()
-        self.delta = int((ref - ref % (3600*3)) - (time.time() - time.time() % (3600*3)))
+        self.delta = int((ref - ref % (3600*1.5)) - (time.time() - time.time() % (3600*1.5)))
 
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 42)
         font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 18)

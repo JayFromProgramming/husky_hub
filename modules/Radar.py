@@ -62,14 +62,25 @@ class Radar:
     def text(self, text):
         return self.text_font.render(text, True, pallet_one, pallet_three)
 
-    def format_owm_tiles(self):
+    def format_owm_tiles(self, screen: pygame.Surface):
         print("Reformatting tiles")
-        self.tile_radar_center = scale_tile(self.load_owm_tile((16, 22)), self.scale)
-        self.tile_radar_left = scale_tile(self.load_owm_tile((15, 22)), self.scale)
-        self.tile_radar_right = scale_tile(self.load_owm_tile((17, 22)), self.scale)
-        self.tile_radar_bottom_center = scale_tile(self.load_owm_tile((16, 23)), self.scale)
-        self.tile_radar_bottom_left = scale_tile(self.load_owm_tile((15, 23)), self.scale)
-        self.tile_radar_bottom_right = scale_tile(self.load_owm_tile((17, 23)), self.scale)
+        self.tile_surf = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA | pygame.HWSURFACE | pygame.ASYNCBLIT)
+
+        self.tile_surf.blit(scale_tile(self.load_owm_tile((16, 22)), self.scale),
+                            self.tile.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2)))
+        self.tile_surf.blit(scale_tile(self.load_owm_tile((15, 22)), self.scale), self.tile.get_rect(
+                center=((screen.get_width() / 2) - self.tile.get_rect().width, screen.get_height() / 2)))
+        self.tile_surf.blit(scale_tile(self.load_owm_tile((17, 22)), self.scale), self.tile.get_rect(
+                center=((screen.get_width() / 2) + self.tile.get_rect().width, screen.get_height() / 2)))
+        self.tile_surf.blit(scale_tile(self.load_owm_tile((16, 23)), self.scale), self.tile.get_rect(
+                center=(screen.get_width() / 2, screen.get_height() / 2 + self.tile.get_rect().height)))
+        self.tile_surf.blit(scale_tile(self.load_owm_tile((15, 23)), self.scale), self.tile.get_rect(
+                center=((screen.get_width() / 2) - self.tile.get_rect().width,
+                        screen.get_height() / 2 + self.tile.get_rect().height)))
+        self.tile_surf.blit(scale_tile(self.load_owm_tile((17, 23)), self.scale), self.tile.get_rect(
+                center=((screen.get_width() / 2) + self.tile.get_rect().width,
+                        screen.get_height() / 2 + self.tile.get_rect().height)))
+        self.tile_surf = self.tile_surf.convert_alpha()
         self.radar_tiles_last_amount = self.weather.radar_refresh_amount
 
     def __init__(self, log, weather):
@@ -82,6 +93,7 @@ class Radar:
         self.last_frame = None
         self.radar_display = True
         self.playback_buffer = []
+        self.tile_surf = None
         self.v1_layers = []
         self.v2_layers = [("CL", 0, "")]
 
@@ -96,12 +108,8 @@ class Radar:
         self.radar_directory_url = "https://data.rainviewer.com/images/KMQT/0_products.json"
         threading.Thread(target=self.weather.update_weather_map, args=(self.v1_layers, self.v2_layers)).start()
 
-        self.tile_radar_left = None  # to be initialized later
-        self.tile_radar_center = None
-        self.tile_radar_right = None
-        self.tile_radar_bottom_left = None
-        self.tile_radar_bottom_center = None
-        self.tile_radar_bottom_right = None
+        self.tile = scale_tile(self.load_owm_tile((16, 22)), self.scale)
+        self.screen = None
 
         try:
             self.radar_directory: dict = json.loads(urlopen(self.radar_directory_url).read())
@@ -123,8 +131,8 @@ class Radar:
         # image_str = urlopen("https://tilecache.rainviewer.com/v2/radar/nowcast_d63c46f420ce/256/6/16/22/1/1_0.png").read()
         #
         # self.tile_radar_center = scale_tile(pygame.image.load(image_file), self.scale)
-
-        self.format_owm_tiles()
+        if self.screen:
+            self.format_owm_tiles(self.screen)
 
         for frame in self.radar_directory["products"][0]["scans"]:
             name = frame["name"].split("_2_map.png", 1)[0]
@@ -160,8 +168,10 @@ class Radar:
 
     def draw(self, screen: pygame.Surface):
 
+        self.screen = screen
+
         if self.weather.radar_refresh_amount != self.radar_tiles_last_amount:
-            self.format_owm_tiles()
+            self.format_owm_tiles(screen)
 
         if self.last_frame:
             radar, last_timestamp = self.last_frame
@@ -200,20 +210,8 @@ class Radar:
             screen.blit(radar, radar.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2 + 50)),
                         area=(0, 0, radar.get_width() - overscan_x, radar.get_width() - overscan_y))
 
-        if not self.playing and self.current_frame_number == len(self.playback_buffer) - 1:
-            screen.blit(self.tile_radar_center, self.tile_radar_center.get_rect(center=(screen.get_width() / 2, screen.get_height() / 2)))
-            screen.blit(self.tile_radar_left, self.tile_radar_left.get_rect(
-                center=((screen.get_width() / 2) - self.tile_radar_left.get_rect().width, screen.get_height() / 2)))
-            screen.blit(self.tile_radar_right, self.tile_radar_right.get_rect(
-                center=((screen.get_width() / 2) + self.tile_radar_right.get_rect().width, screen.get_height() / 2)))
-            screen.blit(self.tile_radar_bottom_center, self.tile_radar_bottom_center.get_rect(
-                center=(screen.get_width() / 2, screen.get_height() / 2 + self.tile_radar_bottom_center.get_rect().height)))
-            screen.blit(self.tile_radar_bottom_left, self.tile_radar_bottom_left.get_rect(
-                center=((screen.get_width() / 2) - self.tile_radar_bottom_left.get_rect().width,
-                        screen.get_height() / 2 + self.tile_radar_bottom_left.get_rect().height)))
-            screen.blit(self.tile_radar_bottom_right, self.tile_radar_bottom_right.get_rect(
-                center=((screen.get_width() / 2) + self.tile_radar_bottom_right.get_rect().width,
-                        screen.get_height() / 2 + self.tile_radar_bottom_right.get_rect().height)))
+        if self.tile_surf:
+            screen.blit(self.tile_surf, (0, 0))
 
         screen.blit(self.text(datetime.datetime.fromtimestamp(timestamp).
                               strftime(f"Frame time: %Y-%m-%d %H:%M:%S | Frame: {self.current_frame_number}/{len(self.playback_buffer) - 1}"
