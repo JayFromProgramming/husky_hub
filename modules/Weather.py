@@ -53,6 +53,7 @@ if py:
     pygame.display.get_wm_info()
 elif tablet:
     screen = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
+    # pygame.display.set_allow_screensaver(True)
 else:
     screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.ASYNCBLIT)
     pygame.display.set_caption("Initializing...")
@@ -119,16 +120,16 @@ failed_current_updates = 0
 fps = 0
 
 weatherAPI = OpenWeatherWrapper(log)
-webcams = WebcamStream(log, (no_image, husky, empty_image), not py, False, py)
+webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
 radar = Radar(log, weatherAPI)
 
-room_button_render = buttonGenerator.Button(button_font, (120, 450, 100, 30), room_button_text, [255, 206, 0], pallet_four)
-webcam_button_render = buttonGenerator.Button(button_font, (10, 450, 100, 30), webcam_button_text, [255, 206, 0], pallet_four)
-home_button_render = buttonGenerator.Button(button_font, (10, 450, 100, 30), home_button_text, [255, 206, 0], pallet_four)
-forecast_button_render = buttonGenerator.Button(button_font, (120, 450, 100, 30), forecast_button_text, [255, 206, 0], pallet_four)
+room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
+webcam_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), webcam_button_text, [255, 206, 0], pallet_four)
+home_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), home_button_text, [255, 206, 0], pallet_four)
+forecast_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), forecast_button_text, [255, 206, 0], pallet_four)
 
 
 def uncaught(exctype, value, tb):
@@ -145,14 +146,15 @@ def uncaught(exctype, value, tb):
 
 sys.excepthook = uncaught
 
+
 def resize(screen):
-    room_button_render.move(120, screen.get_height() - 25)
-    forecast_button_render.move(120, screen.get_height() - 25)
-    webcam_button_render.move(10, screen.get_height() - 25)
-    home_button_render.move(10, screen.get_height() - 25)
+    room_button_render.move(120, screen.get_height() - 35)
+    forecast_button_render.move(120, screen.get_height() - 35)
+    webcam_button_render.move(10, screen.get_height() - 35)
+    home_button_render.move(10, screen.get_height() - 35)
     webcams.resize(screen)
-    webcams.cycle_forward = pygame.Rect(screen.get_width() - 110, screen.get_height() - 25, 100, 40)
-    webcams.cycle_backward = pygame.Rect(screen.get_width() - 220, screen.get_height() - 25, 100, 40)
+    webcams.cycle_forward = pygame.Rect(screen.get_width() - 110, screen.get_height() - 35, 100, 35)
+    webcams.cycle_backward = pygame.Rect(screen.get_width() - 220, screen.get_height() - 35, 100, 35)
     radar.update_radar()
     # for fore in forecast:
     #     fore.resize(screen)
@@ -558,7 +560,8 @@ def run():
     resize(screen)
     while True:  # Loop forever!
         update(dt, screen)  # You can update/draw here, I've just moved the code for neatness.
-        draw(screen, dt)
+        if pygame.display.get_active():
+            draw(screen, dt)
 
         fps_clock.tick(fps)
         dt = round(fps_clock.get_fps())

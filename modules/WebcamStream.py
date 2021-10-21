@@ -53,9 +53,9 @@ class CampusCams:
         self.last_update = 0
         self.update_rate = 30
         self.log = logs
-        self.cycle_forward = pygame.Rect(690, 450, 100, 40)
+        self.cycle_forward = pygame.Rect(690, 430, 100, 40)
         self.cycle_forward_text = "Next"
-        self.cycle_backward = pygame.Rect(580, 450, 100, 40)
+        self.cycle_backward = pygame.Rect(580, 430, 100, 40)
         self.cycle_backward_text = "Back"
         self.cycle_forward_render = self.button_font.render(self.cycle_forward_text, True, (0, 0, 0)).convert_alpha()
         self.cycle_backward_render = self.button_font.render(self.cycle_backward_text, True, (0, 0, 0)).convert_alpha()
@@ -188,17 +188,20 @@ class CampusCams:
 
         try:
             self.name_buffer[page][cam_id] = self.text(name).convert()
-            image_str = urlopen(url, timeout=10).read()
-            image_file = io.BytesIO(image_str)
-            ima = Image.open(image_file)
-            with io.BytesIO() as f:  # This is a really jank way around pygame 32bit not being able to read jpgs
-                ima.save(f, format='PNG')
-                f.seek(0)
-                im = f.getvalue()
-                image = io.BytesIO(im)
-            # print(f)
-            raw_frame = pygame.image.load(image)
-            # self.get_exif(url)
+            image_str = urlopen(url, timeout=10).read()  # Load jpg image from source
+            try:
+                image_file = io.BytesIO(image_str)  # Load byte string into a bytesIO file
+                raw_frame = pygame.image.load(image_file)  # Load into pygame
+            except pygame.error:
+                image_file = io.BytesIO(image_str)  # Load byte string into a bytesIO file
+                image = Image.open(image_file)  # Open in Pillow
+                with io.BytesIO() as f:  # This is a really jank way around pygame 32bit not being able to read jpgs
+                    image.save(f, format='PNG')  # Save Pillow file to type PNG
+                    f.seek(0)  # Move seek head
+                    im = f.getvalue()  # Get file bytes
+                    image = io.BytesIO(im)  # load new file into image bytes file
+                raw_frame = pygame.image.load(image)  # Load into pygame
+
             if self.current_focus is None:
                 temp: pygame.Surface = self.buffers[page][cam_id]
                 self.buffers[page][cam_id]: pygame.Surface = pygame.transform.scale(raw_frame, (int((self.screen.get_width() / 2)),
@@ -212,14 +215,13 @@ class CampusCams:
 
                 self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated")
+                if self.updated_buffer[page][cam_id] < time.time() - 65 and (page != 3 and cam_id != 3):
+                    self.name_buffer[page][cam_id] = self.text(f"{name}: Unavailable").convert()
             elif self.current_focus == cam_id:
                 self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (int((self.screen.get_width())),
                                                                                 int((self.screen.get_height() - 35)))).convert()
                 # self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated and focused")
-            # print(f"Cam {page}-{cam_id} last updated: {time.time() - self.updated_buffer[page][cam_id]}")
-            if self.updated_buffer[page][cam_id] < time.time() - 45 and not (page != 3 and cam_id != 3):
-                self.name_buffer[page][cam_id] = self.text(f"{name}: Unavailable").convert()
         except http.client.IncompleteRead:
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Incomplete read")
@@ -229,12 +231,12 @@ class CampusCams:
                 return
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
-            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {e}")).convert()
+            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:30]}")).convert()
         except socket.timeout:
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Timeout")
         except Exception as e:
-            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {e}")).convert()
+            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:30]}")).convert()
             print(f"Cam {page}-{cam_id} error: {e}")
 
     def resize(self, screen):
@@ -293,9 +295,9 @@ class CampusCams:
     def draw_buttons(self, screen):
         """"""
         pygame.draw.rect(screen, [255, 206, 0], self.cycle_forward)
-        screen.blit(self.cycle_forward_render, self.cycle_forward_render.get_rect(midbottom=self.cycle_forward.center))
+        screen.blit(self.cycle_forward_render, self.cycle_forward_render.get_rect(center=self.cycle_forward.center))
         pygame.draw.rect(screen, [255, 206, 0], self.cycle_backward)
-        screen.blit(self.cycle_backward_render, self.cycle_backward_render.get_rect(midbottom=self.cycle_backward.center))
+        screen.blit(self.cycle_backward_render, self.cycle_backward_render.get_rect(center=self.cycle_backward.center))
 
     def draw(self, screen):
         """Draw all buffered frames to the screen"""
@@ -340,7 +342,7 @@ class CampusCams:
             screen.blit(self.buffers[self.page][self.current_focus], (0, 0))
             try:
                 if self.stream is not None:
-                    self.stream.stream_to(screen, (0, 0))
+                    self.stream.stream_to(screen, (0, 0), anti_alias=self.high_performance_enabled)
                     screen.blit(self.stream_info_text, self.stream_info_text.get_rect(topright=(center_w * 2, 0)))
                 else:
                     screen.blit(self.overlay_buffers[self.page][0], (0, 0))
