@@ -7,6 +7,7 @@ import datetime
 import traceback
 import psutil
 
+import Thermostat
 from OpenWeatherWrapper import OpenWeatherWrapper
 from Radar import Radar
 from Utils import buttonGenerator
@@ -41,24 +42,30 @@ else:
     base_fps = 30
     width, height = 800, 480
 
+screen = None
 pygame.init()
 pygame.font.init()
 
-if py:
-    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
-    if pygame.mouse.get_pos() == (0, 0):
-        log.warning("Touch screen is not properly calibrated, attempting to recalibrate")
-        pygame.mouse.set_pos(400, 230)
-        no_mouse = True
-    pygame.display.get_wm_info()
-elif tablet:
-    screen = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
-    # pygame.display.set_allow_screensaver(True)
-else:
-    screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.ASYNCBLIT)
-    pygame.display.set_caption("Initializing...")
-    pygame.display.get_wm_info()
 
+def make_screen():
+    global no_mouse, screen
+    if py:
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
+        if pygame.mouse.get_pos() == (0, 0):
+            log.warning("Touch screen is not properly calibrated, attempting to recalibrate")
+            pygame.mouse.set_pos(400, 230)
+            no_mouse = True
+        pygame.display.get_wm_info()
+    elif tablet:
+        screen = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.FULLSCREEN | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
+        # pygame.display.set_allow_screensaver(True)
+    else:
+        screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.RESIZABLE | pygame.ASYNCBLIT)
+        pygame.display.set_caption("Initializing...")
+        pygame.display.get_wm_info()
+
+
+make_screen()
 no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png")).convert_alpha()
 husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png")).convert_alpha()
 empty_image = pygame.image.load(os.path.join(f"Assets/Images/Empty.png")).convert_alpha()
@@ -91,6 +98,7 @@ screen_dimmed = False
 no_mouse = False
 overheat_halt = False
 weather_alert_display = None
+was_focused = True
 low_refresh = time.time()
 weather_alert_number = 0
 display_mode = "init"
@@ -110,7 +118,7 @@ forecast = []
 cpu_averages = []
 loading_hour = 1
 slot_position = 1
-max_loading_hour = 96
+max_loading_hour = 100
 selected_loading_hour = 1
 icon_cache = {}
 
@@ -123,8 +131,9 @@ weatherAPI = OpenWeatherWrapper(log)
 webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
 room_control = AlexaIntegration(log)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
-loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather))
+loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
 radar = Radar(log, weatherAPI)
+thermostat = Thermostat.Thermostat(py)
 
 room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
 webcam_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), webcam_button_text, [255, 206, 0], pallet_four)
@@ -135,13 +144,8 @@ forecast_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35)
 def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
     webcams.close_multicast()
-    if exctype is not KeyboardInterrupt:
-        pass
-        # if py:
-        #     log.warning("Attempting to restart from uncaught error...")
-        #     time.sleep(30)
-        #     # response = os.system("nohup /home/pi/weather.sh &")
-        #     # log.warning(f"Response: ({response})"
+    if not isinstance(exctype, KeyboardInterrupt):
+        time.sleep(1)
 
 
 sys.excepthook = uncaught
@@ -171,6 +175,9 @@ def update(dt, screen):
 
     if weather_alert_display:
         weather_alert_display.build_alert()
+
+    if display_mode == "home":
+        update_weather_data()
 
     # print(weatherAPI.current_weather.status if weatherAPI.current_weather else None)
     if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not room_control.raincheck:
@@ -334,6 +341,41 @@ def update(dt, screen):
         # Handle other events as you wish.
 
 
+def update_weather_data():
+    global last_current_update, last_forecast_update, screen_dimmed, failed_current_updates, forecast, refresh_forecast, selected_loading_hour
+    global loading_hour
+    # Update Weather Info
+    if last_current_update < time.time() - 60:
+        log.debug("Requesting Update")
+        thermostat.thermostat.read_data()
+        if weatherAPI.update_current_weather():
+            radar.update_radar()
+            failed_current_updates = 0
+            if weatherAPI.current_weather:
+                current_weather.update()
+                if datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunset_time(timeformat='date'):
+                    # print("After sunset")
+                    if py and not screen_dimmed:
+                        os.system(f"sudo sh -c 'echo \"35\" > /sys/class/backlight/rpi_backlight/brightness'")
+                        screen_dimmed = True
+                elif datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunrise_time(timeformat='date'):
+                    # print("After sunrise")
+                    if py:
+                        os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
+                        screen_dimmed = False
+        elif weatherAPI.update_current_weather() is False:
+            failed_current_updates += 1
+            if failed_current_updates >= 4:
+                weatherAPI.current_weather = None
+        if weatherAPI.update_forecast_weather():
+            forecast = []
+            refresh_forecast = True
+            selected_loading_hour = 1
+            loading_hour = selected_loading_hour
+        # webcams.update_all()
+        last_current_update = time.time()
+
+
 def build_forecast(screen, start_location):
     """Load todays hourly weather"""
     x, y = start_location
@@ -417,6 +459,7 @@ def draw(screen, dt):
                 loading_screen.loading_percentage += loading_screen.loading_percent_bias['Webcams'] / 4
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
                 if webcams.resize(screen):
+                    thermostat.thermostat.read_data()
                     display_mode = "home"
                     radar.update_radar()
                     room_control.build_routines(0)
@@ -439,37 +482,6 @@ def draw(screen, dt):
 
         # radar_image = pygame.image.load(io.BytesIO(radar[0]))
         # screen.blit(radar_image, (200, 200))
-
-        # Update Weather Info
-        if last_current_update < time.time() - 45:
-            log.debug("Requesting Update")
-            if weatherAPI.update_current_weather():
-                radar.update_radar()
-                current_icon = None
-                failed_current_updates = 0
-                if weatherAPI.current_weather:
-                    current_weather.update()
-                    if datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunset_time(timeformat='date'):
-                        # print("After sunset")
-                        if py and not screen_dimmed:
-                            os.system(f"sudo sh -c 'echo \"35\" > /sys/class/backlight/rpi_backlight/brightness'")
-                            screen_dimmed = True
-                    elif datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunrise_time(timeformat='date'):
-                        # print("After sunrise")
-                        if py:
-                            os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
-                            screen_dimmed = False
-            elif weatherAPI.update_current_weather() is False:
-                failed_current_updates += 1
-                if failed_current_updates >= 4:
-                    weatherAPI.current_weather = None
-            if weatherAPI.update_forecast_weather():
-                forecast = []
-                refresh_forecast = True
-                selected_loading_hour = 1
-                loading_hour = selected_loading_hour
-            # webcams.update_all()
-            last_current_update = time.time()
 
         webcam_button_render.blit(screen)
         webcams.draw_buttons(screen)
@@ -541,7 +553,7 @@ def draw(screen, dt):
 
 
 def run():
-    global base_fps, fps, no_mouse
+    global base_fps, fps, no_mouse, was_focused
     # Initialise PyGame.
 
     # weatherAPI.update_weather_map()
@@ -562,6 +574,11 @@ def run():
         update(dt, screen)  # You can update/draw here, I've just moved the code for neatness.
         if pygame.display.get_active():
             draw(screen, dt)
+            was_focused = True
+        elif not pygame.display.get_active() and was_focused:
+            was_focused = False
+        elif pygame.display.get_active() and not was_focused and tablet:
+            make_screen()
 
         fps_clock.tick(fps)
         dt = round(fps_clock.get_fps())

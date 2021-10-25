@@ -7,6 +7,7 @@ import urllib.error
 from urllib.request import urlopen
 
 import dill
+import paramiko
 from pyowm.owm import OWM
 
 api_file = "../APIKey.json"
@@ -18,9 +19,12 @@ class OpenWeatherWrapper:
     def __init__(self, log, current_weather_refresh_rate=2, future_weather_refresh_rate=15):
         if os.path.isfile(api_file):
             with open(api_file) as f:
-                apikey = json.load(f)
-                self.owm = OWM(apikey['key'])
-                self.api_key = apikey['key']
+                keys = json.load(f)
+                self.owm = OWM(keys['key'])
+                self.api_key = keys['key']
+                self.main_server = keys['rPi_address']
+                self.main_server_password = keys['rPi_password']
+                self.main_server_filepath = keys['rPi_file_path']
         else:
             log.critial("No api key file present")
             # raise FileNotFoundError
@@ -33,15 +37,19 @@ class OpenWeatherWrapper:
         self._last_current_refresh = 0
         self._last_forecast_refresh = 0
         self._last_radar_refresh = 0
+        self._last_cache_refresh = 0
         self.radar_refresh_amount = 0
         self._last_future_refresh = 0
         self.current_weather = None
         self.weather_forecast = None
         self.one_call = None
         self.radar_buffer = {}
+        self.log = log
+        self._read_cache()
 
+    def _read_cache(self):
         if os.path.isfile(cache_location):
-            log.info("Loading weather cache")
+            self.log.info("Loading weather cache")
             with open(cache_location, 'rb') as inp:
                 try:
                     cache: OpenWeatherWrapper = dill.load(inp)
@@ -54,10 +62,22 @@ class OpenWeatherWrapper:
                     self._last_radar_refresh = cache._last_radar_refresh
                     self._last_future_refresh = cache._last_future_refresh
                 except EOFError:
-                    log.warning("Cache File Corrupted")
+                    self.log.warning("Cache File Corrupted")
                 except Exception as e:
-                    log.warning(f"Failed to load cached weather because: {e}")
-        self.log = log
+                    self.log.warning(f"Failed to load cached weather because: {e}")
+
+    def _load_pi_cache(self):
+        if self._last_cache_refresh < time.time() - 120 and False:
+            ssh = paramiko.SSHClient()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
+            ssh.connect(self.main_server, username="pi", password=self.main_server_password)
+            sftp = ssh.open_sftp()
+            sftp.get(f"{self.main_server_filepath}/Caches/weather.cache", cache_location)
+            sftp.close()
+            ssh.close()
+            self._read_cache()
+            self._last_cache_refresh = time.time()
 
     def _save_cache(self):
         with open(cache_location, 'wb') as outp:
@@ -67,6 +87,7 @@ class OpenWeatherWrapper:
 
     def update_current_weather(self):
         """Update current weather values"""
+        self._load_pi_cache()
         if self._last_current_refresh < time.time() - self._current_max_refresh * 60:
             print("Updating Current")
             self._last_current_refresh = time.time()
@@ -81,6 +102,7 @@ class OpenWeatherWrapper:
 
     def update_forecast_weather(self):
         """Update one call forecast weather values"""
+        self._load_pi_cache()
         if self._last_forecast_refresh < time.time() - self._forecast_max_refresh * 60:
             print("Updating Forecast")
             self._last_forecast_refresh = time.time()
@@ -95,6 +117,7 @@ class OpenWeatherWrapper:
 
     def update_future_weather(self):
         """Update the next 4 day forecast"""
+        self._load_pi_cache()
         if self._last_future_refresh < time.time() - self._future_max_refresh * 60:
             print("Updating Future")
             self._last_future_refresh = time.time()

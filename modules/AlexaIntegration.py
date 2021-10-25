@@ -32,6 +32,19 @@ class RoutineButton:
         self.request_thread = None
         self.request_success = None
         self.font2 = pygame.font.SysFont('timesnewroman', 20)
+        self.surf = None
+        self.render_self()
+
+    def render_self(self):
+        self.surf = pygame.Surface((75, 60))
+
+        button = pygame.Rect(0, 0, 75, 60)
+        text = self.font2.render(self.name, True, pallet_three)
+
+        pygame.draw.rect(self.surf, self.color, button)
+        self.surf.blit(text, text.get_rect(center=button.center))
+
+        self.surf = self.surf.convert()
 
     def preform_action(self):
         if self.type == "action":
@@ -69,8 +82,12 @@ class RoutineButton:
     def draw(self, screen, pos):
         x, y = pos
 
+        if self.color_changed:
+            self.render_self()
+
         if time.time() > self.last_run + 0.75 and self.color_changed:
             self.color = [64, 64, 64]
+            self.render_self()
             self.color_changed = False
 
         if self.request_thread:
@@ -85,12 +102,10 @@ class RoutineButton:
                     self.color_changed = True
                     self.last_run = time.time()
                 self.request_thread = None
+            self.render_self()
 
         self.button = pygame.Rect(x, y, 75, 60)
-        text = self.font2.render(self.name, True, pallet_three)
-
-        pygame.draw.rect(screen, self.color, self.button)
-        screen.blit(text, text.get_rect(center=self.button.center))
+        screen.blit(self.surf, (x, y))
 
 
 class OptionBar:

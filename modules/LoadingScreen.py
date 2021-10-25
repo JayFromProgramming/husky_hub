@@ -18,7 +18,7 @@ pallet_three = (255, 255, 255)
 
 class LoadingScreen:
 
-    def __init__(self, weather_api: OpenWeatherWrapper, icon_cache, forecast, icons, modules, ignore_cache=False):
+    def __init__(self, weather_api: OpenWeatherWrapper, icon_cache, forecast, icons, modules, screen: pygame.Surface, ignore_cache=False):
         """"""
         self.weather_api = weather_api
         self.icon_cache = icon_cache
@@ -26,6 +26,7 @@ class LoadingScreen:
         self.forecast = forecast
         self.webcams, self.current_weather = modules
         self.ignore_cache = ignore_cache
+        self.screen = screen
 
         self._common_icons = ["01", "02", "03", "04", "09", "10", "11", "13", "50"]
         self._current_icon_number = 0
@@ -33,6 +34,8 @@ class LoadingScreen:
         self.loading_status_strings = []
         self.loading_percent_bias = {"Icons": 0.35, "Forecast": 0.55, "Webcams": 0.1}
         self.loading_percentage = 0
+
+        self.splash = pygame.transform.scale(self.splash, self.screen.get_size())
 
     def load_weather(self):
         """"""
@@ -88,12 +91,12 @@ class LoadingScreen:
         x, y = location
         font = pygame.font.SysFont('couriernew', 16)
         loading_fonts = []
-        screen.blit(self.splash, self.splash.get_rect(center=(400, 265)))
+        screen.blit(self.splash, (0, 0))
         for event in self.loading_status_strings[-8:].__reversed__():
             loading_fonts.append(font.render(f"{event}", True, pallet_one))
         loading_bar = pygame.Rect(x, y, self.loading_percentage * max_length, 20)
         pygame.draw.rect(screen, [255, 206, 0], loading_bar)
         pos_modifier = 0
         for text in loading_fonts:
-            screen.blit(text, text.get_rect(center=(400, y + 30 + (24 * pos_modifier))))
+            screen.blit(text, text.get_rect(center=(self.screen.get_width() / 2, y + 30 + (24 * pos_modifier))))
             pos_modifier += 1

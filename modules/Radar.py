@@ -106,9 +106,9 @@ class Radar:
         self.background_bottom_right = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/bottom_right.png")), self.scale).convert()
         self.text_font = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 11)
         self.radar_directory_url = "https://data.rainviewer.com/images/KMQT/0_products.json"
-        threading.Thread(target=self.weather.update_weather_map, args=(self.v1_layers, self.v2_layers)).start()
+        # threading.Thread(target=self.weather.update_weather_map, args=(self.v1_layers, self.v2_layers)).start()
 
-        self.tile = scale_tile(self.load_owm_tile((16, 22)), self.scale)
+        self.tile = self.background_center
         self.screen = None
 
         try:

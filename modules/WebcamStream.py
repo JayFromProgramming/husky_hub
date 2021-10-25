@@ -51,7 +51,7 @@ class CampusCams:
         self.page = 0
         self.current_focus = None
         self.last_update = 0
-        self.update_rate = 30
+        self.update_rate = 45
         self.log = logs
         self.cycle_forward = pygame.Rect(690, 430, 100, 40)
         self.cycle_forward_text = "Next"
@@ -204,8 +204,8 @@ class CampusCams:
 
             if self.current_focus is None:
                 temp: pygame.Surface = self.buffers[page][cam_id]
-                self.buffers[page][cam_id]: pygame.Surface = pygame.transform.scale(raw_frame, (int((self.screen.get_width() / 2)),
-                                                                                                int((self.screen.get_height() - 35) / 2))).convert()
+                self.buffers[page][cam_id]: pygame.Surface = \
+                    pygame.transform.scale(raw_frame, (int((self.screen.get_width() / 2)), int((self.screen.get_height() - 35) / 2))).convert()
                 try:
                     if not numpy.array_equal(pygame.surfarray.pixels2d(temp), pygame.surfarray.pixels2d(self.buffers[page][cam_id].copy())):
                         self.updated_buffer[page][cam_id] = time.time()
