@@ -7,7 +7,6 @@ import urllib.error
 from urllib.request import urlopen
 
 import dill
-import paramiko
 from pyowm.owm import OWM
 
 api_file = "../APIKey.json"
@@ -16,7 +15,7 @@ cache_location = "Caches/weather.cache"
 
 class OpenWeatherWrapper:
 
-    def __init__(self, log, current_weather_refresh_rate=2, future_weather_refresh_rate=15):
+    def __init__(self, log, current_weather_refresh_rate=2, future_weather_refresh_rate=15, is_host=True):
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 keys = json.load(f)
@@ -29,6 +28,7 @@ class OpenWeatherWrapper:
             log.critial("No api key file present")
             # raise FileNotFoundError
 
+        self.is_host = is_host
         self.mgr = self.owm.weather_manager()
         self._current_max_refresh = current_weather_refresh_rate
         self._forecast_max_refresh = future_weather_refresh_rate
@@ -67,7 +67,8 @@ class OpenWeatherWrapper:
                     self.log.warning(f"Failed to load cached weather because: {e}")
 
     def _load_pi_cache(self):
-        if self._last_cache_refresh < time.time() - 120 and False:
+        if self._last_cache_refresh < time.time() - 120 and not self.is_host:
+            import paramiko
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))

@@ -2,7 +2,7 @@ import json
 import os
 import threading
 import time
-import watchdog
+# import watchdog
 
 api_file = "../APIKey.json"
 temp_file = "Caches/Temperature.json"
@@ -20,6 +20,7 @@ class LocalThermostat:
         }
 
         self._load_data()
+        self.data['errors'] = []
         try:
             import smbus2
 

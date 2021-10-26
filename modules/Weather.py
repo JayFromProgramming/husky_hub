@@ -188,6 +188,10 @@ def update(dt, screen):
     if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams'):
         fps = 1
 
+    if tablet and psutil.sensors_battery()[0] < 30 and psutil.sensors_battery()[2] is False:
+        log.warning("Shutting down due to low battery")
+        os.system("shutdown -f")
+
     for event in pygame.event.get():
         # We need to handle these events. Initially the only one you'll want to care
         # about is the QUIT event, because if you don't handle it, your game will crash
