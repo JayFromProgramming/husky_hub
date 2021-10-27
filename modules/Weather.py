@@ -128,12 +128,12 @@ failed_current_updates = 0
 fps = 0
 
 weatherAPI = OpenWeatherWrapper(log)
+thermostat = Thermostat.Thermostat(py)
 webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
-room_control = AlexaIntegration(log)
+room_control = AlexaIntegration(log, thermostat.thermostat)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
 radar = Radar(log, weatherAPI)
-thermostat = Thermostat.Thermostat(py)
 
 room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
 webcam_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), webcam_button_text, [255, 206, 0], pallet_four)
@@ -351,6 +351,10 @@ def update_weather_data():
     # Update Weather Info
     if last_current_update < time.time() - 60:
         log.debug("Requesting Update")
+
+        if py and not room_control.raincheck:
+            thermostat.thermostat.maintain_temperature()
+
         thermostat.thermostat.read_data()
         if weatherAPI.update_current_weather():
             radar.update_radar()

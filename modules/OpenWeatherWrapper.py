@@ -67,18 +67,19 @@ class OpenWeatherWrapper:
                     self.log.warning(f"Failed to load cached weather because: {e}")
 
     def _load_pi_cache(self):
-        if self._last_cache_refresh < time.time() - 120 and not self.is_host:
-            import paramiko
-            ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
-            ssh.connect(self.main_server, username="pi", password=self.main_server_password)
-            sftp = ssh.open_sftp()
-            sftp.get(f"{self.main_server_filepath}/Caches/weather.cache", cache_location)
-            sftp.close()
-            ssh.close()
-            self._read_cache()
-            self._last_cache_refresh = time.time()
+        pass
+        # if self._last_cache_refresh < time.time() - 120 and not self.is_host and False:
+        #     import paramiko
+        #     ssh = paramiko.SSHClient()
+        #     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        #     ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
+        #     ssh.connect(self.main_server, username="pi", password=self.main_server_password)
+        #     sftp = ssh.open_sftp()
+        #     sftp.get(f"{self.main_server_filepath}/Caches/weather.cache", cache_location)
+        #     sftp.close()
+        #     ssh.close()
+        #     self._read_cache()
+        #     self._last_cache_refresh = time.time()
 
     def _save_cache(self):
         with open(cache_location, 'wb') as outp:

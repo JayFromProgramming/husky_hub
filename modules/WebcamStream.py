@@ -191,7 +191,7 @@ class CampusCams:
             image_str = urlopen(url, timeout=10).read()  # Load jpg image from source
             try:
                 image_file = io.BytesIO(image_str)  # Load byte string into a bytesIO file
-                raw_frame = pygame.image.load(image_file)  # Load into pygame
+                raw_frame = pygame.image.load(image_file, "JPG")  # Load into pygame
             except pygame.error:
                 image_file = io.BytesIO(image_str)  # Load byte string into a bytesIO file
                 image = Image.open(image_file)  # Open in Pillow

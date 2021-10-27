@@ -247,9 +247,10 @@ class SubOptionBar:
 
 class AlexaIntegration:
 
-    def __init__(self, log):
+    def __init__(self, log, thermostat):
         """"""
         self.routines = []
+        self.thermostat = thermostat
         self.queued_routine = False
         self.scroll = 0
         self.open_since = 0
