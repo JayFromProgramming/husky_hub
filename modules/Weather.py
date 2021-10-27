@@ -352,10 +352,11 @@ def update_weather_data():
     if last_current_update < time.time() - 60:
         log.debug("Requesting Update")
 
-        if py and not room_control.raincheck:
-            thermostat.thermostat.maintain_temperature()
-
         thermostat.thermostat.read_data()
+
+        # if py and not room_control.raincheck:
+        #     thermostat.thermostat.maintain_temperature()
+
         if weatherAPI.update_current_weather():
             radar.update_radar()
             failed_current_updates = 0

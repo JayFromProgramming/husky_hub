@@ -2,18 +2,23 @@ import json
 import os
 import threading
 import time
-from watchdog.observers import Observer
-
+import traceback
 
 api_file = "../APIKey.json"
 temp_file = "Caches/Temperature.json"
 
 
+def celsius_to_fahrenheit(fahrenheit):
+    return (fahrenheit - 32) * 5 / 9
+
+
+def fahrenheit_to_celsius(celsius):
+    return (celsius * 9 / 5) + 32
+
+
 class LocalThermostat:
 
     def __init__(self):
-        observer = Observer()
-        observer.schedule(self._file_watchdog_callback, temp_file, recursive=False)
         self.data = {
             "temperature": 0,
             "humidity": 0,
@@ -40,17 +45,20 @@ class LocalThermostat:
 
     def _read_data(self):
         print("Reading data from local thermostat, saving to file")
+        self._load_data()
         try:
             # read 5 bytes of data from the device address (0x05C) starting from an offset of zero
             data = self.bus.read_i2c_block_data(self.address, 0x00, 5)
 
-            self.data['temperature'] = int(f"{data[2]}.{data[3]}")
-            self.data['humidity'] = int(f"{data[0]}.{data[1]}")
+            self.data['temperature'] = celsius_to_fahrenheit(int(f"{data[2]}.{data[3]}"))
+            self.data['humidity'] = celsius_to_fahrenheit(int(f"{data[0]}.{data[1]}"))
 
             self.data['last_read'] = time.time()
 
         except Exception as e:
-            self.data['errors'].append(str(e))
+            self.data['errors'].append(f"{str(e)}; Traceback: {traceback.format_exc()}")
+            if len(self.data['errors']) > 10:
+                self.data['errors'] = self.data['errors'][-10:]
         finally:
             self._save_data()
 
@@ -66,6 +74,7 @@ class LocalThermostat:
 
     def _file_watchdog_callback(self, event):
         self._load_data()
+        self.data['errors'].append(f"File {event.src_path} modified")
         print("File changed, reloading data")
 
     def maintain_temperature(self):
@@ -121,8 +130,6 @@ class RemoteThermostat:
 
     def read_data(self):
         threading.Thread(target=self._download_data, args=()).start()
-        with open(temp_file, "r") as f:
-            self.data = json.load(f)
 
     def get_temperature(self):
         return self.data['temperature']
@@ -169,6 +176,9 @@ class RemoteThermostat:
         sftp.get(f"{self.thermostat_server_path}/Caches/Temperature.json", temp_file)
         sftp.close()
         ssh.close()
+
+        with open(temp_file, "r") as f:
+            self.data = json.load(f)
 
 
 class Thermostat:

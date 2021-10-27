@@ -170,7 +170,7 @@ class OptionBar:
 
     def draw_routine(self, screen, position):
         x, y = position
-        if y > 400:
+        if y > screen.get_height() - 80:
             return
 
         title = self.font1.render(f"{self.routine_title}", True, pallet_two)
