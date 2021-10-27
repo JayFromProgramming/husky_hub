@@ -356,6 +356,7 @@ def update_weather_data():
 
         # if py and not room_control.raincheck:
         #     thermostat.thermostat.maintain_temperature()
+        #     thermostat.thermostat.maintain_humidity()
 
         if weatherAPI.update_current_weather():
             radar.update_radar()

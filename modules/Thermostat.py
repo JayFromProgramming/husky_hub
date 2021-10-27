@@ -30,6 +30,8 @@ class LocalThermostat:
         }
 
         self._load_data()
+        self.current_fan_state = 0
+        self.current_humid_state = 0
         self.data['errors'] = []
         try:
             import smbus2
@@ -58,6 +60,8 @@ class LocalThermostat:
         except Exception as e:
             self.data['errors'].append(f"{str(e)}; Traceback: {traceback.format_exc()}")
             if len(self.data['errors']) > 10:
+                self.data['temperature'] = 0
+                self.data['humidity'] = 100
                 self.data['errors'] = self.data['errors'][-10:]
         finally:
             self._save_data()
@@ -78,11 +82,14 @@ class LocalThermostat:
         print("File changed, reloading data")
 
     def maintain_temperature(self):
-        if self.data['temp_set_point'] - 2 < self.data['temperature']:
+        if self.data['temperature'] < self.data['temp_set_point'] - 2 and self.current_fan_state != 0:
+            self.current_fan_state = 0
             return "big-wind-off"
-        elif self.data['temp_set_point'] >= self.data['temperature']:
+        elif self.data['temperature'] <= self.data['temp_set_point'] and self.current_fan_state == 2:
+            self.current_fan_state = 1
             return "big-wind-out"
-        elif self.data['temp_set_point'] + 2 > self.data['temperature']:
+        elif self.data['temperature'] > self.data['temp_set_point'] + 2 and self.current_fan_state == 0:
+            self.current_fan_state = 2
             return "big-wind-on"
 
     def maintain_humidity(self):
