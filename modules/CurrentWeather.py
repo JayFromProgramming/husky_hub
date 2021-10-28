@@ -7,6 +7,8 @@ import datetime
 from urllib.request import urlopen
 import logging as log
 
+import Thermostat
+
 pallet_one = (255, 206, 0)
 pallet_two = (255, 206, 0)
 pallet_three = (255, 255, 255)
@@ -15,9 +17,15 @@ pallet_four = (0, 0, 0)
 
 class CurrentWeather:
 
-    def __init__(self, weather_api, icon_cache, icon):
-        """"""
+    def __init__(self, weather_api, icon_cache, icon, thermostat: Thermostat.Thermostat):
+        """
+        :param weather_api:
+        :param icon_cache:
+        :param icon:
+        :param thermostat:
+        """
         self.weather_api = weather_api
+        self.thermostat = thermostat
         self.big_info = None
         self.small_info = None
         self.small_info2 = None
@@ -29,6 +37,10 @@ class CurrentWeather:
         self.update()
 
     def update(self):
+        """
+        Updates the current weather data
+        :return: None
+        """
         if self.weather_api.current_weather is not None:
             temp = self.weather_api.current_weather.temperature('fahrenheit')
             wind = self.weather_api.current_weather.wind('miles_hour')
@@ -41,6 +53,7 @@ class CurrentWeather:
             snow = self.weather_api.current_weather.snow
             clouds = self.weather_api.current_weather.clouds
             updated = self.weather_api.current_weather.reference_time()
+            secondary_temp = f"Feels: {round(temp['feels_like'])}°F"
         else:
             temp = {'temp': 0, 'temp_max': 0, 'temp_min': 0, 'feels_like': 0, 'temp_kf': None}
             wind = {'speed': 0, 'deg': 0}
@@ -53,6 +66,7 @@ class CurrentWeather:
             clouds = 0
             alert = None
             updated = 0
+            secondary_temp = None
         if visibility > 6:
             visibility = "Clear"
         elif visibility % 1 == 0:
@@ -62,9 +76,13 @@ class CurrentWeather:
         else:
             top, bottom = float(visibility).as_integer_ratio()
             visibility = f"{top}/{bottom} mi"
+
+        if self.thermostat.thermostat.get_temperature() != 0:
+            secondary_temp = f"{self.thermostat.thermostat.get_temperature()}°F"
+
         updated = datetime.datetime.fromtimestamp(updated)
         self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one, pallet_four).convert_alpha()
-        self.small_info = self.font2.render(f"Feels: {round(temp['feels_like'])}°F; Clouds: {round(clouds)}%"
+        self.small_info = self.font2.render(f"{secondary_temp}; Clouds: {round(clouds)}%"
                                             f"; Humidity: {humidity}%", True, pallet_three, pallet_four).convert()
         self.small_info2 = self.font2.render(f"Vis: {visibility}; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
                                              f"; {updated.strftime('%I:%M %p')}", True, pallet_three, pallet_four).convert()
@@ -82,7 +100,12 @@ class CurrentWeather:
             self.current_icon = self.icon
 
     def draw_current(self, screen, location):
-        """Draws the current temp with high low"""
+        """
+        Draws the current weather data
+        :param screen: The screen to draw the current weather data on
+        :param location: The x, y location to draw the current weather data at
+        :return: None
+        """
         x, y = location
         # Load temp
         screen.blit(self.current_icon, self.current_icon.get_rect(center=(x + 42.5, y + 40)))

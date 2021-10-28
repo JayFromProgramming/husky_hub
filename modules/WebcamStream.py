@@ -27,6 +27,7 @@ class CampusCams:
         return self.text_font.render(text, True, pallet_one, pallet_three)
 
     def __init__(self, logs, static_images, live_mode_enable, multi_stream=False, linux=False):
+        # This is the webcam class, it is used to create webcam streams and thumbnails and display them on the screen
         if os.path.exists(camera_path):
             with open(camera_path, "r") as f:
                 self.cameras = json.load(f)
@@ -73,7 +74,7 @@ class CampusCams:
         self.multi_cast_threads = []
         self.thread_run = False
 
-    def cycle(self, amount):
+    def cycle(self, amount):  # This cycles the page forward or backward
         self.page += amount
         if self.page > len(self.cameras) - 1:
             self.page = 0
@@ -86,7 +87,7 @@ class CampusCams:
         self.close_multicast()
         self.update()
 
-    def focus(self, cam_id):
+    def focus(self, cam_id):  # This sets the focus to a specific camera
         self.close_multicast()
         if cam_id is None and self.current_focus is not None:
             if self.linux: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/bind")
@@ -115,7 +116,7 @@ class CampusCams:
                                                                                                        int((self.screen.get_height() - 35))))
         self.update()
 
-    def multicast_refresh_thread(self, ob, stream, cam_id):
+    def multicast_refresh_thread(self, ob, stream, cam_id):  # This is the thread that refreshes the multicast stream
         clock = pygame.time.Clock()
         while stream and self.thread_run:
             process_time = stream.update_frame(anti_alias=self.high_performance_enabled)
@@ -124,12 +125,12 @@ class CampusCams:
             if not process_time > (1 / stream.fps):
                 clock.tick(stream.fps)
 
-    def pause_multicast(self):
+    def pause_multicast(self):  # This pauses the multicast streams
         for stream in self.stream_buffer:
             if stream is not None and stream is not False:
                 stream.toggle_pause()
 
-    def close_multicast(self):
+    def close_multicast(self):  # This closes the multicast streams
         self.stream_buffer = [None, None, None, None]
         self.thread_run = False
         for thread in self.multi_cast_threads:
@@ -142,7 +143,7 @@ class CampusCams:
         self.thread_run = True
         self.multi_cast_threads = []
 
-    def create_stream(self, ob, camera):
+    def create_stream(self, ob, camera):  # This creates the multicast streams
         cam_id, url, stream_url, name = camera
         stream = None
         try:
@@ -178,7 +179,7 @@ class CampusCams:
             # self.multi_cast_threads.append(thread)
             self.stream = stream
 
-    def load_frame(self, ob, camera, select_buffer=None):
+    def load_frame(self, ob, camera, select_buffer=None):  # This loads thumbnail images from the webcams.
         """Load image from internet"""
         cam_id, url, stream_url, name = camera
         if select_buffer is not None:
@@ -187,7 +188,7 @@ class CampusCams:
             page = self.page
 
         try:
-            self.name_buffer[page][cam_id] = self.text(name).convert()
+            self.name_buffer[page][cam_id] = self.text(name).convert()  # Set the cameras name buffer to the name of the camera
             image_str = urlopen(url, timeout=10).read()  # Load jpg image from source
             try:
                 image_file = io.BytesIO(image_str)  # Load byte string into a bytesIO file
@@ -202,44 +203,45 @@ class CampusCams:
                     image = io.BytesIO(im)  # load new file into image bytes file
                 raw_frame = pygame.image.load(image)  # Load into pygame
 
-            if self.current_focus is None:
+            if self.current_focus is None:  # If there is no current focus, then resize the image to fit 2x2 grid
                 temp: pygame.Surface = self.buffers[page][cam_id]
                 self.buffers[page][cam_id]: pygame.Surface = \
                     pygame.transform.scale(raw_frame, (int((self.screen.get_width() / 2)), int((self.screen.get_height() - 35) / 2))).convert()
                 try:
+                    # Here we check if the new frame is the same as the old frame. If it is, then we keep track of how long its been stale
                     if not numpy.array_equal(pygame.surfarray.pixels2d(temp), pygame.surfarray.pixels2d(self.buffers[page][cam_id].copy())):
                         self.updated_buffer[page][cam_id] = time.time()
                         # print(f"New frame {page}-{cam_id}")
-                except Exception as e:
+                except Exception as e:  # In the event of an error, log it and continue
                     print(f"Cam {page}-{cam_id} warning: {e}")
 
-                self.overlay_buffers[page][cam_id] = self.empty_image
+                self.overlay_buffers[page][cam_id] = self.empty_image  # Set the overlay buffer to the empty image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated")
                 if self.updated_buffer[page][cam_id] < time.time() - 65 and (page != 3 and cam_id != 3):
                     self.name_buffer[page][cam_id] = self.text(f"{name}: Unavailable").convert()
-            elif self.current_focus == cam_id:
+            elif self.current_focus == cam_id:  # If the current focus is the camera, then resize the image to fit the screen
                 self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (int((self.screen.get_width())),
                                                                                 int((self.screen.get_height() - 35)))).convert()
                 # self.overlay_buffers[page][cam_id] = self.empty_image
                 self.log.debug(f"Cam {page}-{cam_id}: Updated and focused")
-        except http.client.IncompleteRead:
+        except http.client.IncompleteRead:  # If image reading was interrupted, then set overlay to error image and log it
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Incomplete read")
-        except urllib.error.URLError as e:
+        except urllib.error.URLError as e:  # In the event of a url error, check if its a network error
             if str(e) == "<urlopen error [Errno 11001] getaddrinfo failed>":
                 self.log.info(f"Cam {page}-{cam_id}: No network")
                 return
-            self.overlay_buffers[page][cam_id] = self.no_image
+            self.overlay_buffers[page][cam_id] = self.no_image  # If not, then set write the error to the name buffer, log it, and continue
             self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
             self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:30]}")).convert()
-        except socket.timeout:
+        except socket.timeout:  # If the image reading timed out, then set the overlay to error image and log it
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Timeout")
-        except Exception as e:
+        except Exception as e:  # If the image reading failed for some other reason, then set the overlay to error image and log it
             self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:30]}")).convert()
             print(f"Cam {page}-{cam_id} error: {e}")
 
-    def resize(self, screen):
+    def resize(self, screen):  # Resize the screen and all buffers
         self.screen = screen
         center_w = self.screen.get_width() / 2
         height = self.screen.get_height()
@@ -264,7 +266,7 @@ class CampusCams:
             # thread.start()
         return True
 
-    def update(self):
+    def update(self):  # Update the webcam thumbnails
         if self.last_update == 0:
             self.last_update = time.time() - self.update_rate
         elif self.last_update < time.time() - self.update_rate:
@@ -279,20 +281,23 @@ class CampusCams:
             self.log.debug("Cameras updates queued")
             self.last_update = time.time()
 
-    def update_all(self):
+    def update_all(self):  # Update all thumbnails on all pages
         self.log.info("Updating all camera thumbnails")
         page_num = 0
         self.name_buffer = []
         for _ in self.cameras:
+            # This is used to set all camera names to None.
             self.name_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
         for page in self.cameras:
+            # Iterate through all pages of cameras
             for camera in page:
+                # Iterate through all cameras on a page and load thumbnails
                 thread = threading.Thread(target=self.load_frame, args=(self, camera, page_num))
                 thread.start()
                 self.active_requests.append(thread)
             page_num += 1
 
-    def draw_buttons(self, screen):
+    def draw_buttons(self, screen):  # Draw the buttons
         """"""
         pygame.draw.rect(screen, [255, 206, 0], self.cycle_forward)
         screen.blit(self.cycle_forward_render, self.cycle_forward_render.get_rect(center=self.cycle_forward.center))
@@ -311,13 +316,14 @@ class CampusCams:
         height = self.screen.get_height()
 
         if self.current_focus is None:
-
+            # If no camera is focused , draw all thumbnails
             screen.blit(self.buffers[self.page][0], (0, 0))
             screen.blit(self.buffers[self.page][1], (center_w, 0))
             screen.blit(self.buffers[self.page][2], (0, (height - 35) / 2))
             screen.blit(self.buffers[self.page][3], (center_w, (height - 35) / 2))
 
             if self.multi_cast:
+                # If multi-cast is enabled, draw all the multicast buffers to the screen
                 if self.stream_buffer[0]: self.stream_buffer[0].draw_to(screen, (0, 0))
                 if self.stream_buffer[1]: self.stream_buffer[1].draw_to(screen, (center_w, 0))
                 if self.stream_buffer[2]: self.stream_buffer[2].draw_to(screen, (0, (height - 35) / 2))
@@ -339,12 +345,15 @@ class CampusCams:
             screen.blit(self.name_buffer[self.page][3], self.name_buffer[self.page][3].get_rect(midtop=(center_w + center_w / 2, (height - 35) / 2)))
 
         else:
+            # If a camera is focused, draw only that camera
             screen.blit(self.buffers[self.page][self.current_focus], (0, 0))
             try:
                 if self.stream is not None:
+                    # If the camera is streaming, draw the stream to the screen
                     self.stream.stream_to(screen, (0, 0), anti_alias=self.high_performance_enabled)
                     screen.blit(self.stream_info_text, self.stream_info_text.get_rect(topright=(center_w * 2, 0)))
                 else:
+                    # If the camera is not streaming, draw the last frame to the screen
                     screen.blit(self.overlay_buffers[self.page][0], (0, 0))
             except Exception as e:
                 self.focus(None)

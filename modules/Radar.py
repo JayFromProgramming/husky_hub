@@ -16,16 +16,34 @@ pallet_three = (0, 0, 0)
 
 
 def update_cache(serial_bytes, name):
+    """
+    Updates the radar cache with the given bytes
+    :param serial_bytes: The bytes to save
+    :param name: The name of the file to save
+    :return: None
+    """
     f = open(f"Caches/Radar_cache/KMQT_Frames/{name}.png", "wb")
     f.write(serial_bytes)
     f.close()
 
 
 def scale_tile(tile, scale):
+    """
+    Scales the given tile to the given scale
+    :param tile: The tile to scale
+    :param scale: The scale to scale to
+    :return: The scaled tile
+    """
     return pygame.transform.scale(tile, (int(tile.get_width() * scale), int(tile.get_height() * scale)))
 
 
 def load_frame(name, timestamp):
+    """
+    Loads the radar frame from the radar station with the given name
+    :param name: The name of the frame to load
+    :param timestamp: The timestamp of the frame to save to cache
+    :return: None
+    """
     image_str = urlopen(f"https://data.rainviewer.com/images/KMQT/{name}_0_source.png").read()
     update_cache(image_str, f"KMQT_{timestamp}")
     print(f"Loaded new frame [{name}] saved as [KMQT_{timestamp}.png]")
@@ -34,19 +52,26 @@ def load_frame(name, timestamp):
 class Radar:
 
     def load_owm_tile(self, location):
+        """
+        Loads the tile from the OWM cache
+        :param location: The location of the tile to load in the form of (x, y)
+        :return: A pygame surface of the tile
+        """
         layers = []
         surf = pygame.Surface((256, 256), pygame.SRCALPHA | pygame.HWSURFACE | pygame.ASYNCBLIT)
         for _, time in self.weather.radar_buffer.items():
+            # For every item in the radar buffer format the tile to the surf
             if len(self.v2_layers):
+                # If there are v2 layers
                 name, delta, options = self.v2_layers[0]
                 if _ != delta:
+                    # If the delta is not the same as the current frame
                     continue
             else:
                 if _ != 0:
                     break
             for entry in time:
                 e_location, tile, layer_name, time, e_options = entry
-                # print(f"{layer_name} {e_location} {time}")
                 if location == e_location and layer_name in self.v1_layers:
                     image_file = io.BytesIO(tile)
                     layers.append(pygame.image.load(image_file).convert_alpha())
@@ -55,14 +80,25 @@ class Radar:
                         image_file = io.BytesIO(tile)
                         layers.append(pygame.image.load(image_file).convert_alpha())
         for layer in layers:
+            # For every layer in the layers list blit the layer to the surf
             surf.blit(layer, (0, 0))
-        del layers
+        del layers  # Delete the layers list to free up memory
         return surf.convert_alpha()
 
     def text(self, text):
+        """
+        Returns a surface of the given text
+        :param text: The text to render
+        :return: The surface of the text
+        """
         return self.text_font.render(text, True, pallet_one, pallet_three)
 
     def format_owm_tiles(self, screen: pygame.Surface):
+        """
+        Formats the OWM tiles to the screen
+        :param screen: The screen to format the tiles to
+        :return: None
+        """
         print("Reformatting tiles")
         self.tile_surf = pygame.Surface((screen.get_width(), screen.get_height()), pygame.SRCALPHA | pygame.HWSURFACE | pygame.ASYNCBLIT)
 
@@ -84,6 +120,11 @@ class Radar:
         self.radar_tiles_last_amount = self.weather.radar_refresh_amount
 
     def __init__(self, log, weather):
+        """
+        Initializes the radar viewer
+        :param log: The logger to use
+        :param weather: The OpenWeatherWeather object to use
+        """
         # 2,445.984905 meters per pixel on tile 22
         # 1680.0299963321 meters per pixel for the radar image
         self.weather = weather
@@ -118,6 +159,10 @@ class Radar:
         self.playing = False
 
     def update_radar(self):
+        """
+        Updates the radar data
+        :return: None
+        """
         self.playback_buffer = []
         self.last_frame = None
         print("Updating radar")
@@ -145,6 +190,10 @@ class Radar:
         # self.sort_and_load_frames()
 
     def sort_and_load_frames(self):
+        """
+        Sorts the frames and loads them into the playback buffer in time order
+        :return: None
+        """
 
         threading.Thread(target=self.weather.update_weather_map, args=(self.v1_layers, self.v2_layers)).start()
 
@@ -160,14 +209,26 @@ class Radar:
         self.current_frame_number = len(self.playback_buffer) - 1
 
     def play_pause(self):
+        """
+        Toggles the playback state
+        :return: None
+        """
         self.playing = not self.playing
 
     def jump_too_now(self):
+        """
+        Jumps to the current time
+        :return: None
+        """
         self.current_frame_number = len(self.playback_buffer) - 1
         self.playing = False
 
     def draw(self, screen: pygame.Surface):
-
+        """
+        Draws the radar to the screen
+        :param screen: The screen to draw to
+        :return: None
+        """
         self.screen = screen
 
         if self.weather.radar_refresh_amount != self.radar_tiles_last_amount:

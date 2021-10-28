@@ -17,9 +17,16 @@ api_file = "../APIKey.json"
 monkey_routines = "Configs/Monkey.json"
 
 
+# This is the main class for the Alexa integration.
+
 class RoutineButton:
 
     def __init__(self, host_bar, data):
+        """
+        This is the constructor for the RoutineButton class.
+        :param host_bar: The host bar that the button is in.
+        :param data: The button configuration data.
+        """
         self.data = data
         self.name = data['name']
         self.run = False
@@ -36,6 +43,10 @@ class RoutineButton:
         self.render_self()
 
     def render_self(self):
+        """
+        Render the button surface.
+        :return: None
+        """
         self.surf = pygame.Surface((75, 60))
 
         button = pygame.Rect(0, 0, 75, 60)
@@ -47,6 +58,10 @@ class RoutineButton:
         self.surf = self.surf.convert()
 
     def preform_action(self):
+        """
+        Run the queued action associated with the button.
+        :return: None
+        """
         if self.type == "action":
             return self.data['request']
         elif self.type == "SubMenu":
@@ -71,6 +86,12 @@ class RoutineButton:
                 return self.data['requests'][0]
 
     def _exec(self, thread, code):
+        """
+        Execute custom button code in a separate thread.
+        :param thread: The thread that is running the code.
+        :param code: The code to be executed.
+        :return:
+        """
         try:
             exec(code)
         except Exception as err:
@@ -80,6 +101,12 @@ class RoutineButton:
         self.request_success = True
 
     def draw(self, screen, pos):
+        """
+        Draw the button to the screen.
+        :param screen: The screen to draw the button to.
+        :param pos: The X,Y position to draw the button at.
+        :return: None
+        """
         x, y = pos
 
         if self.color_changed:
@@ -111,6 +138,12 @@ class RoutineButton:
 class OptionBar:
 
     def __init__(self, request_name, data, host):
+        """
+        Initialize an option bar.
+        :param request_name: The name of the request section
+        :param data: The data associated with the request section
+        :param host: The main screen object.
+        """
         self.request_name = request_name
         self.description = data["description"]
         self.routine_title = data["title"]
@@ -136,6 +169,11 @@ class OptionBar:
             count += 1
 
     def check_collide(self, mouse_pos):
+        """
+        Check if the mouse is colliding with any of the option bars buttons.
+        :param mouse_pos: The current X,Y position of the mouse.
+        :return: The button object that was clicked.
+        """
         count = 0
         for button in self.action_buttons:
             if button.button.collidepoint(mouse_pos):
@@ -152,7 +190,11 @@ class OptionBar:
         return None
 
     def expand(self, button):
-        """"""
+        """
+        Expand the option bar to show the sub-menus.
+        :param button: The button that was clicked to expand the option bar.
+        :return: None
+        """
         self.sub_menus = []
         self.expanded = True
         self.expanded_to = button
@@ -162,6 +204,10 @@ class OptionBar:
             count += 1
 
     def collapse(self):
+        """
+        Collapse the option bar to show the main menu.
+        :return: None
+        """
         self.sub_menus = []
         if self.expanded_to:
             self.expanded_to.name = self.expanded_to.data['name']
@@ -169,6 +215,12 @@ class OptionBar:
         self.expanded_to = None
 
     def draw_routine(self, screen, position):
+        """
+        Draw the routine title and description along with all associated buttons.
+        :param screen: The screen to draw the the option bar and buttons to.
+        :param position: The X,Y position of the option bar.
+        :return: None
+        """
         x, y = position
         if y > screen.get_height() - 80:
             return
@@ -179,6 +231,7 @@ class OptionBar:
 
         count = 80
         for sub_bar in self.sub_menus:
+            # For each sub menu, draw the sub menu 80
             sub_bar.draw_routine(screen, (x, y + count))
             self.host.scroll += 80
             count += 80
@@ -200,7 +253,12 @@ class OptionBar:
 class SubOptionBar:
 
     def __init__(self, master_bar, my_buttons, name):
-        """"""
+        """
+        Create a sub-option bar to show the sub-menus of a master option bar.
+        :param master_bar: The master option bar that this sub-option bar is a part of.
+        :param my_buttons: The buttons that are part of this sub-option bar.
+        :param name: The name of this sub-option bar.
+        """
         self.master_bar = master_bar
         self.host = master_bar.host
         self.name = name
@@ -217,6 +275,11 @@ class SubOptionBar:
             count += 1
 
     def check_collide(self, mouse_pos):
+        """
+        Check if the mouse is colliding with any of the buttons in this sub-option bar.
+        :param mouse_pos: The X,Y position of the mouse.
+        :return: If the mouse is colliding with any of the buttons in this sub-option bar.
+        """
         count = 0
         for button in self.action_buttons:
             if button.button.collidepoint(mouse_pos):
@@ -228,6 +291,12 @@ class SubOptionBar:
         return None
 
     def draw_routine(self, screen, position):
+        """
+        Draw the sub-option bar and all associated buttons.
+        :param screen: The screen to draw the sub-option bar and buttons to.
+        :param position: The X,Y position of the sub-option bar.
+        :return: None
+        """
         x, y = position
         # self.action_buttons = []
         self.button = pygame.Rect(x + 90, y, 610, 70)
@@ -248,7 +317,11 @@ class SubOptionBar:
 class AlexaIntegration:
 
     def __init__(self, log, thermostat):
-        """"""
+        """
+        Create an object to handle the Alexa integration.
+        :param log: The clients logging handler
+        :param thermostat: The thermostat object to use for the Alexa integration.
+        """
         self.routines = []
         self.thermostat = thermostat
         self.queued_routine = False
@@ -274,7 +347,16 @@ class AlexaIntegration:
             # raise FileNotFoundError("No monkey file found")
 
     def run_queued(self):
+        """
+        Run all queued button actions.
+        :return: None
+        """
         def check_button(test_button):
+            """
+            Check if the button is pressed, and if so, run the associated routine.
+            :param test_button: The button to check.
+            :return: None
+            """
             if test_button.run is True:
                 action = test_button.preform_action()
                 if action == "no_routine":
@@ -301,6 +383,13 @@ class AlexaIntegration:
                     check_button(button)
 
     def run_routine(self, test, request, test_button=None):
+        """
+        Run a voicemonkey routine.
+        :param test: Filler value
+        :param request: The URL of the request
+        :param test_button: The button to update if the routine is successful.
+        :return: None
+        """
         template = "https://api.voicemonkey.io/trigger?access_token={access_token}&secret_token={secret_token}&monkey={request}"
         query = str(template).format(access_token=self.api_token, secret_token=self.api_secret, request=request)
         # print(query)
@@ -320,13 +409,22 @@ class AlexaIntegration:
             else:
                 test_button.request_success = False
 
-    def build_routines(self, starting_point):
+    def build_routines(self):
+        """
+        Build the option bars for the routine selection.
+        :return: None
+        """
         for routine, items in self.monkeys.items():
             # print(routine)
             # print(items)
             self.routines.append(OptionBar(routine, items, self))
 
     def check_click(self, mouse_pos):
+        """
+        Check all the buttons in all the option bars to see if the mouse has clicked one of them.
+        :param mouse_pos: The X,Y position of the mouse.
+        :return: The button that was clicked, or None if no button was clicked.
+        """
         for routine in self.routines:
             val = routine.check_collide(mouse_pos)
             if val:
@@ -334,6 +432,12 @@ class AlexaIntegration:
                 return val
 
     def draw_routine(self, screen, offset):
+        """
+        Draw all of the option bars, and their buttons.
+        :param screen: The screen to draw to.
+        :param offset: The vertical offset of the option bars.
+        :return: None
+        """
         self.scroll = offset + 40
         for routine in self.routines:
             routine.draw_routine(screen, (50, self.scroll))

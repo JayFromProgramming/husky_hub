@@ -22,6 +22,8 @@ import pygame
 from pygame.locals import *
 import logging as log
 
+################################################################################
+
 py = platform.platform() == 'Linux-5.10.17-v7+-armv7l-with-debian-10.9'
 tablet = platform.platform() == 'Windows-10-10.0.14393-SP0'
 # Yes i know this will break when i update my py, and i don't care
@@ -47,7 +49,10 @@ pygame.init()
 pygame.font.init()
 
 
+################################################################################
+
 def make_screen():
+    """Create the screen and set the background"""
     global no_mouse, screen
     if py:
         screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
@@ -66,6 +71,7 @@ def make_screen():
 
 
 make_screen()
+# This is where the icons are loaded
 no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png")).convert_alpha()
 husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png")).convert_alpha()
 empty_image = pygame.image.load(os.path.join(f"Assets/Images/Empty.png")).convert_alpha()
@@ -92,6 +98,7 @@ pallet_two = (255, 206, 0)
 pallet_three = (255, 255, 255)
 pallet_four = (0, 0, 0)
 
+# This is where some flags are set
 refresh_forecast = True
 focused_forecast = None
 screen_dimmed = False
@@ -127,14 +134,16 @@ last_current_update = 0
 failed_current_updates = 0
 fps = 0
 
+# This is where all the support modules are loaded
 weatherAPI = OpenWeatherWrapper(log)
 thermostat = Thermostat.Thermostat(py)
 webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
 room_control = AlexaIntegration(log, thermostat.thermostat)
-current_weather = CurrentWeather(weatherAPI, icon_cache, icon)
+current_weather = CurrentWeather(weatherAPI, icon_cache, icon, thermostat)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
 radar = Radar(log, weatherAPI)
 
+# This is where the buttons are created
 room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
 webcam_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), webcam_button_text, [255, 206, 0], pallet_four)
 home_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), home_button_text, [255, 206, 0], pallet_four)
@@ -152,6 +161,7 @@ sys.excepthook = uncaught
 
 
 def resize(screen):
+    # This function is called when the screen is resized.
     room_button_render.move(120, screen.get_height() - 35)
     forecast_button_render.move(120, screen.get_height() - 35)
     webcam_button_render.move(10, screen.get_height() - 35)
@@ -171,43 +181,50 @@ def update(dt, screen):
     # Go through events that are passed to the script by the window.
 
     if room_control.queued_routine:
+        # If room control has any queued routines, run them.
         room_control.run_queued()
 
     if weather_alert_display:
+        # If the weather alert display is active, build it.
         weather_alert_display.build_alert()
 
     if display_mode == "home":
+        # If the display mode is home, then we need to update the weather and the forecast.
         update_weather_data()
 
-    # print(weatherAPI.current_weather.status if weatherAPI.current_weather else None)
     if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not room_control.raincheck:
+        # If the weather is raining, and the raincheck is not set, set it and turn off big wind.
         log.info("Shutting off big wind due to rain")
         room_control.run_routine("f", "big-wind-off")
         room_control.raincheck = True
 
     if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams'):
+        # After 15 seconds of inactivity, reduce the refresh rate to 1 frame per second
         fps = 1
 
     if tablet and psutil.sensors_battery()[0] < 30 and psutil.sensors_battery()[2] is False:
+        # If the tablet battery is low, shut down tablet
         log.warning("Shutting down due to low battery")
         os.system("shutdown -f")
 
     for event in pygame.event.get():
-        # We need to handle these events. Initially the only one you'll want to care
-        # about is the QUIT event, because if you don't handle it, your game will crash
-        # whenever someone tries to exit.
+        # This is the event handler.
         if event.type == QUIT:
+            # If the user tries to close the window, close the window.
             webcams.close_multicast()
             webcams.focus(None)
             pygame.quit()  # Opposite of pygame.init
             sys.exit()  # Not including this line crashes the script on Windows. Possibly
             # on other operating systems too, but I don't know for sure.
         elif event.type == pygame.VIDEORESIZE:
+            # If the user resizes the window, resize the window.
             resize(screen)
         elif event.type == pygame.KEYDOWN:
+            # This is where we handle keypresses.
             low_refresh = time.time()
             fps = base_fps
             if event.key == pygame.K_ESCAPE:
+                # If escape is pressed, quit the program.
                 webcams.focus(None)
                 pygame.quit()
                 sys.exit(1)
@@ -229,9 +246,11 @@ def update(dt, screen):
                 elif event.key == pygame.K_p:
                     webcams.pause_multicast()
             if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                # If ctrl+c is pressed, save a screenshot.
                 log.info("Saved Screenshot")
                 pygame.image.save(screen, "../screenshot.png")
         elif event.type == pygame.MOUSEBUTTONDOWN:
+            # This is where we handle mouse clicks.
             mouse_pos = event.pos  # gets mouse position
             alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
             low_refresh = time.time()
@@ -252,92 +271,117 @@ def update(dt, screen):
             if display_mode == "init":
                 pass  # Don't do anything
             elif home_button_render.rect.collidepoint(mouse_pos) and display_mode != "home":
+                # When the home button is clicked, go back to the home screen.
                 webcams.focus(None)
                 webcams.page = 0
                 display_mode = "home"
                 room_control.open_since = 0
 
             elif room_button_render.rect.collidepoint(mouse_pos) and display_mode == "home":
+                # When the room button is clicked, go to the room control screen.
                 webcams.focus(None)
                 webcams.page = 0
                 display_mode = "room_control"
                 room_control.open_since = time.time()
 
             elif alert_collider.collidepoint(mouse_pos) and display_mode == "home" and alert:
+                # When the alert button is clicked, go to the alert screen.
                 weather_alert_display = WeatherAlert(1, len(alert), alert=alert[weather_alert_number])
                 weather_alert_display.build_alert()
                 display_mode = "weather_alert"
 
             elif display_mode == "weather_alert":
-
+                # This is the weather alert mouse click handler.
                 if home_button_render.rect.collidepoint(mouse_pos) or current_weather.big_info.get_rect().collidepoint(mouse_pos) or \
                         weather_alert.get_rect().collidepoint(mouse_pos):
+                    # If the home button is clicked, go back to the home screen.
                     display_mode = "home"
                     weather_alert_display = None
 
                 if webcams.cycle_forward.collidepoint(mouse_pos):
+                    # If the cycle forward button is clicked, cycle forward.
                     weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
                     weather_alert_number += 1
                     if weather_alert_number >= len(alert):
                         weather_alert_number = 0
 
                 if webcams.cycle_backward.collidepoint(mouse_pos):
+                    # If the cycle backward button is clicked, cycle backward.
                     weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
                     weather_alert_number -= 1
                     if weather_alert_number < 0:
                         weather_alert_number = 0
 
             elif display_mode == "webcams":
+                # This is the webcams mouse click handler.
                 if webcams.cycle_forward.collidepoint(mouse_pos):
+                    # If the cycle forward button is clicked, cycle forward.
                     webcams.cycle(1)
                 if webcams.cycle_backward.collidepoint(mouse_pos):
+                    # If the cycle backward button is clicked, cycle backward.
                     webcams.cycle(-1)
 
                 cam_id = 0
                 for cam in webcams.image_frame_boxes:
+                    # Checks if the mouse is over a webcam.
                     if cam.collidepoint(mouse_pos):
                         if webcams.current_focus is None:
+                            # If the mouse is over a webcam and there is no webcam currently being focused, focus on the webcam.
                             webcams.focus(cam_id)
                             break
                         else:
+                            # If the mouse is over a webcam and there is a webcam currently being focused, unfocus the webcam.
                             webcams.focus(None)
                             break
                     cam_id += 1
             elif display_mode == "radar":
+                # This is the radar mouse click handler.
                 if webcams.cycle_forward.collidepoint(mouse_pos):
+                    # If the next button is clicked, play/pause the radar.
                     radar.play_pause()
                 if webcams.cycle_backward.collidepoint(mouse_pos):
+                    # If the previous button is clicked, stop playback and jump to now
                     radar.jump_too_now()
                 if forecast_button_render.rect.collidepoint(mouse_pos):
+                    # If the live button is clicked, return to live radar.
                     radar.v1_layers = []
                     radar.v2_layers = [("CL", 0, "")]
                     radar.radar_display = True
                     radar.update_radar()
 
             elif display_mode == "home":
+                # This is the home mouse click handler.
                 if webcam_button_render.rect.collidepoint(mouse_pos):
+                    # If the webcam button is clicked, go to the webcams screen.
                     display_mode = "webcams"
                 if webcams.cycle_forward.collidepoint(mouse_pos):
+                    # If the cycle forward button is clicked, go to the next forecast page
                     if selected_loading_hour + 9 < max_loading_hour:
+                        # If the selected loading hour is not the last forecast hour, go to the next forecast hour.
                         selected_loading_hour += 9
                         slot_position = 1
                         loading_hour = selected_loading_hour
                         forecast = []
                         refresh_forecast = True
                 elif webcams.cycle_backward.collidepoint(mouse_pos):
+                    # If the cycle backward button is clicked, go to the previous forecast page
                     if selected_loading_hour - 9 >= 1:
+                        # If the selected loading hour is not the first forecast hour, go to the previous forecast hour.
                         selected_loading_hour -= 9
                         slot_position = 1
                         loading_hour = selected_loading_hour
                         forecast = []
                         refresh_forecast = True
                 elif radar_collider.collidepoint(mouse_pos):
+                    # If the radar button is clicked, go to the radar screen.
                     display_mode = "radar"
                     radar.update_radar()
                 for hour in forecast:
+                    # Checks if the mouse is over a forecast hour.
                     hour.check_click(mouse_pos)
 
             elif display_mode == "room_control":
+                # This is the room control mouse click handler.
                 response = room_control.check_click(mouse_pos)
                 # if response:
                 #     room_control.run_routine(response)
@@ -346,6 +390,7 @@ def update(dt, screen):
 
 
 def update_weather_data():
+    # This function is called every minute to update the weather data.
     global last_current_update, last_forecast_update, screen_dimmed, failed_current_updates, forecast, refresh_forecast, selected_loading_hour
     global loading_hour
     # Update Weather Info
@@ -387,7 +432,7 @@ def update_weather_data():
 
 
 def build_forecast(screen, start_location):
-    """Load todays hourly weather"""
+    """Load todays hourly weather data and build the forecast"""
     x, y = start_location
     global loading_hour, refresh_forecast, selected_loading_hour, slot_position, fps
 
@@ -412,7 +457,7 @@ def build_forecast(screen, start_location):
 
 
 def draw_forecast(screen):
-    """Draw forecast"""
+    """Draw forecast to screen"""
     global focused_forecast, forecast, refresh_forecast
     if not focused_forecast:
         for hour in forecast[::-1]:
@@ -454,7 +499,7 @@ def draw(screen, dt):
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
 
     if display_mode == "init":
-
+        # This the loading screen method
         loading_screen.draw_progress(screen, (100, 300), 600)
 
         if loading_screen.cache_icons():
@@ -481,7 +526,7 @@ def draw(screen, dt):
         draw_clock(pallet_four)
 
     elif display_mode == "home":
-        # Redraw screen here.
+        # This is where the home screen is drawn
         pygame.display.set_caption("Weather")
         current_weather.draw_current(screen, (0, 0))
         draw_forecast(screen)
@@ -498,6 +543,7 @@ def draw(screen, dt):
         room_button_render.blit(screen)
         # screen.blit(room_button_render, room_button_render.get_rect(midbottom=room_button.center))
     elif display_mode == "webcams":
+
         pygame.display.set_caption(("Streaming " if webcams.multi_cast else "Viewing ") +
                                    f"Campus Webcams-Page: {webcams.page + 1}/{len(webcams.cameras)}")
         webcams.draw(screen)
@@ -507,6 +553,7 @@ def draw(screen, dt):
         home_button_render.blit(screen)
         # fps = webcams.requested_fps
     elif display_mode == "room_control":
+        # This is where the room control screen is drawn
         room_control.draw_routine(screen, 0)
         pygame.display.set_caption("Room Control")
         # pygame.draw.rect(screen, [255, 206, 0], home_button)
@@ -515,6 +562,7 @@ def draw(screen, dt):
             room_control.open_since = 0
             display_mode = "home"
     elif display_mode == "weather_alert":
+        # This is where the weather alert screen is drawn
         draw_clock(pallet_one)
         weather_alert_display.draw(screen, (10, 100))
         current_weather.draw_current(screen, (0, 0))
@@ -522,6 +570,7 @@ def draw(screen, dt):
         webcams.draw_buttons(screen)
         pygame.display.set_caption("Weather Alert")
     elif display_mode == "radar":
+        # This is where the radar screen is drawn
         radar.draw(screen)
         home_button_render.blit(screen)
         webcams.draw_buttons(screen)
@@ -539,10 +588,13 @@ def draw(screen, dt):
     screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width() / 2, screen.get_height() - 30))))
 
     if alert:
+        # If a weather alert is active, draw the alert icon
         screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))
     if room_control.raincheck:
+        # If a raincheck is active, draw the raincheck icon
         screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
     if (py and temp > 70) or overheat_halt:
+        # If the CPU is too hot, draw the overheat icon
         screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))
         overheat_halt = True
         fps = 7
@@ -553,6 +605,7 @@ def draw(screen, dt):
             # webcams.focus(None)
             fps = 0.5
     if no_mouse:
+        # If the mouse is not detected, draw the mouse icon
         if alert:
             screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))
         else:

@@ -48,6 +48,10 @@ class OpenWeatherWrapper:
         self._read_cache()
 
     def _read_cache(self):
+        """
+        Reads the cache file and loads the data into the class
+        :return: None
+        """
         if os.path.isfile(cache_location):
             self.log.info("Loading weather cache")
             with open(cache_location, 'rb') as inp:

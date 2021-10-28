@@ -19,6 +19,9 @@ def fahrenheit_to_celsius(celsius):
 class LocalThermostat:
 
     def __init__(self):
+        """
+        Initialize the local thermostat reader and server
+        """
         self.data = {
             "temperature": 0,
             "humidity": 0,
@@ -43,9 +46,17 @@ class LocalThermostat:
         self._save_data()
 
     def read_data(self):
+        """
+        Start a thread to read the data from the local thermostat
+        :return:
+        """
         thread = threading.Thread(target=self._read_data, args=()).start()
 
     def _read_data(self):
+        """
+        Read the data from the local thermostat
+        :return:
+        """
         print("Reading data from local thermostat, saving to file")
         self._load_data()
         try:
@@ -67,21 +78,28 @@ class LocalThermostat:
             self._save_data()
 
     def _save_data(self):
+        """
+        Save the thermostat data to a file to be read by remote thermostats
+        :return:
+        """
         self.data['last_update'] = time.time()
         with open(temp_file, "w") as f:
             json.dump(self.data, f, indent=2)
 
     def _load_data(self):
+        """
+        Load the thermostat data from the file that was updated by remote thermostats
+        :return:
+        """
         if os.path.isfile(temp_file):
             with open(temp_file) as f:
                 self.data = json.load(f)
 
-    def _file_watchdog_callback(self, event):
-        self._load_data()
-        self.data['errors'].append(f"File {event.src_path} modified")
-        print("File changed, reloading data")
-
     def maintain_temperature(self):
+        """
+        Maintain the temperature of the room
+        :return:
+        """
         if self.data['temperature'] < self.data['temp_set_point'] - 2 and self.current_fan_state != 0:
             self.current_fan_state = 0
             return "big-wind-off"
@@ -93,18 +111,35 @@ class LocalThermostat:
             return "big-wind-on"
 
     def maintain_humidity(self):
+        """
+        Maintain the humidity of the room
+        :return:
+        """
         if self.data['humid_set_point'] - 2 < self.data['humidity']:
             return "big-humid-off"
         elif self.data['humid_set_point'] + 2 > self.data['humidity']:
             return "big-humid-on"
 
     def get_temperature(self):
+        """
+        Get the current temperature of the room
+        :return: The current temperature of the room in Celsius
+        """
         return self.data['temperature']
 
     def get_humidity(self):
+        """
+        Get the current humidity of the room
+        :return: The current humidity of the room in relative humidity
+        """
         return self.data['humidity']
 
     def set_temperature(self, temperature):
+        """
+        Set the thermostat set point
+        :param temperature: Integer value of the temperature in Celsius
+        :return: None
+        """
         self.data['temp_set_point'] = temperature
         self._save_data()
 
@@ -112,6 +147,9 @@ class LocalThermostat:
 class RemoteThermostat:
 
     def __init__(self):
+        """
+        Initialize the remote thermostat
+        """
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 data = json.load(f)
@@ -132,34 +170,68 @@ class RemoteThermostat:
         self.read_data()
 
     def silent_read_data(self):
+        """
+        Read the data from the remote thermostat without updating the local data
+        :return:
+        """
         with open(temp_file, "r") as f:
             self.data = json.load(f)
 
     def read_data(self):
+        """
+        Start a thread to read the data from the remote thermostat and update the local data
+        :return:
+        """
         threading.Thread(target=self._download_data, args=()).start()
 
     def get_temperature(self):
+        """
+        Get the current temperature of the room
+        :return: The current temperature of the room in Celsius
+        """
         return self.data['temperature']
 
     def get_humidity(self):
+        """
+        Get the current humidity of the room
+        :return: The current humidity of the room in relative humidity
+        """
         return self.data['humidity']
 
     def set_temperature(self, temperature):
+        """
+        Set the thermostat set point
+        :param temperature: Integer value of the temperature in Celsius
+        :return:
+        """
         self.silent_read_data()
         self.data['temp_set_point'] = temperature
         self._save_data()
 
     def set_humidity(self, humidity):
+        """
+        Set the humidity set point
+        :param humidity: Integer value of the humidity in relative humidity
+        :return:
+        """
         self.silent_read_data()
         self.data['humid_set_point'] = humidity
         self._save_data()
 
     def _save_data(self):
+        """
+        Save the data to the local file
+        :return:
+        """
         with open(temp_file, "w") as f:
             json.dump(self.data, f, indent=2)
         self._upload_data()
 
     def _upload_data(self):
+        """
+        Upload the data to the local thermostat
+        :return:
+        """
         import paramiko
 
         ssh = paramiko.SSHClient()
@@ -172,7 +244,10 @@ class RemoteThermostat:
         ssh.close()
 
     def _download_data(self):
-        print("Reading data from remote thermostat server")
+        """
+        Download the data from the remote thermostat
+        :return:
+        """
         import paramiko
 
         ssh = paramiko.SSHClient()
@@ -191,6 +266,10 @@ class RemoteThermostat:
 class Thermostat:
 
     def __init__(self, local):
+        """
+        Initialize the type of thermostat depending on if it is local or remote
+        :param local: If the thermostat is local or remote
+        """
         if local:
             print("Init Thermostat Host")
             self.thermostat = LocalThermostat()
