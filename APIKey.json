@@ -1,0 +1,8 @@
+{
+  "key": "OpenWeatherAPI key here",
+  "monkey_token": "Voice Monkey Token here",
+  "monkey_secret": "Voice Monkey Secret here",
+  "rPi_address": "Local Weather Cache IP Address Here",
+  "rPi_password": "Local Weather Cache Password Here",
+  "rPi_file_path": "Local Weather Cache Save Location Here"
+}

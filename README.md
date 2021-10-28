@@ -1,4 +1,4 @@
-# pitechmanagerthingie
+# Husky Hub
 
 Get weather api key at https://openweathermap.org/api
 
