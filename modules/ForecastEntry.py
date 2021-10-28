@@ -19,6 +19,10 @@ pallet_three = (255, 255, 255)
 class FocusedForecast:
 
     def __init__(self, forecast):
+        """
+        Constructor for the FocusedForecast class.
+        :param forecast: The forecast object to be shown in more detail.
+        """
         self.forecast = forecast
         self.x = 5
         self.y = 155
@@ -84,6 +88,11 @@ class FocusedForecast:
                                            , True, pallet_three))
 
     def draw(self, screen):
+        """
+        Draws the detailed weather information to the screen
+        :param screen: The screen to draw to
+        :return: None
+        """
         x = self.x
         y = self.y
         for button in self.radar_buttons:
@@ -103,7 +112,15 @@ class FocusedForecast:
 class ForecastEntry:
 
     def __init__(self, screen, location, weather, delta_time, icon_cache, icon):
-        """Houses a forecast"""
+        """
+        Creates a forecast entry for the weather information
+        :param screen: The screen to draw to
+        :param location: The X,Y location of the forecast entry
+        :param weather: The weather information to use
+        :param delta_time: The time difference between the current time and the time of the forecast
+        :param icon_cache: The icon cache to use
+        :param icon: The icon to use if no icon is found
+        """
         self.x, self.y = location
         self.location = location
         self.focused = False
@@ -199,10 +216,20 @@ class ForecastEntry:
         self.surf.convert()
 
     def check_click(self, mouse_pos):
+        """
+        Checks if the mouse is hovering over the forecast card.
+        :param mouse_pos: The X,Y coordinates of the mouse.
+        :return: None
+        """
         if self.clicked_rect.collidepoint(mouse_pos):
             self.focused = True
 
     def draw(self, screen):
+        """
+        Draws the forecast card to the screen.
+        :param screen: The screen to draw the card to.
+        :return: None
+        """
         if self.focused:
             if not self.focused_object:
                 self.focused_object = FocusedForecast(self)

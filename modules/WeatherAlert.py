@@ -20,7 +20,12 @@ def time_in_range(start, end, x):
 class WeatherAlert:
 
     def __init__(self, number, total, alert=None):
-        """"""
+        """
+        Initalize Weather alert manager object
+        :param number: The alert number to display
+        :param total: The total number of alerts
+        :param alert: The alert data to display
+        """
         self.alert = alert
         self.number = number
         self.total = total
@@ -39,6 +44,10 @@ class WeatherAlert:
         self.scroll_time = time.time()
 
     def build_alert(self):
+        """
+        Build the alert text line by line
+        :return: True if built, False if not
+        """
         if self.built:
             return True
 
@@ -75,6 +84,12 @@ class WeatherAlert:
             self.built = True
 
     def draw(self, screen, location):
+        """
+        Draw the alert to the screen
+        :param screen: The screen to draw to
+        :param location: The X,Y location to draw to
+        :return: False if not initialized, None if initialized
+        """
         x, y = location
         if not self.initialized:
             return False

@@ -517,7 +517,7 @@ def draw(screen, dt):
                     thermostat.thermostat.read_data()
                     display_mode = "home"
                     radar.update_radar()
-                    room_control.build_routines(0)
+                    room_control.build_routines()
                     last_current_update = time.time()
                     webcams.page = 0
                     del loading_screen

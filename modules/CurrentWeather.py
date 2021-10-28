@@ -19,10 +19,11 @@ class CurrentWeather:
 
     def __init__(self, weather_api, icon_cache, icon, thermostat: Thermostat.Thermostat):
         """
-        :param weather_api:
-        :param icon_cache:
-        :param icon:
-        :param thermostat:
+        Initializes the current weather display class
+        :param weather_api: The OpenWeatherWrapper object
+        :param icon_cache: The weather icon cache
+        :param icon: The default weather icon
+        :param thermostat: The thermostat object
         """
         self.weather_api = weather_api
         self.thermostat = thermostat

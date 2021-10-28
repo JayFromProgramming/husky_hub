@@ -4,7 +4,7 @@ import numpy
 import cv2
 from ffpyplayer.player import MediaPlayer
 
-__version__ = "1.4.2"
+__version__ = "2.0.2"
 
 
 class Time:
@@ -67,7 +67,10 @@ class Video:
         return f"<pygamevideo.Video(frame#{self.current_frame})>"
 
     def __init__(self, filepath):
-
+        """
+        The constructor of the Pygame Video class.
+        :param filepath: The path of the video file or the URL of the m3u8 playlist.
+        """
         if not filepath:
             raise ValueError("No Stream Source Provided")
 
@@ -117,6 +120,10 @@ class Video:
         self._frame = None
 
     def release(self):
+        """
+        Releases the video stream and the underlying cv2.VideoCapture object back to the system.
+        :return: None
+        """
         self.stream.release()
         # self.ff.close_player()
         self.is_ready = False
@@ -124,6 +131,11 @@ class Video:
     # Control methods
 
     def play(self, loop=False):
+        """
+        Starts the video playback.
+        :param loop: If True, the video will loop when it reaches the end as long as it isn't a live stream.
+        :return: None
+        """
         if not self.is_playing:
             if not self.is_ready: self.__init__(self.filepath)
 
@@ -134,6 +146,10 @@ class Video:
             self.ostart_time = time.time()
 
     def restart(self):
+        """
+        Restarts the video playback from the beginning, as long as it isn't a live stream.
+        :return: None
+        """
         if self.is_playing:
             self.release()
             self.stream = cv2.VideoCapture(self.filepath)
@@ -147,6 +163,10 @@ class Video:
             self.ostart_time = time.time()
 
     def stop(self):
+        """
+        Stops the video playback, and releases the underlying cv2.VideoCapture object back to the system.
+        :return: None
+        """
         if self.is_playing:
             self.is_playing = False
             self.is_paused = False
@@ -159,18 +179,28 @@ class Video:
             self.release()
 
     def toggle_pause(self):
+        """
+        Toggles the video playback between paused and playing.
+        :return: None
+        """
         if self.is_paused:
             self.resume()
         else:
             self.pause()
 
     def pause(self):
+        """
+        Pauses the video playback.
+        :return: None
+        """
         self.is_paused = True
-        # self.ff.set_pause(True)
 
     def resume(self):
+        """
+        Resumes the video playback.
+        :return: None
+        """
         self.is_paused = False
-        # self.ff.set_pause(False)
 
     # Audio methods
 
@@ -193,21 +223,42 @@ class Video:
 
     @property
     def duration(self):
+        """
+        Returns the duration of the video in seconds.
+        :return: The duration of the video in seconds.
+        """
         return Time.from_millisecond((self.total_frames / self.fps) * 1000)
 
     @property
     def current_time(self):
+        """
+        The current playback time of the video.
+        :return: The current playback time of the video in seconds.
+        """
         return Time.from_millisecond(self.stream.get(cv2.CAP_PROP_POS_MSEC))
 
     @property
     def remaining_time(self):
+        """
+        The remaining time of the video.
+        :return: The remaining time of the video in seconds.
+        """
         return self.duration - self.current_time
 
     @property
     def current_frame(self):
+        """
+        The current frame number of the video.
+        :return: The current frame number of the video.
+        """
         return self.stream.get(cv2.CAP_PROP_POS_FRAMES)
 
     def seek_time(self, t):
+        """
+        Seeks the video to the specified time.
+        :param t: The time to seek to in the formats of Time, Time: str, Time: int, or Time: float.
+        :return: None
+        """
         if isinstance(t, Time):
             _t = t.to_millisecond()
             self.seek_time(_t)
@@ -231,20 +282,43 @@ class Video:
             raise ValueError("Time can only be represented in Time, str, int or float")
 
     def seek_frame(self, frame):
+        """
+        Seeks the video to the specified frame.
+        :param frame: The frame to seek to.
+        :return: None
+        """
         self.seek_time((frame / self.fps) * 1000)
 
     # Dimension methods
 
     def get_size(self):
+        """
+        Returns the size of the video.
+        :return: The size of the video in the format (width, height).
+        """
         return self.frame_width, self.frame_height
 
     def get_width(self):
+        """
+        Returns the width of the video.
+        :return: The width of the video in pixels.
+        """
         return self.frame_width
 
     def get_height(self):
+        """
+        Returns the height of the video.
+        :return: The height of the video in pixels.
+        """
         return self.frame_height
 
     def set_size(self, size):
+        """
+        Sets the size of the video.
+        :param size: The size of the video in the format (width, height).
+        :return: None
+        :raises ValueError: If the width or height is not a positive integer.
+        """
         self.frame_width, self.frame_height = size
         self.frame_surf = pygame.Surface((self.frame_width, self.frame_height), pygame.HWSURFACE | pygame.ASYNCBLIT).convert()
 
@@ -252,6 +326,12 @@ class Video:
             raise ValueError(f"Size must be positive")
 
     def change_width(self, width: int):
+        """
+        Changes the width of the video.
+        :param width: The new width of the video in pixels.
+        :return: None
+        :raises ValueError: If the width is negative.
+        """
         self.frame_width = width
         self.frame_surf = pygame.Surface((width, self.frame_height), pygame.HWSURFACE | pygame.ASYNCBLIT).convert()
 
@@ -259,6 +339,12 @@ class Video:
             raise ValueError(f"Width must be positive")
 
     def change_height(self, height: int):
+        """
+        Changes the height of the video.
+        :param height: The new height of the video in pixels.
+        :return: None
+        :raises ValueError: If the height is negative.
+        """
         self.frame_height = height
         self.frame_surf = pygame.Surface((self.frame_width, height), pygame.HWSURFACE | pygame.ASYNCBLIT).convert()
 
@@ -266,11 +352,21 @@ class Video:
             raise ValueError(f"Height must be positive")
 
     def set_fps(self, fps):
+        """
+        Overrides the FPS of the video.
+        :param fps: The new FPS of the video.
+        :return: None
+        """
         self.fps = fps
 
     # Process & draw video
 
     def update_frame(self, anti_alias=False):
+        """
+        Grabs the next frame from the video and updates the frame surface.
+        :param anti_alias: A boolean indicating whether use smooth scaling.
+        :return: The total time spent processing the frame.
+        """
         if not self.is_playing:
             return 0
             # return self.frame_surf
@@ -290,13 +386,10 @@ class Video:
 
         if not self.is_paused:
             # In the event that we have fallen behind in processing the stream skip to the next Iframe
-            # print(f"Time based Elapsed: {elapsed_frames}; Seeked frames: {seeked_frames}; Makeup_frames: {makeup_frames - 1};"
-            #       f" Time delta: {time_difference}; Dropped Frames: {self.dropped_frames}")
             if time_difference < 0 and makeup_frames > 5 and self.last_segment < time.time() - 1:
                 self.draw_frame += int(self.stream.get(cv2.CAP_PROP_POS_FRAMES))
                 self.dropped_frames += makeup_frames
                 self.stream.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Sets position to the next Iframe
-                # self.stream.set(cv2.CAP_PROP_POS_FRAMES, 0)  # Sets position to the next Iframe
                 self.last_segment = time.time()
             else:
                 if makeup_frames > 5: makeup_frames = 5  # Set a max makeup amount to prevent process locking
@@ -319,10 +412,23 @@ class Video:
         # print(total_time)
 
     def draw_to(self, surface, pos):
+        """
+        Draws the current buffered frame to the given surface.
+        :param surface: The surface to draw to.
+        :param pos: The position in X, Y coordinates to draw the frame.
+        :return: None
+        """
         if self.frame_width != 0 and self.frame_height != 0:
             surface.blit(self.frame_surf, pos)
 
     def stream_to(self, surface, pos, anti_alias=False):
+        """
+        Loads the next frame from the video and draws it to the given surface.
+        :param surface: The surface to draw to.
+        :param pos: The position in X, Y coordinates to draw the frame.
+        :param anti_alias: True if the frame should be anti-aliased with smooth scaling.
+        :return: None
+        """
         if self.frame_width != 0 and self.frame_height != 0:
             self.update_frame(anti_alias)
             surface.blit(self.frame_surf, pos)

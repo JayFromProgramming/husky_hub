@@ -27,6 +27,14 @@ class CampusCams:
         return self.text_font.render(text, True, pallet_one, pallet_three)
 
     def __init__(self, logs, static_images, live_mode_enable, multi_stream=False, linux=False):
+        """
+        This is the constructor for the CampusCams class.
+        :param logs: The log object to use for logging
+        :param static_images: The placeholder images to use for when no camera is available or the camera is offline
+        :param live_mode_enable: If Streaming should be enabled or not
+        :param multi_stream: If multiple streams should be enabled or not
+        :param linux: If the system is running on linux or not, this is used to determine if the usb driver should be unbound
+        """
         # This is the webcam class, it is used to create webcam streams and thumbnails and display them on the screen
         if os.path.exists(camera_path):
             with open(camera_path, "r") as f:
@@ -74,7 +82,12 @@ class CampusCams:
         self.multi_cast_threads = []
         self.thread_run = False
 
-    def cycle(self, amount):  # This cycles the page forward or backward
+    def cycle(self, amount):
+        """
+        This cycles the page forward or backward
+        :param amount: How many pages to cycle forward or backward
+        :return: None
+        """
         self.page += amount
         if self.page > len(self.cameras) - 1:
             self.page = 0
@@ -87,7 +100,12 @@ class CampusCams:
         self.close_multicast()
         self.update()
 
-    def focus(self, cam_id):  # This sets the focus to a specific camera
+    def focus(self, cam_id):
+        """
+        This sets the current focus to the camera with the given id
+        :param cam_id: The id of the camera to focus on
+        :return: None
+        """
         self.close_multicast()
         if cam_id is None and self.current_focus is not None:
             if self.linux: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/bind")
@@ -116,7 +134,12 @@ class CampusCams:
                                                                                                        int((self.screen.get_height() - 35))))
         self.update()
 
-    def multicast_refresh_thread(self, ob, stream, cam_id):  # This is the thread that refreshes the multicast stream
+    def multicast_refresh_thread(self, stream):  # This is the thread that refreshes the multicast stream
+        """
+        This refreshes the multicast stream
+        :param stream: The stream to refresh
+        :return: None
+        """
         clock = pygame.time.Clock()
         while stream and self.thread_run:
             process_time = stream.update_frame(anti_alias=self.high_performance_enabled)
@@ -125,12 +148,20 @@ class CampusCams:
             if not process_time > (1 / stream.fps):
                 clock.tick(stream.fps)
 
-    def pause_multicast(self):  # This pauses the multicast streams
+    def pause_multicast(self):
+        """
+        This pauses the multicast streams
+        :return: None
+        """
         for stream in self.stream_buffer:
             if stream is not None and stream is not False:
                 stream.toggle_pause()
 
-    def close_multicast(self):  # This closes the multicast streams
+    def close_multicast(self):
+        """
+        This closes the multicast streams
+        :return:
+        """
         self.stream_buffer = [None, None, None, None]
         self.thread_run = False
         for thread in self.multi_cast_threads:
@@ -143,7 +174,13 @@ class CampusCams:
         self.thread_run = True
         self.multi_cast_threads = []
 
-    def create_stream(self, ob, camera):  # This creates the multicast streams
+    def create_stream(self, ob, camera):
+        """
+        This creates the multicast streams
+        :param ob: This does nothing but looks like it is needed for the threading
+        :param camera: The camera to create the stream for
+        :return: None
+        """
         cam_id, url, stream_url, name = camera
         stream = None
         try:
@@ -179,8 +216,14 @@ class CampusCams:
             # self.multi_cast_threads.append(thread)
             self.stream = stream
 
-    def load_frame(self, ob, camera, select_buffer=None):  # This loads thumbnail images from the webcams.
-        """Load image from internet"""
+    def load_frame(self, ob, camera, select_buffer=None):
+        """
+        This loads the thumbnail images from the webcams
+        :param ob: T
+        :param camera: The camera to load the image for
+        :param select_buffer: An optional indicator to select the buffer to load the image into
+        :return: None
+        """
         cam_id, url, stream_url, name = camera
         if select_buffer is not None:
             page = select_buffer
@@ -241,7 +284,12 @@ class CampusCams:
             self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:30]}")).convert()
             print(f"Cam {page}-{cam_id} error: {e}")
 
-    def resize(self, screen):  # Resize the screen and all buffers
+    def resize(self, screen):
+        """
+        Resize the screen to the new size
+        :param screen: The new screen and associated size
+        :return: True if the screen was resized, an error if the screen was not resized
+        """
         self.screen = screen
         center_w = self.screen.get_width() / 2
         height = self.screen.get_height()
@@ -266,7 +314,11 @@ class CampusCams:
             # thread.start()
         return True
 
-    def update(self):  # Update the webcam thumbnails
+    def update(self):
+        """
+        Update the thumbnails for the current page
+        :return: None
+        """
         if self.last_update == 0:
             self.last_update = time.time() - self.update_rate
         elif self.last_update < time.time() - self.update_rate:
@@ -281,7 +333,11 @@ class CampusCams:
             self.log.debug("Cameras updates queued")
             self.last_update = time.time()
 
-    def update_all(self):  # Update all thumbnails on all pages
+    def update_all(self):
+        """
+        Update all thumbnails on all pages
+        :return: None
+        """
         self.log.info("Updating all camera thumbnails")
         page_num = 0
         self.name_buffer = []
@@ -298,14 +354,22 @@ class CampusCams:
             page_num += 1
 
     def draw_buttons(self, screen):  # Draw the buttons
-        """"""
+        """
+        Draw the buttons on the screen
+        :param screen: The screen to draw the buttons on
+        :return: None
+        """
         pygame.draw.rect(screen, [255, 206, 0], self.cycle_forward)
         screen.blit(self.cycle_forward_render, self.cycle_forward_render.get_rect(center=self.cycle_forward.center))
         pygame.draw.rect(screen, [255, 206, 0], self.cycle_backward)
         screen.blit(self.cycle_backward_render, self.cycle_backward_render.get_rect(center=self.cycle_backward.center))
 
     def draw(self, screen):
-        """Draw all buffered frames to the screen"""
+        """
+        Draw all buffers on to the screen
+        :param screen: The screen to draw the buffers on
+        :return: None
+        """
 
         for thread in self.active_requests:
             if not thread.is_alive():

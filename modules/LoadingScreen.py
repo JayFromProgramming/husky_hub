@@ -19,7 +19,16 @@ pallet_three = (255, 255, 255)
 class LoadingScreen:
 
     def __init__(self, weather_api: OpenWeatherWrapper, icon_cache, forecast, icons, modules, screen: pygame.Surface, ignore_cache=False):
-        """"""
+        """
+        This class is used to display a loading screen while the program is loading.
+        :param weather_api: The OpenWeatherWrapper object used to load weather data.
+        :param icon_cache: The icon cache used to load icons.
+        :param forecast: The forecast used to load weather data.
+        :param icons: The icons used to load icons.
+        :param modules: The modules to be initialized during loading.
+        :param screen: The screen to draw the loading screen on.
+        :param ignore_cache: If true, the cache will be ignored.
+        """
         self.weather_api = weather_api
         self.icon_cache = icon_cache
         self.no_image, self.husky, self.empty_image, self.splash = icons
@@ -38,7 +47,10 @@ class LoadingScreen:
         self.splash = pygame.transform.scale(self.splash, self.screen.get_size())
 
     def load_weather(self):
-        """"""
+        """
+        Loads the weather data.
+        :return: None
+        """
         self.loading_status_strings.append("Loading weather data from OpenWeatherMap.org")
         self.weather_api.update_current_weather()
         self.weather_api.update_forecast_weather()
@@ -46,13 +58,26 @@ class LoadingScreen:
         self.loading_status_strings.append("Loaded weather data from OpenWeatherMap.org")
 
     def _load_icon(self, icon):
-
+        """
+        Loads an icon from the cache or from the internet.
+        :param icon: The icon to load.
+        :return: The loaded icon.
+        """
         def update_cache(new_image_str):
+            """
+            Updates the icon cache with the new image.
+            :param new_image_str: The bytes of the new image.
+            :return: None
+            """
             f = open(f"Caches/Icon_cache/{icon}.png", "wb")
             f.write(new_image_str)
             f.close()
 
         def load():
+            """
+            Loads the icon from the internet.
+            :return: The loaded icon.
+            """
             if os.path.exists(f"Caches/Icon_cache/{icon}.png") and not self.ignore_cache:
                 f = open(f"Caches/Icon_cache/{icon}.png", "rb")
                 image_str = f.read()
@@ -78,6 +103,10 @@ class LoadingScreen:
             self.loading_percentage += (self.loading_percent_bias['Icons'] / (len(self._common_icons) * 2)) * 0.9
 
     def cache_icons(self):
+        """
+        Loads all the icons from the cache or if an icon is not in the cache, loads it from the internet.
+        :return: True if all the icons are loaded, False otherwise.
+        """
         if self._current_icon_number < len(self._common_icons):
             with futures.ThreadPoolExecutor(max_workers=2) as executor:
                 executor.submit(self._load_icon, f"{self._common_icons[self._current_icon_number]}d")
@@ -88,6 +117,13 @@ class LoadingScreen:
             return True
 
     def draw_progress(self, screen, location, max_length):
+        """
+        Draws the loading progress in the form of a progress bar.
+        :param screen: The screen to draw the progress bar and background on.
+        :param location: The location of the progress bar and progress text.
+        :param max_length: The maximum length of the progress bar.
+        :return: None
+        """
         x, y = location
         font = pygame.font.SysFont('couriernew', 16)
         loading_fonts = []

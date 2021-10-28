@@ -16,6 +16,13 @@ cache_location = "Caches/weather.cache"
 class OpenWeatherWrapper:
 
     def __init__(self, log, current_weather_refresh_rate=2, future_weather_refresh_rate=15, is_host=True):
+        """
+        Initialize the OpenWeatherWrapper class and API wrapper
+        :param log: The logger to use
+        :param current_weather_refresh_rate: The refresh rate for the current weather api
+        :param future_weather_refresh_rate: The refresh rate for the OneCall weather api
+        :param is_host: Whether or not this is the host which is used to reduce the amount of api calls when using multiple devices
+        """
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 keys = json.load(f)
@@ -71,6 +78,10 @@ class OpenWeatherWrapper:
                     self.log.warning(f"Failed to load cached weather because: {e}")
 
     def _load_pi_cache(self):
+        """
+        Loads all the data from the host machine, in the form of a dill'd file
+        :return: None
+        """
         pass
         # if self._last_cache_refresh < time.time() - 120 and not self.is_host and False:
         #     import paramiko
@@ -86,13 +97,20 @@ class OpenWeatherWrapper:
         #     self._last_cache_refresh = time.time()
 
     def _save_cache(self):
+        """
+        Saves the cache to the weather cache file
+        :return: None
+        """
         with open(cache_location, 'wb') as outp:
             self.log.info("Saving current weather to cache")
             dill.dump(self, outp)
             outp.close()
 
     def update_current_weather(self):
-        """Update current weather values"""
+        """
+        Updates the current weather data
+        :return: True if the weather was updated, None if the weather was not updated and False if there was an error
+        """
         self._load_pi_cache()
         if self._last_current_refresh < time.time() - self._current_max_refresh * 60:
             print("Updating Current")
@@ -102,12 +120,15 @@ class OpenWeatherWrapper:
                 self._save_cache()
             except Exception as e:
                 self.log.warning(f"Unable to load weather: {e}")
-                return True
+                return False
             return True
         return None
 
     def update_forecast_weather(self):
-        """Update one call forecast weather values"""
+        """
+        Updates the forecast weather data
+        :return: True if the weather was updated, None if the weather was not updated and False if there was an error
+        """
         self._load_pi_cache()
         if self._last_forecast_refresh < time.time() - self._forecast_max_refresh * 60:
             print("Updating Forecast")
@@ -117,12 +138,15 @@ class OpenWeatherWrapper:
                 self._save_cache()
             except Exception as e:
                 self.log.warning(f"Unable to load forecast: {e}")
-                return True
+                return False
             return True
         return None
 
     def update_future_weather(self):
-        """Update the next 4 day forecast"""
+        """
+        Updates the 4 day forecast weather data
+        :return: None
+        """
         self._load_pi_cache()
         if self._last_future_refresh < time.time() - self._future_max_refresh * 60:
             print("Updating Future")
@@ -131,6 +155,14 @@ class OpenWeatherWrapper:
             self._save_cache()
 
     def _load_future_radar_tile(self, location, layer_name, future, options=""):
+        """
+        Loads the radar tiles for a particular layer and future time
+        :param location: The X,Y location of the radar tile in the maps grid format Ex. (16, 22)
+        :param layer_name: The OWM layer name to load Ex. "WND" or "PR0"
+        :param future: The Unix time in seconds to load the tile for
+        :param options: Any additional options to pass to the OWM API
+        :return: The image of the radar tile in 256x256 PNG format
+        """
         x, y = location
         date = int(time.time()) + future
         print(f"Loading {location} {layer_name}+{options} {future}")
@@ -153,14 +185,24 @@ class OpenWeatherWrapper:
             print(f"Tile get HTTP Error({e}): {url}")
 
     def _load_radar_tile(self, tile_manager, location, layer_name):
-        """"""
+        """
+        Loads the radar tiles for a particular layer at the current time
+        :param tile_manager: The OWM tile manager to use to load the tiles
+        :param location: The X,Y location of the radar tile in the maps grid format Ex. (16, 22)
+        :param layer_name: The OWM layer name to load Ex. "WND" or "PR0"
+        :return: None
+        """
         x, y = location
         tile = tile_manager.get_tile(x=x, y=y, zoom=6).image.data
         self.radar_buffer[0].append(((x, y), tile, layer_name, (0, 0, time.time())))
         self.radar_refresh_amount += 1
 
-    def _load_layer(self, ob, layer: str):
-        print(f"Loading owm layer {layer}")
+    def _load_layer(self, layer: str):
+        """
+        Loads the all the layer tiles for a particular layer at the current time
+        :param layer: The OWM layer name to load Ex. "WND" or "PR0"
+        :return: None
+        """
         tile_manager = self.owm.tile_manager(layer)
         self._load_radar_tile(tile_manager, (15, 22), layer)
         self._load_radar_tile(tile_manager, (16, 22), layer)
@@ -171,7 +213,14 @@ class OpenWeatherWrapper:
         print(f"Loaded owm layer {layer}")
         self._save_cache()
 
-    def _load_future_layers(self, ob, layer: str, future: int, options=""):
+    def _load_future_layers(self, layer: str, future: int, options=""):
+        """
+        Loads the all the layer tiles for a particular layer at the a particular future time
+        :param layer: The OWM layer name to load Ex. "WND" or "PR0"
+        :param future: The Unix time in seconds to load the tiles for Ex. 3600 for 1 hour
+        :param options: The additional options to pass to the OWM API
+        :return: None
+        """
         print(f"Loading owm forecast layer {layer}")
         if future not in self.radar_buffer:
             self.radar_buffer[future] = []
@@ -185,7 +234,12 @@ class OpenWeatherWrapper:
         self._save_cache()
 
     def update_weather_map(self, v1_layers, v2_layers):
-        """Update radar"""
+        """
+        Updates the weather map cache with the layers specified
+        :param v1_layers: The list of OWM layer names to load for the current time using the V1 API, Ex. ["wind_new", "pressure_new"]
+        :param v2_layers: The list of OWM layer names to load for the current time using the V2 API, Ex. [("WND", 3600, ""), ("PR0", 3600, "")])
+        :return: None
+        """
         # v1_layers, v2_layers = layers
         if self._last_radar_refresh < time.time() - self._radar_max_refresh * 60:
             self.log.info("Clearing radar cache")
@@ -197,13 +251,18 @@ class OpenWeatherWrapper:
             # self.radar_buffer[0] = []
 
         for layer in v1_layers:
-            threading.Thread(target=self._load_layer, args=(self, layer)).start()
+            threading.Thread(target=self._load_layer, args=layer).start()
 
         for layer, delta, args in v2_layers:
-            threading.Thread(target=self._load_future_layers, args=(self, layer, delta, args)).start()
+            threading.Thread(target=self._load_future_layers, args=(layer, delta, args)).start()
 
     @staticmethod
     def get_angle_arrow(degree):
+        """
+        Returns the arrow character for the given angle
+        :param degree: The angle to get the arrow for
+        :return: The arrow character for the given angle
+        """
         def offset(check):
             return (degree - check + 180 + 360) % 360 - 180
 
@@ -227,6 +286,11 @@ class OpenWeatherWrapper:
 
     @staticmethod
     def uvi_scale(uvi):
+        """
+        Returns the UV index scale name for the given UV index
+        :param uvi: The UV index to get the scale for
+        :return: The UV index scale name for the given UV index
+        """
         if uvi is None:
             return "Unknown"
         elif uvi < 3:
