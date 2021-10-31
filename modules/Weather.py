@@ -1,13 +1,14 @@
 import os
 import platform
 import statistics
+import threading
 import time
 import sys
 import datetime
 import traceback
 import psutil
 
-import Thermostat
+import Coordinator
 from OpenWeatherWrapper import OpenWeatherWrapper
 from Radar import Radar
 from Utils import buttonGenerator
@@ -136,10 +137,10 @@ fps = 0
 
 # This is where all the support modules are loaded
 weatherAPI = OpenWeatherWrapper(log)
-thermostat = Thermostat.Thermostat(py)
+coordinator = Coordinator.Coordinator(py)
 webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
-room_control = AlexaIntegration(log, thermostat.thermostat)
-current_weather = CurrentWeather(weatherAPI, icon_cache, icon, thermostat)
+room_control = AlexaIntegration(log, coordinator.coordinator)
+current_weather = CurrentWeather(weatherAPI, icon_cache, icon, coordinator)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
 radar = Radar(log, weatherAPI)
 
@@ -282,6 +283,7 @@ def update(dt, screen):
                 webcams.focus(None)
                 webcams.page = 0
                 display_mode = "room_control"
+                coordinator.coordinator.read_data()
                 room_control.open_since = time.time()
 
             elif alert_collider.collidepoint(mouse_pos) and display_mode == "home" and alert:
@@ -397,7 +399,7 @@ def update_weather_data():
     if last_current_update < time.time() - 60:
         log.debug("Requesting Update")
 
-        thermostat.thermostat.read_data()
+        coordinator.coordinator.read_data()
 
         # if py and not room_control.raincheck:
         #     thermostat.thermostat.maintain_temperature()
@@ -514,7 +516,7 @@ def draw(screen, dt):
                 loading_screen.loading_percentage += loading_screen.loading_percent_bias['Webcams'] / 4
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
                 if webcams.resize(screen):
-                    thermostat.thermostat.read_data()
+                    coordinator.coordinator.read_data()
                     display_mode = "home"
                     radar.update_radar()
                     room_control.build_routines()
@@ -554,7 +556,7 @@ def draw(screen, dt):
         # fps = webcams.requested_fps
     elif display_mode == "room_control":
         # This is where the room control screen is drawn
-        room_control.draw_routine(screen, 0)
+        room_control.draw_routine(screen, -10)
         pygame.display.set_caption("Room Control")
         # pygame.draw.rect(screen, [255, 206, 0], home_button)
         home_button_render.blit(screen)

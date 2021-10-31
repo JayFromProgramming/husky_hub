@@ -3,6 +3,7 @@ import json
 import os
 import threading
 import time
+import traceback
 
 import pygame
 import datetime
@@ -30,16 +31,35 @@ class RoutineButton:
         self.data = data
         self.name = data['name']
         self.run = False
-        self.color = [64, 64, 64]
         self.button = None
         self.last_run = time.time()
+        self.last_state_refresh = time.time()
         self.color_changed = False
-        self.type = data["type"]
-        self.host_bar = host_bar
+        self.status_color_enabled = False
+        self.host_bar: [OptionBar, SubOptionBar] = host_bar
         self.request_thread = None
+        self.thread_second_action = None
         self.request_success = None
         self.font2 = pygame.font.SysFont('timesnewroman', 20)
         self.surf = None
+        self.type = data["type"]
+        if "state_exec" in self.data:
+            threading.Thread(target=self._exec, args=(self, self.data['state_exec'])).start()
+        if self.status_color_enabled:
+            self.color = [64, 128, 255]
+        else:
+            self.color = [64, 64, 64]
+        self.render_self()
+
+    def update_state(self):
+        if "state_exec" in self.data:
+            # threading.Thread(target=self._exec, args=(self, self.data['state_exec'])).start()
+            exec(self.data['state_exec'])
+        if self.status_color_enabled:
+            self.color = [64, 128, 255]
+        else:
+            self.color = [64, 64, 64]
+
         self.render_self()
 
     def render_self(self):
@@ -62,28 +82,40 @@ class RoutineButton:
         Run the queued action associated with the button.
         :return: None
         """
-        if self.type == "action":
-            return self.data['request']
-        elif self.type == "SubMenu":
-            if self.host_bar.expanded and self.host_bar.expanded_to == self:
-                self.host_bar.collapse()
-                self.name = self.data['name']
-            else:
-                self.host_bar.collapse()
-                self.host_bar.expand(self)
-                self.name = self.data['name_2']
-            return "no_routine"
-        elif self.type == "code":
-            thread = threading.Thread(target=self._exec, args=(self, self.data['eval']))
-            thread.start()
-            self.request_thread = thread
-        elif self.type == "toggle":
-            if self.data['current_state']:
-                self.data['current_state'] = False
-                return self.data['requests'][1]
-            else:
-                self.data['current_state'] = True
-                return self.data['requests'][0]
+        self.request_success = None
+        if self.thread_second_action:
+            print(f"Running second action for {self.name}, {self.thread_second_action}")
+            action = self.thread_second_action
+            self.thread_second_action = None
+            self.run = False
+            return action
+        else:
+            if self.type == "action":
+                self.run = False
+                if "eval" in self.data:
+                    self.request_thread = threading.Thread(target=self._exec, args=(self, self.data['eval'])).start()
+                return self.data['request']
+            elif self.type == "SubMenu":
+                self.run = False
+                if self.host_bar.expanded and self.host_bar.expanded_to == self:
+                    self.host_bar.collapse()
+                    self.name = self.data['name']
+                else:
+                    self.host_bar.collapse()
+                    self.host_bar.expand(self)
+                    self.name = self.data['name_2']
+                return "no_routine"
+            elif self.type == "code":
+                self.request_thread = threading.Thread(target=self._exec, args=(self, self.data['eval'])).start()
+                return "exec"
+            elif self.type == "toggle":
+                self.run = False
+                if self.data['current_state']:
+                    self.data['current_state'] = False
+                    return self.data['requests'][1]
+                else:
+                    self.data['current_state'] = True
+                    return self.data['requests'][0]
 
     def _exec(self, thread, code):
         """
@@ -93,12 +125,17 @@ class RoutineButton:
         :return:
         """
         try:
+            self.run = False
             exec(code)
+            # print(f"{self.name} executed successfully.")
+            if self.thread_second_action:
+                self.run = True
+            else:
+                self.request_success = True
         except Exception as err:
-            print(f"Custom code button error: {err}")
+            print(f"Custom code button error: {err} Traceback: {traceback.format_exc()}")
             self.request_success = False
             return
-        self.request_success = True
 
     def draw(self, screen, pos):
         """
@@ -112,9 +149,12 @@ class RoutineButton:
         if self.color_changed:
             self.render_self()
 
-        if time.time() > self.last_run + 0.75 and self.color_changed:
-            self.color = [64, 64, 64]
-            self.render_self()
+        if self.last_state_refresh < time.time() - 7.5 and not self.color_changed:
+            self.update_state()
+            self.last_state_refresh = time.time()
+
+        if time.time() > self.last_run + 0.75 and self.color_changed and self.request_success is not None:
+            self.update_state()
             self.color_changed = False
 
         if self.request_thread:
@@ -316,14 +356,14 @@ class SubOptionBar:
 
 class AlexaIntegration:
 
-    def __init__(self, log, thermostat):
+    def __init__(self, log, coordinator):
         """
         Create an object to handle the Alexa integration.
         :param log: The clients logging handler
-        :param thermostat: The thermostat object to use for the Alexa integration.
+        :param coordinator: The room coordinator object to use for the Alexa integration device synchronization and temperature control.
         """
         self.routines = []
-        self.thermostat = thermostat
+        self.coordinator = coordinator
         self.queued_routine = False
         self.scroll = 0
         self.open_since = 0
@@ -351,6 +391,7 @@ class AlexaIntegration:
         Run all queued button actions.
         :return: None
         """
+
         def check_button(test_button):
             """
             Check if the button is pressed, and if so, run the associated routine.
@@ -363,6 +404,12 @@ class AlexaIntegration:
                     test_button.color = [0, 0, 255]
                     test_button.color_changed = True
                     test_button.last_run = time.time()
+                    self.queued_routine = False
+                elif action == "exec":
+                    test_button.color = [0, 0, 255]
+                    test_button.color_changed = True
+                    test_button.last_run = time.time()
+                    self.queued_routine = True
                 else:
                     thread = threading.Thread(target=self.run_routine, args=(self, action, test_button))
                     thread.start()
@@ -371,8 +418,7 @@ class AlexaIntegration:
                     #     test_button.color = [0, 255, 0]
                     # else:
                     #     test_button.color = [255, 0, 0]
-                test_button.run = False
-                self.queued_routine = False
+                    self.queued_routine = False
                 self.open_since = time.time()
 
         for routine in self.routines:
@@ -381,6 +427,13 @@ class AlexaIntegration:
             for submenu in routine.sub_menus:
                 for button in submenu.action_buttons:
                     check_button(button)
+
+        for routine in self.routines:
+            for button in routine.action_buttons:
+                button.update_state()
+            for submenu in routine.sub_menus:
+                for button in submenu.action_buttons:
+                    button.update_state()
 
     def run_routine(self, test, request, test_button=None):
         """
@@ -418,6 +471,14 @@ class AlexaIntegration:
             # print(routine)
             # print(items)
             self.routines.append(OptionBar(routine, items, self))
+
+    def refresh_all_states(self):
+        """
+        Refresh all button states.
+        :return: None
+        """
+        for routine in self.routines:
+            routine.refresh_all_states()
 
     def check_click(self, mouse_pos):
         """

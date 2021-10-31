@@ -7,7 +7,7 @@ import datetime
 from urllib.request import urlopen
 import logging as log
 
-import Thermostat
+import Coordinator
 
 pallet_one = (255, 206, 0)
 pallet_two = (255, 206, 0)
@@ -17,7 +17,7 @@ pallet_four = (0, 0, 0)
 
 class CurrentWeather:
 
-    def __init__(self, weather_api, icon_cache, icon, thermostat: Thermostat.Thermostat):
+    def __init__(self, weather_api, icon_cache, icon, coordinator: Coordinator.Coordinator):
         """
         Initializes the current weather display class
         :param weather_api: The OpenWeatherWrapper object
@@ -26,7 +26,7 @@ class CurrentWeather:
         :param thermostat: The thermostat object
         """
         self.weather_api = weather_api
-        self.thermostat = thermostat
+        self.coordinator = coordinator.coordinator
         self.big_info = None
         self.small_info = None
         self.small_info2 = None
@@ -78,8 +78,8 @@ class CurrentWeather:
             top, bottom = float(visibility).as_integer_ratio()
             visibility = f"{top}/{bottom} mi"
 
-        if self.thermostat.thermostat.get_temperature() != 0:
-            secondary_temp = f"{self.thermostat.thermostat.get_temperature()}°F"
+        if self.coordinator.get_temperature() != -9999:
+            secondary_temp = f"{self.coordinator.get_temperature()}°F"
 
         updated = datetime.datetime.fromtimestamp(updated)
         self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one, pallet_four).convert_alpha()

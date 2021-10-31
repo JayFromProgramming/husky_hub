@@ -60,10 +60,19 @@ class FocusedForecast:
         uvi = self.weather.uvi
         updated = self.weather.reference_time()
         updated = datetime.datetime.fromtimestamp(updated)
+        # Calculate the inside relative humidity based on the outside humidity and temperature
+        # This is a very rough approximation
+        rh = self.weather.humidity
+        rh = rh * (temp['temp'] - 32) / (temp['temp'] - rh * (temp['temp'] - 32))
+        rh = rh * 100
+        inside_humidity = rh
 
         self.time_info = font4.render(updated.strftime('Forecast for %A, %B %d at %I:00 %p'), True, pallet_one)
         self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)
         self.lines.append(font2.render(f"It will feel like {round(temp['feels_like'])}°F with an expected humidity of {humidity}%",
+                                       True, pallet_three))
+
+        self.lines.append(font2.render(f"Calculated inside humidity with outside air will be {inside_humidity}%",
                                        True, pallet_three))
 
         self.lines.append(font2.render(f"Expected cloud cover of {round(clouds)}%  "
@@ -160,6 +169,8 @@ class ForecastEntry:
         if status == "Thunderstorm":
             status = "Storm"
         elif status == "Rain":
+            status = f"{d_status[0].capitalize()}.{status.capitalize()}"
+        elif status == "Snow":
             status = f"{d_status[0].capitalize()}.{status.capitalize()}"
         else:
             status = status.capitalize()
