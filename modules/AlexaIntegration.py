@@ -55,10 +55,12 @@ class RoutineButton:
         if "state_exec" in self.data:
             # threading.Thread(target=self._exec, args=(self, self.data['state_exec'])).start()
             exec(self.data['state_exec'])
-        if self.status_color_enabled:
+        if self.status_color_enabled is True:
             self.color = [64, 128, 255]
-        else:
+        elif self.status_color_enabled is False:
             self.color = [64, 64, 64]
+        else:
+            self.color = [255, 64, 64]
 
         self.render_self()
 
@@ -149,7 +151,7 @@ class RoutineButton:
         if self.color_changed:
             self.render_self()
 
-        if self.last_state_refresh < time.time() - 7.5 and not self.color_changed:
+        if self.last_state_refresh < time.time() - 5 and not self.color_changed:
             self.update_state()
             self.last_state_refresh = time.time()
 
@@ -499,6 +501,11 @@ class AlexaIntegration:
         :param offset: The vertical offset of the option bars.
         :return: None
         """
+
+        if self.coordinator.last_download < time.time() - 10:
+            self.coordinator.read_states()
+            # self.refresh_all_states()
+
         self.scroll = offset + 40
         for routine in self.routines:
             routine.draw_routine(screen, (50, self.scroll))

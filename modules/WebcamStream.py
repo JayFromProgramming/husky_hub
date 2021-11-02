@@ -134,9 +134,10 @@ class CampusCams:
                                                                                                        int((self.screen.get_height() - 35))))
         self.update()
 
-    def multicast_refresh_thread(self, stream):  # This is the thread that refreshes the multicast stream
+    def multicast_refresh_thread(self, ob, stream):  # This is the thread that refreshes the multicast stream
         """
         This refreshes the multicast stream
+        :param ob:
         :param stream: The stream to refresh
         :return: None
         """
@@ -188,7 +189,9 @@ class CampusCams:
             stream = Video(stream_url)
             if stream.fps > 30:
                 stream.set_fps(30)
-            self.stream_info_text = self.text(f"{stream.frame_height}x{stream.frame_width}@{round(stream.fps)}fps")
+                self.stream_info_text = self.text(f"{stream.frame_height}x{stream.frame_width}@{round(stream.fps)}?fps")
+            else:
+                self.stream_info_text = self.text(f"{stream.frame_height}x{stream.frame_width}@{round(stream.fps)}fps")
             if stream.fps == 0:
                 raise BrokenPipeError("No Stream Data")
             if self.current_focus is None:
@@ -205,7 +208,7 @@ class CampusCams:
         if self.multi_cast and self.current_focus is None:
             self.thread_run = True
             self.stream_buffer[cam_id] = stream
-            thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream, cam_id))
+            thread = threading.Thread(target=self.multicast_refresh_thread, args=(self, stream))
             thread.start()
             self.multi_cast_threads.append(thread)
         else:

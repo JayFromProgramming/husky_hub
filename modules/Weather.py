@@ -137,7 +137,7 @@ fps = 0
 
 # This is where all the support modules are loaded
 weatherAPI = OpenWeatherWrapper(log)
-coordinator = Coordinator.Coordinator(py)
+coordinator = Coordinator.Coordinator(py )
 webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
 room_control = AlexaIntegration(log, coordinator.coordinator)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon, coordinator)
@@ -193,7 +193,7 @@ def update(dt, screen):
         # If the display mode is home, then we need to update the weather and the forecast.
         update_weather_data()
 
-    if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not room_control.raincheck:
+    if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not room_control.raincheck and py:
         # If the weather is raining, and the raincheck is not set, set it and turn off big wind.
         log.info("Shutting off big wind due to rain")
         room_control.run_routine("f", "big-wind-off")
@@ -560,7 +560,7 @@ def draw(screen, dt):
         pygame.display.set_caption("Room Control")
         # pygame.draw.rect(screen, [255, 206, 0], home_button)
         home_button_render.blit(screen)
-        if room_control.open_since < time.time() - 60:
+        if room_control.open_since < time.time() - 100:
             room_control.open_since = 0
             display_mode = "home"
     elif display_mode == "weather_alert":

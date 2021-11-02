@@ -115,7 +115,7 @@ class Video:
 
         self.is_ready = True
 
-        # print(f"Stream ready with resolution {self.frame_height}x{self.frame_width}@{self.fps}fps")
+        print(f"Stream from {filepath} ready with resolution {self.frame_height}x{self.frame_width}@{self.fps}fps")
 
         self._frame = None
 
