@@ -4,11 +4,14 @@ import os
 import threading
 import time
 import traceback
+import typing
 
 import pygame
 import datetime
 
 import requests
+
+from modules.Coordinator import Coordinator
 
 pallet_one = (255, 206, 0)
 pallet_two = (0, 0, 0)
@@ -36,7 +39,7 @@ class RoutineButton:
         self.last_state_refresh = time.time()
         self.color_changed = False
         self.status_color_enabled = False
-        self.host_bar: [OptionBar, SubOptionBar] = host_bar
+        self.host_bar: typing.Union[OptionBar, SubOptionBar] = host_bar
         self.request_thread = None
         self.thread_second_action = None
         self.request_success = None
@@ -55,13 +58,12 @@ class RoutineButton:
         if "state_exec" in self.data:
             # threading.Thread(target=self._exec, args=(self, self.data['state_exec'])).start()
             exec(self.data['state_exec'])
-        if self.status_color_enabled is True:
+        if (not self.host_bar.host.coordinator.is_connected() and self.status_color_enabled is True) or self.status_color_enabled is None:
+            self.color = [255, 64, 64]
+        elif self.status_color_enabled is True:
             self.color = [64, 128, 255]
         elif self.status_color_enabled is False:
             self.color = [64, 64, 64]
-        else:
-            self.color = [255, 64, 64]
-
         self.render_self()
 
     def render_self(self):
@@ -198,7 +200,7 @@ class OptionBar:
         self.running_status = [255, 255, 255]
         self.expanded = False
         self.expanded_to = None
-        self.host = host
+        self.host: AlexaIntegration = host
         self.font1 = pygame.font.SysFont('timesnewroman', 30)
         self.font2 = pygame.font.SysFont('timesnewroman', 20)
 
@@ -250,6 +252,7 @@ class OptionBar:
         Collapse the option bar to show the main menu.
         :return: None
         """
+        self.host.vertical_scroll_offset = 0
         self.sub_menus = []
         if self.expanded_to:
             self.expanded_to.name = self.expanded_to.data['name']
@@ -276,6 +279,8 @@ class OptionBar:
             # For each sub menu, draw the sub menu 80
             sub_bar.draw_routine(screen, (x, y + count))
             self.host.scroll += 80
+            if self.host.scroll > screen.get_height() - 80:
+                self.host.vertical_scroll_offset += 80
             count += 80
 
         self.button = pygame.Rect(x, y, 700, 70)
@@ -301,8 +306,8 @@ class SubOptionBar:
         :param my_buttons: The buttons that are part of this sub-option bar.
         :param name: The name of this sub-option bar.
         """
-        self.master_bar = master_bar
-        self.host = master_bar.host
+        self.master_bar: OptionBar = master_bar
+        self.host: AlexaIntegration = master_bar.host
         self.name = name
         self.button = None
         self.action_buttons = []
@@ -365,9 +370,10 @@ class AlexaIntegration:
         :param coordinator: The room coordinator object to use for the Alexa integration device synchronization and temperature control.
         """
         self.routines = []
-        self.coordinator = coordinator
+        self.coordinator: Coordinator = coordinator
         self.queued_routine = False
         self.scroll = 0
+        self.vertical_scroll_offset = 0
         self.open_since = 0
         self.raincheck = False
         if os.path.isfile(api_file):
@@ -506,7 +512,7 @@ class AlexaIntegration:
             self.coordinator.read_states()
             # self.refresh_all_states()
 
-        self.scroll = offset + 40
+        self.scroll = offset + 40 - self.vertical_scroll_offset
         for routine in self.routines:
             routine.draw_routine(screen, (50, self.scroll))
             self.scroll += 80

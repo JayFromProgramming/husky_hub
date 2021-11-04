@@ -99,6 +99,7 @@ class Video:
         # self.ff = MediaPlayer(self.filepath)
 
         self.fps = self.stream.get(cv2.CAP_PROP_FPS)
+        self.bit_rate = self.stream.get(cv2.CAP_PROP_BITRATE)
 
         self.last_frame_timestamp = None
 
@@ -383,7 +384,7 @@ class Video:
 
         if seeked_frames >= elapsed_frames:
             return 0
-
+        
         if not self.is_paused:
             # In the event that we have fallen behind in processing the stream skip to the next Iframe
             if time_difference < 0 and makeup_frames > 5 and self.last_segment < time.time() - 1:

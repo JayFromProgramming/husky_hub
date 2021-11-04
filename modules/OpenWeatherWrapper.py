@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import os
 import threading
 import time
@@ -23,6 +24,7 @@ class OpenWeatherWrapper:
         :param future_weather_refresh_rate: The refresh rate for the OneCall weather api
         :param is_host: Whether or not this is the host which is used to reduce the amount of api calls when using multiple devices
         """
+        self.log: logging = log
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 keys = json.load(f)
@@ -32,7 +34,8 @@ class OpenWeatherWrapper:
                 self.main_server_password = keys['rPi_password']
                 self.main_server_filepath = keys['rPi_file_path']
         else:
-            log.critial("No api key file present")
+            self.owm = OWM("Not a key")
+            log.error("No API Key file found")
             # raise FileNotFoundError
 
         self.is_host = is_host
@@ -150,9 +153,15 @@ class OpenWeatherWrapper:
         self._load_pi_cache()
         if self._last_future_refresh < time.time() - self._future_max_refresh * 60:
             print("Updating Future")
-            self._last_future_refresh = time.time()
-            self.weather_forecast = self.mgr.forecast_at_place('Houghton,US', '1h', limit=None).weathers
-            self._save_cache()
+            try:
+                self._last_future_refresh = time.time()
+                self.weather_forecast = self.mgr.forecast_at_place('Houghton,US', '1h', limit=None).weathers
+                self._save_cache()
+            except Exception as e:
+                self.log.warning(f"Unable to load future: {e}")
+                return False
+            return True
+        return None
 
     def _load_future_radar_tile(self, location, layer_name, future, options=""):
         """

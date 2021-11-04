@@ -365,16 +365,55 @@ class CoordinatorHost:
 
 
 class CoordinatorClient:
-
     class WebserverClient:
 
-        def __init__(self, address, port, client_name, auth, data: dict):
+        def __init__(self, address, port, client_name, auth, password, tablet, data: dict):
             self.address = address
             self.port = port
             self.data = data
             self.client_name = client_name
             self.auth = auth
+            self.password = password
+            self.tablet = tablet
+            self.coordinator_available = False
             self.connection_in_progress = False
+
+        def command_coordinator_restart(self):
+            """
+            Restart the coordinator
+            :return: None
+            """
+            if self.connection_in_progress:
+                raise ConnectionAbortedError("Connection in progress")
+            result = os.system(f"plink pi@{self.address} -pw {self.password} -m Configs/Commands/restart_pi_commands.command")
+            if result != 0:
+                raise ConnectionError("Connection failed")
+            self.coordinator_available = False
+
+        def command_coordinator_reboot(self):
+            """
+            Reboot the coordinator
+            :return: None
+            """
+            if self.connection_in_progress:
+                raise ConnectionAbortedError("Connection in progress")
+            result = os.system(f"plink pi@{self.address} -pw {self.password} -m Configs/Commands/reboot_pi_commands.command")
+            if result != 0:
+                raise ConnectionError("Connection failed")
+            self.coordinator_available = False
+
+        def command_tablet_reboot(self):
+            """
+            Reboot the tablet
+            :return: None
+            """
+            address, password = self.tablet
+            if self.connection_in_progress:
+                raise ConnectionAbortedError("Connection in progress")
+            result = os.system(f"plink weather@{address} -pw {password} -m Configs/Commands/reboot_tablet_commands.command")
+            if result != 0:
+                raise ConnectionError("Connection failed")
+            self.coordinator_available = False
 
         def download_state(self):
             print("Downloading state from coordinator webserver")
@@ -397,16 +436,18 @@ class CoordinatorClient:
             except Exception as e:
                 print(f"Error downloading state from coordinator webserver: {e}")
                 self.connection_in_progress = False
+                self.coordinator_available = False
                 self.data['temperature'] = -9999
                 self.data['humidity'] = -1
                 return self.data
             self.connection_in_progress = False
+            self.coordinator_available = True
             self.data = data
             return data
 
         def upload_state(self, state_data):
             print("Uploading state change to coordinator webserver")
-            if self.connection_in_progress:
+            if self.connection_in_progress or not self.coordinator_available:
                 return
             self.connection_in_progress = True
             try:
@@ -430,8 +471,10 @@ class CoordinatorClient:
                     #     print("Coordinator rejected attempt to upload new state data")
             except Exception as e:
                 print(f"Error uploading state change to coordinator webserver: {e}")
+                self.connection_in_progress = False
                 raise e
-            self.connection_in_progress = False
+            finally:
+                self.connection_in_progress = False
 
     def __init__(self):
         """
@@ -439,12 +482,6 @@ class CoordinatorClient:
         """
         self.last_download = 0  # The time of the last download from the thermostat in seconds
         self.last_upload = 0  # The time of the last upload to the thermostat in seconds
-        if os.path.isfile(api_file):
-            with open(api_file) as f:
-                data = json.load(f)
-                self.coordinator_server = data['rPi_address']
-                self.coordinator_server_password = data['rPi_password']
-                self.thermostat_server_path = data['rPi_file_path']
         self.data = {
             "temperature": -9999,
             "humidity": -1,
@@ -465,7 +502,23 @@ class CoordinatorClient:
             "bed_fan_state": None,
             "errors": ["No data"]
         }
-        self.webclient = self.WebserverClient(self.coordinator_server, 47670, "test", self.coordinator_server_password, self.data)
+        if os.path.isfile(api_file):
+            with open(api_file) as f:
+                data = json.load(f)
+                self.coordinator_server = data['rPi_address']
+                self.coordinator_server_auth = data['rPi_auth']
+                self.thermostat_server_path = data['rPi_file_path']
+                self.coordinator_server_password = data['rPi_password']
+                tablet_ip = data['tablet_ip']
+                tablet_password = data['tablet_password']
+                self.tablet = tablet_ip, tablet_password
+                self.webclient = self.WebserverClient(self.coordinator_server, 47670, "test", self.coordinator_server_auth,
+                                                      self.coordinator_server_password, self.tablet, self.data)
+        else:
+            print("No API file found, configuring dummy server")
+            self.webclient = self.WebserverClient("", 47670, "test", None, None, None, self.data)
+            self.webclient.coordinator_available = False
+
         # self.data = self.webclient.download_state()
 
     # def _establish_connection(self):
@@ -532,6 +585,33 @@ class CoordinatorClient:
         """
         self.read_data()
         self.last_download = time.time()
+
+    def is_connected(self):
+        """
+        Check if the coordinator server is available
+        :return: True if connected, False otherwise
+        """
+        return self.webclient.coordinator_available
+
+    def attempt_restart(self, target):
+        """
+        Attempt to restart the coordinator server
+        :return:
+        """
+        if target == "coordinator" or target == "all":
+            self.webclient.command_coordinator_restart()
+        elif target == "tablet" or target == "all":
+            self.webclient.command_tablet_restart()
+
+    def attempt_reboot(self, target):
+        """
+        Attempt to reboot the coordinator server
+        :return:
+        """
+        if target == "coordinator" or target == "all":
+            self.webclient.command_coordinator_reboot()
+        elif target == "tablet" or target == "all":
+            self.webclient.command_tablet_reboot()
 
     def get_big_wind_state(self, update=True):
         """
