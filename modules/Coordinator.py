@@ -181,6 +181,9 @@ class CoordinatorHost:
                 self.server.data['temperature'] = -9999
                 self.server.data['errors'].append("Failed to read temperature")
 
+            if len(self.data['errors']) > 10:
+                self.server.data['errors'] = self.data['errors'][-10:]
+
         except Exception as e:
             self.data['errors'].append(f"{str(e)}; Traceback: {traceback.format_exc()}")
             if len(self.data['errors']) > 10:
@@ -404,7 +407,7 @@ class CoordinatorHost:
             self.set_big_humid_state(True)
             self.set_object_state("little_humid_state", False)
             return "humid-half"
-        elif self.server.data['humidity'] < self.server.data['humid_set_point'] - 2\
+        elif self.server.data['humidity'] < self.server.data['humid_set_point'] - 2 \
                 and not self.get_object_state("big_humid_state") and not self.get_object_state("little_humid_state"):
             self.set_object_state("big_humid_state", True)
             self.set_object_state("little_humid_state", True)
@@ -415,7 +418,7 @@ class CoordinatorHost:
         Get the current temperature of the room
         :return: The current temperature of the room in Celsius
         """
-        return celsius_to_fahrenheit(self.server.data['temperature'])
+        return celsius_to_fahrenheit(self.server.data['temperature']) if self.server.data['temperature'] != -9999 else -9999
 
     def get_humidity(self):
         """
@@ -594,35 +597,6 @@ class CoordinatorClient:
 
         # self.data = self.webclient.download_state()
 
-    # def _establish_connection(self):
-    #     """
-    #     Establish a connection to the thermostat server
-    #     :return: None
-    #     """
-    #     print("Establishing connection to thermostat server")
-    #     import paramiko
-    #     try:
-    #         self.ssh = paramiko.SSHClient()
-    #         self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    #         self.ssh.load_host_keys(os.path.expanduser(os.path.join("~", ".ssh", "known_hosts")))
-    #         self.ssh.connect(self.thermostat_server, username="pi", password=self.thermostat_server_password)
-    #         self.sftp = self.ssh.open_sftp()
-    #         print("Connection established")
-    #     except paramiko.ssh_exception.SSHException as e:
-    #         print("Connection failed")
-    #         raise NoCoordinatorConnection(e)
-    #     except WindowsError as e:
-    #         print("Connection failed")
-    #         raise NoCoordinatorConnection(e)
-
-    # def _release_connection(self):
-    #     """
-    #     Release the connection to the thermostat server
-    #     :return: None
-    #     """
-    #     self.sftp.close()
-    #     self.ssh.close()
-
     def close_server(self):
         """
         Close the webserver connection
@@ -636,12 +610,6 @@ class CoordinatorClient:
         :return:
         """
         self.read_data()
-        # self.webclient.download_state()
-        # with open(temp_file, "r") as f:
-        #     data = json.load(f)
-        #     if len(data) == 0:
-        #         raise NoCoordinatorData("No data from coordinator")
-        #     self.data = json.load(f)
 
     def _read_data(self):
         """
@@ -649,7 +617,6 @@ class CoordinatorClient:
         :return: None
         """
         self.data = self.webclient.download_state()
-        # self.data['last_read'] = time.time()
 
     def read_data(self):
         """
@@ -933,9 +900,6 @@ class CoordinatorClient:
         Save the data to the local file
         :return: None
         """
-        # self._download_data()
-        # with open(temp_file, "w") as f:
-        #     json.dump(self.data, f, indent=2)
         self._upload_data()
 
     def _upload_data(self):
@@ -946,24 +910,6 @@ class CoordinatorClient:
 
         self.webclient.upload_state(self.data)
 
-        return
-        if self.last_upload + 1 > time.time():
-            return False  # Don't upload too often so that the thermostat host doesn't get overloaded
-
-        if self.ssh is None or self.sftp is None:
-            print("Connection to coordinator never established, attempting to establish connection")
-            self._establish_connection()
-        # Check if the ssh connection is still alive
-        elif not self.ssh.get_transport().is_active():
-            self._release_connection()
-            self._establish_connection()
-
-        print("Uploading data to coordinator")
-
-        self.sftp.put(temp_file, f"{self.thermostat_server_path}/Caches/Room_Coordination.json")
-
-        self.last_upload = time.time()
-
     def _download_data(self):
         """
         Download the data from the remote thermostat
@@ -971,29 +917,6 @@ class CoordinatorClient:
         """
 
         self.read_data()
-
-        return
-        if self.last_download + 1 > time.time():
-            return False  # Don't download too often so that the thermostat host doesn't get overloaded
-
-        # Check if the ssh connection is still alive
-        if self.ssh is None or self.sftp is None:
-            print("Connection to coordinator never established, attempting to establish connection")
-            self._establish_connection()
-
-        elif not self.ssh.get_transport().is_active():
-            print("Connection lost, reconnecting")
-            self._release_connection()
-            self._establish_connection()
-
-        print("Downloading data from coordinator")
-
-        self.sftp.get(f"{self.thermostat_server_path}/Caches/Room_Coordination.json", temp_file)
-
-        with open(temp_file, "r") as f:
-            self.data = json.load(f)
-
-        self.last_download = time.time()
 
 
 class Coordinator:

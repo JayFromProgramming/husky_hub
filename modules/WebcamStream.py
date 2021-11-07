@@ -201,7 +201,8 @@ class CampusCams:
             stream.play()
         except Exception as e:
             self.log.error(f"Attempted to create stream for cam {self.page}-{cam_id}, failed because ({e})")
-            self.overlay_buffers[self.page][0] = self.no_image
+            if not self.multi_cast:
+                self.overlay_buffers[self.page][0] = self.no_image
             self.stream_buffer[cam_id] = False
             return
 

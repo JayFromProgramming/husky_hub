@@ -417,9 +417,9 @@ def update_weather_data():
 
         if datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunset_time(timeformat='date'):
             # print("After sunset")
-            if py and coordinator.coordinator.get_bed_lights_state()[0] == 1 and screen_dimmed != 15:
-                os.system(f"sudo sh -c 'echo \"15\" > /sys/class/backlight/rpi_backlight/brightness'")
-                screen_dimmed = 15
+            if py and coordinator.coordinator.get_room_lights_state()[0] <= 1 and screen_dimmed != 30:
+                os.system(f"sudo sh -c 'echo \"30\" > /sys/class/backlight/rpi_backlight/brightness'")
+                screen_dimmed = 30
             elif py and screen_dimmed != 124:
                 os.system(f"sudo sh -c 'echo \"124\" > /sys/class/backlight/rpi_backlight/brightness'")
                 screen_dimmed = 124
