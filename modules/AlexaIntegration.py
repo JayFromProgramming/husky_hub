@@ -5,13 +5,14 @@ import threading
 import time
 import traceback
 import typing
+import random
 
 import pygame
 import datetime
 
 import requests
 
-from modules.Coordinator import Coordinator
+# from modules.Coordinator import Coordinator
 
 pallet_one = (255, 206, 0)
 pallet_two = (0, 0, 0)
@@ -25,18 +26,19 @@ monkey_routines = "Configs/Monkey.json"
 
 class RoutineButton:
 
-    def __init__(self, host_bar, data):
+    def __init__(self, host_bar, data, ident):
         """
         This is the constructor for the RoutineButton class.
         :param host_bar: The host bar that the button is in.
         :param data: The button configuration data.
         """
         self.data = data
+        self.id = ident
         self.name = data['name']
         self.run = False
         self.button = None
         self.last_run = time.time()
-        self.last_state_refresh = time.time()
+        self.last_state_refresh = time.time() + (random.randint(0, 50) / 100)
         self.color_changed = False
         self.status_color_enabled = False
         self.host_bar: typing.Union[OptionBar, SubOptionBar] = host_bar
@@ -48,6 +50,8 @@ class RoutineButton:
         self.type = data["type"]
         if "state_exec" in self.data:
             threading.Thread(target=self._exec, args=(self, self.data['state_exec'])).start()
+        if "requests" in self.data:
+            self.req = self.data["requests"]
         if self.status_color_enabled:
             self.color = [64, 128, 255]
         else:
@@ -56,8 +60,8 @@ class RoutineButton:
 
     def update_state(self):
         if "state_exec" in self.data:
-            # threading.Thread(target=self._exec, args=(self, self.data['state_exec'])).start()
-            exec(self.data['state_exec'])
+            threading.Thread(target=self._exec, args=(self, self.data['state_exec'])).start()
+            # exec(self.data['state_exec'])
         if (not self.host_bar.host.coordinator.is_connected() and self.status_color_enabled is True) or self.status_color_enabled is None:
             self.color = [255, 64, 64]
         elif self.status_color_enabled is True:
@@ -155,7 +159,7 @@ class RoutineButton:
 
         if self.last_state_refresh < time.time() - 5 and not self.color_changed:
             self.update_state()
-            self.last_state_refresh = time.time()
+            self.last_state_refresh = time.time() + (random.randint(0, 25) / 100)
 
         if time.time() > self.last_run + 0.75 and self.color_changed and self.request_success is not None:
             self.update_state()
@@ -190,7 +194,8 @@ class OptionBar:
         """
         self.request_name = request_name
         self.description = data["description"]
-        self.routine_title = data["title"]
+        self.routine_title = data["title"].format(room_temp=round(host.coordinator.get_temperature(), 2),
+                                                  room_humid=round(host.coordinator.get_humidity(), 2))
         # self.routine_actions = [list(data["actions"].items())[i:i+5] for i in range(0, len(list(data["actions"].items())), 5)]
         self.routine_actions = data['actions']
         self.button = None
@@ -205,9 +210,9 @@ class OptionBar:
         self.font2 = pygame.font.SysFont('timesnewroman', 20)
 
         count = 0  # 95
-        for thing, action in dict(self.routine_actions).items():
+        for ident, action in dict(self.routine_actions).items():
             # print(action)
-            self.action_buttons.append(RoutineButton(self, action))
+            self.action_buttons.append(RoutineButton(self, action, ident))
             # self.action_buttons.append(pygame.Rect(, 75, 60))
             # self.action_text.append(font2.render(action["name"], True, pallet_two))
             count += 1
@@ -220,6 +225,8 @@ class OptionBar:
         """
         count = 0
         for button in self.action_buttons:
+            if button is None:
+                continue
             if button.button.collidepoint(mouse_pos):
                 button.run = True
                 button.color = [64, 64, 200]
@@ -308,15 +315,18 @@ class SubOptionBar:
         """
         self.master_bar: OptionBar = master_bar
         self.host: AlexaIntegration = master_bar.host
-        self.name = name
+        temp = round(self.host.coordinator.get_temperature(), 2)
+        humid = round(self.host.coordinator.get_humidity(), 2)
+        self.name_template = name
+        self.name = name.format(room_temp=f"{temp}F" if temp != -9999 else "N/A", room_humid=f"{humid}%" if humid != -1 else "N/A")
         self.button = None
         self.action_buttons = []
         self.running_routine = None
         self.running_status = [255, 255, 255]
         self.font2 = pygame.font.SysFont('timesnewroman', 19)
         count = 0
-        for thing, action in my_buttons.items():
-            self.action_buttons.append(RoutineButton(self, action))
+        for ident, action in my_buttons.items():
+            self.action_buttons.append(RoutineButton(self, action, ident))
             # self.action_buttons.append(pygame.Rect(, 75, 60))
             # self.action_text.append(font2.render(action["name"], True, pallet_two))
             count += 1
@@ -328,6 +338,9 @@ class SubOptionBar:
         :return: If the mouse is colliding with any of the buttons in this sub-option bar.
         """
         count = 0
+        temp = round(self.host.coordinator.get_temperature(), 2)
+        humid = round(self.host.coordinator.get_humidity(), 2)
+        self.name = self.name_template.format(room_temp=f"{temp}F" if temp != -9999 else "N/A", room_humid=f"{humid}%" if humid != -1 else "N/A")
         for button in self.action_buttons:
             if button.button.collidepoint(mouse_pos):
                 button.run = True
@@ -346,12 +359,12 @@ class SubOptionBar:
         """
         x, y = position
         # self.action_buttons = []
-        self.button = pygame.Rect(x + 90, y, 610, 70)
+        self.button = pygame.Rect(x + 50, y, 650, 70)
         description = self.font2.render(f"{self.name}", True, pallet_two)
-        pygame.draw.line(screen, pallet_one, (x + 40, y - 50), (x + 40, y + 35))
-        pygame.draw.line(screen, pallet_one, (x + 40, y + 35), (x + 90, y + 35))
+        pygame.draw.line(screen, pallet_one, (x + 15, y - 50), (x + 15, y + 35))
+        pygame.draw.line(screen, pallet_one, (x + 15, y + 35), (x + 50, y + 35))
         pygame.draw.rect(screen, [255, 206, 0], self.button)
-        screen.blit(description, description.get_rect(midleft=(x + 100, y + 35)))
+        screen.blit(description, description.get_rect(midleft=(x + 60, y + 35)))
         # pygame.draw.rect(screen, [64, 64, 64], self.action_buttons[1])
         count = 0
         for button in self.action_buttons:
@@ -370,7 +383,7 @@ class AlexaIntegration:
         :param coordinator: The room coordinator object to use for the Alexa integration device synchronization and temperature control.
         """
         self.routines = []
-        self.coordinator: Coordinator = coordinator
+        self.coordinator = coordinator
         self.queued_routine = False
         self.scroll = 0
         self.vertical_scroll_offset = 0

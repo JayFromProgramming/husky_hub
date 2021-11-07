@@ -12,6 +12,7 @@ import Coordinator
 from OpenWeatherWrapper import OpenWeatherWrapper
 from Radar import Radar
 from Utils import buttonGenerator
+from Utils import dataLogger
 from WebcamStream import CampusCams as WebcamStream
 from AlexaIntegration import AlexaIntegration
 from CurrentWeather import CurrentWeather
@@ -102,7 +103,7 @@ pallet_four = (0, 0, 0)
 # This is where some flags are set
 refresh_forecast = True
 focused_forecast = None
-screen_dimmed = False
+screen_dimmed = 0
 no_mouse = False
 overheat_halt = False
 weather_alert_display = None
@@ -137,12 +138,13 @@ fps = 0
 
 # This is where all the support modules are loaded
 weatherAPI = OpenWeatherWrapper(log)
-coordinator = Coordinator.Coordinator(py )
+coordinator = Coordinator.Coordinator(py)
 webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
 room_control = AlexaIntegration(log, coordinator.coordinator)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon, coordinator)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
 radar = Radar(log, weatherAPI)
+data_log = dataLogger.dataLogger("data.txt", coordinator, weatherAPI)
 
 # This is where the buttons are created
 room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
@@ -154,6 +156,7 @@ forecast_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35)
 def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
     webcams.close_multicast()
+    coordinator.coordinator.close_server()
     if not isinstance(exctype, KeyboardInterrupt):
         time.sleep(1)
 
@@ -213,6 +216,7 @@ def update(dt, screen):
         if event.type == QUIT:
             # If the user tries to close the window, close the window.
             webcams.close_multicast()
+            coordinator.coordinator.close_server()
             webcams.focus(None)
             pygame.quit()  # Opposite of pygame.init
             sys.exit()  # Not including this line crashes the script on Windows. Possibly
@@ -392,34 +396,45 @@ def update(dt, screen):
 
 
 def update_weather_data():
-    # This function is called every minute to update the weather data.
+    # This function is called every half minute to update the weather data.
     global last_current_update, last_forecast_update, screen_dimmed, failed_current_updates, forecast, refresh_forecast, selected_loading_hour
-    global loading_hour
+    global loading_hour, data_log
     # Update Weather Info
-    if last_current_update < time.time() - 60:
+    if last_current_update < time.time() - 30:
         log.debug("Requesting Update")
 
         coordinator.coordinator.read_data()
+        if py:
+            data_log.log()
 
-        # if py and not room_control.raincheck:
-        #     thermostat.thermostat.maintain_temperature()
-        #     thermostat.thermostat.maintain_humidity()
+        if py and not room_control.raincheck:
+            temp = coordinator.coordinator.maintain_temperature()
+            if temp:
+                room_control.run_routine(None, temp)
+            humid = coordinator.coordinator.maintain_humidity()
+            if humid:
+                room_control.run_routine(None, humid)
+
+        if datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunset_time(timeformat='date'):
+            # print("After sunset")
+            if py and coordinator.coordinator.get_bed_lights_state()[0] == 1 and screen_dimmed != 15:
+                os.system(f"sudo sh -c 'echo \"15\" > /sys/class/backlight/rpi_backlight/brightness'")
+                screen_dimmed = 15
+            elif py and screen_dimmed != 124:
+                os.system(f"sudo sh -c 'echo \"124\" > /sys/class/backlight/rpi_backlight/brightness'")
+                screen_dimmed = 124
+
+        elif datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunrise_time(timeformat='date'):
+            # print("After sunrise")
+            if py and screen_dimmed != 255:
+                os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
+                screen_dimmed = 255
 
         if weatherAPI.update_current_weather():
             radar.update_radar()
             failed_current_updates = 0
             if weatherAPI.current_weather:
                 current_weather.update()
-                if datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunset_time(timeformat='date'):
-                    # print("After sunset")
-                    if py and not screen_dimmed:
-                        os.system(f"sudo sh -c 'echo \"35\" > /sys/class/backlight/rpi_backlight/brightness'")
-                        screen_dimmed = True
-                elif datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunrise_time(timeformat='date'):
-                    # print("After sunrise")
-                    if py:
-                        os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
-                        screen_dimmed = False
         elif weatherAPI.update_current_weather() is False:
             failed_current_updates += 1
             if failed_current_updates >= 4:

@@ -10,12 +10,12 @@ api_file = "../APIKey.json"
 temp_file = "Caches/Room_Coordination.json"
 
 
-def celsius_to_fahrenheit(fahrenheit):
-    return (fahrenheit - 32) * 5 / 9
+def celsius_to_fahrenheit(celsius):
+    return (celsius * (9 / 5)) + 32
 
 
-def fahrenheit_to_celsius(celsius):
-    return (celsius * 9 / 5) + 32
+def fahrenheit_to_celsius(fahrenheit):
+    return (fahrenheit - 32) * (5 / 9)
 
 
 class NoCoordinatorConnection(Exception):
@@ -44,6 +44,7 @@ class CoordinatorHost:
             self.port = port
             self.data = data
             self.auth = auth
+            self.run_server = True
             self.thread = threading.Thread(target=self.run).start()
 
         def run(self):
@@ -51,7 +52,7 @@ class CoordinatorHost:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind((self.host, self.port))
                 print(f"Coordinator Websocket on {self.host}:{self.port} started")
-                while True:
+                while self.run_server:
                     s.listen()
                     conn, addr = s.accept()
                     threading.Thread(target=self.connect, args=(conn, addr)).start()
@@ -101,26 +102,11 @@ class CoordinatorHost:
         """
         Initialize the local thermostat reader and server
         """
-        self.data = {
-            "temperature": 0,
-            "humidity": -1,
-            "temp_set_point": 999999,
-            "humid_set_point": 0,
-            "last_update": time.time(),
-            "last_read": 0.,
-            "big_wind_state": -1,
-            "room_lights_state": [
-                -1,
-                -1,
-            ],
-            "bed_lights_state": [
-                -1,
-                -1,
-            ],
-            "big_humid_state": True,
-            "bed_fan_state": True,
-            "errors": []
-        }
+        if os.path.isfile("Configs/states_template.json"):
+            with open("Configs/states_template.json") as f:
+                self.data = json.load(f)
+        else:
+            self.data = {}
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 data = json.load(f)
@@ -134,14 +120,22 @@ class CoordinatorHost:
         self.data = self.server.data
         self.data['errors'] = []
         try:
-            import smbus2
+            import Adafruit_DHT
 
-            self.address = 0x5C  # device I2C address
-            self.bus = smbus2.SMBus(1)
+            # self.address = 0x5C  # device I2C address
+            # self.bus = smbus2.SMBus(1)
+            self.sensor = Adafruit_DHT.DHT22
+
         except Exception as e:
             self.data['errors'].append(f"Init error: {str(e)}")
         self.read_data()
         self._save_data()
+
+    def close_server(self):
+        self.server.run_server = False
+
+    def is_connected(self):
+        return self.server.run_server
 
     def read_data(self):
         """
@@ -166,13 +160,26 @@ class CoordinatorHost:
         print("Reading data from local thermostat, saving to file")
         # self._load_data()
         try:
+            import Adafruit_DHT
             # read 5 bytes of data from the device address (0x05C) starting from an offset of zero
-            data = self.bus.read_i2c_block_data(self.address, 0x00, 5)
+            # data = self.bus.read_i2c_block_data(self.address, 0x00, 5)
+            #
+            # self.server.data['temperature'] = celsius_to_fahrenheit(int(f"{data[2]}.{data[3]}"))
+            # self.server.data['humidity'] = celsius_to_fahrenheit(int(f"{data[0]}.{data[1]}"))
 
-            self.server.data['temperature'] = celsius_to_fahrenheit(int(f"{data[2]}.{data[3]}"))
-            self.server.data['humidity'] = celsius_to_fahrenheit(int(f"{data[0]}.{data[1]}"))
-
-            self.server.data['last_read'] = time.time()
+            humidity, temp = Adafruit_DHT.read_retry(self.sensor, 4)
+            if humidity is not None:
+                self.server.data['humidity'] = humidity
+                self.server.data['last_read'] = time.time()
+            else:
+                self.server.data['humidity'] = -1
+                self.server.data['errors'].append("Failed to read humidity")
+            if temp is not None:
+                self.server.data['temperature'] = temp
+                self.server.data['last_read'] = time.time()
+            else:
+                self.server.data['temperature'] = -9999
+                self.server.data['errors'].append("Failed to read temperature")
 
         except Exception as e:
             self.data['errors'].append(f"{str(e)}; Traceback: {traceback.format_exc()}")
@@ -202,6 +209,39 @@ class CoordinatorHost:
                 # Merge the data from the file with the local data
                 self.server.data = json.load(f)
 
+    def get_object_state(self, object_name, update=True):
+        """
+        Get the state of an object from the coordinator
+        :param object_name: The name of the object
+        :param update: If True, update the data from the coordinator
+        :return: The state of the object
+        """
+        if object_name in self.data:
+            return self.data[object_name]
+        else:
+            return None
+
+    def set_object_state(self, object_name, object_state):
+        """
+        Set the state of an object on the coordinator
+        :param object_name: The name of the object
+        :param object_state: The state of the object
+        :return:
+        """
+        self.data[object_name] = object_state
+        self._save_data()
+
+    def set_object_states(self, object_name, states: dict):
+        """
+        Set the state of an object on the coordinator
+        :param object_name: The name of the object
+        :param states: The state to set
+        :return:
+        """
+        for state in states:
+            self.data[object_name][state] = states[state]
+        self._save_data()
+
     def set_big_wind_state(self, state):
         """
         Set the state of the big wind fan
@@ -220,6 +260,16 @@ class CoordinatorHost:
         """
         # self._load_data()
         self.server.data['big_humid_state'] = state
+        self._save_data()
+
+    def set_little_humid_state(self, state):
+        """
+        Set the state of the little humid fan
+        :param state: The state of the little humid fan
+        :return:
+        """
+        # self._load_data()
+        self.server.data['little_humid_state'] = state
         self._save_data()
 
     def set_bed_fan_state(self, state):
@@ -283,6 +333,17 @@ class CoordinatorHost:
         #     self._load_data()
         return self.server.data['big_humid_state']
 
+    def get_little_humid_state(self, update=False):
+        """
+        Get the state of the little humid fan
+        :return: The state of the little humid fan
+        """
+        # if update:
+        #     self._load_data()
+        if "little_humid_state" not in self.server.data:
+            return None
+        return self.server.data['little_humid_state']
+
     def get_bed_fan_state(self, update=False):
         """
         Get the state of the bed fan
@@ -315,13 +376,15 @@ class CoordinatorHost:
         Maintain the temperature of the room
         :return: The action that should be taken to maintain the temperature
         """
-        if self.server.data['temperature'] < self.server.data['temp_set_point'] - 2 and self.get_big_wind_state() != 0:
+        if self.server.data['temp_set_point'] == 999999 or self.server.data['temperature'] == -9999:
+            return
+        if self.get_temperature() < self.server.data['temp_set_point'] - 2 and self.get_big_wind_state() != 0:
             self.set_big_wind_state(0)
             return "big-wind-off"
-        elif self.server.data['temperature'] <= self.server.data['temp_set_point'] and self.get_big_wind_state() == 3:
-            self.set_big_wind_state(1)
+        elif self.get_temperature() <= self.server.data['temp_set_point'] and self.get_big_wind_state() == 3:
+            self.set_big_wind_state(2)
             return "big-wind-out"
-        elif self.server.data['temperature'] > self.server.data['temp_set_point'] + 2 and self.get_big_wind_state() == 0:
+        elif self.get_temperature() > self.server.data['temp_set_point'] + 2 and self.get_big_wind_state() == 0:
             self.set_big_wind_state(3)
             return "big-wind-on"
 
@@ -330,19 +393,29 @@ class CoordinatorHost:
         Maintain the humidity of the room
         :return: The action that should be taken to maintain the humidity
         """
-        if self.server.data['humidity'] > self.server.data['humid_set_point'] + 2 and self.get_big_humid_state() != 0:
-            self.set_big_humid_state(0)
-            return "big-humid-off"
-        elif self.server.data['humidity'] < self.server.data['humid_set_point'] - 2 and self.get_big_humid_state() != 1:
-            self.set_big_humid_state(1)
-            return "big-humid-on"
+        if self.server.data['humid_set_point'] == 0 or self.server.data['humidity'] == -1:
+            return
+        if self.server.data['humidity'] > self.server.data['humid_set_point'] + 2 and self.get_object_state("big_humid_state"):
+            self.set_object_state("big_humid_state", False)
+            self.set_object_state("little_humid_state", False)
+            return "humid-off"
+        elif self.server.data['humidity'] >= self.server.data['humid_set_point'] \
+                and self.get_object_state("big_humid_state") and self.get_object_state("little_humid_state"):
+            self.set_big_humid_state(True)
+            self.set_object_state("little_humid_state", False)
+            return "humid-half"
+        elif self.server.data['humidity'] < self.server.data['humid_set_point'] - 2\
+                and not self.get_object_state("big_humid_state") and not self.get_object_state("little_humid_state"):
+            self.set_object_state("big_humid_state", True)
+            self.set_object_state("little_humid_state", True)
+            return "humid-full"
 
     def get_temperature(self):
         """
         Get the current temperature of the room
         :return: The current temperature of the room in Celsius
         """
-        return self.server.data['temperature']
+        return celsius_to_fahrenheit(self.server.data['temperature'])
 
     def get_humidity(self):
         """
@@ -360,6 +433,29 @@ class CoordinatorHost:
         self.server.data['temp_set_point'] = temperature
         self._save_data()
 
+    def set_humidity(self, humidity):
+        """
+        Set the humidity set point
+        :param humidity: Integer value of the humidity in relative humidity
+        :return: None
+        """
+        self.server.data['humid_set_point'] = humidity
+        self._save_data()
+
+    def get_temperature_setpoint(self):
+        """
+        Get the current temperature set point of the room
+        :return: The current temperature set point of the room in Celsius
+        """
+        return self.server.data['temp_set_point']
+
+    def get_humidity_setpoint(self):
+        """
+        Get the current humidity set point of the room
+        :return: The current humidity set point of the room in relative humidity
+        """
+        return self.server.data['humid_set_point']
+
 
 # --------------------------------------- Remote Thermostat --------------------------------------- #
 
@@ -376,14 +472,15 @@ class CoordinatorClient:
             self.password = password
             self.tablet = tablet
             self.coordinator_available = False
-            self.connection_in_progress = False
+            self.download_in_progress = False
+            self.upload_in_progress = False
 
         def command_coordinator_restart(self):
             """
             Restart the coordinator
             :return: None
             """
-            if self.connection_in_progress:
+            if self.upload_in_progress:
                 raise ConnectionAbortedError("Connection in progress")
             result = os.system(f"plink pi@{self.address} -pw {self.password} -m Configs/Commands/restart_pi_commands.command")
             if result != 0:
@@ -395,7 +492,7 @@ class CoordinatorClient:
             Reboot the coordinator
             :return: None
             """
-            if self.connection_in_progress:
+            if self.upload_in_progress:
                 raise ConnectionAbortedError("Connection in progress")
             result = os.system(f"plink pi@{self.address} -pw {self.password} -m Configs/Commands/reboot_pi_commands.command")
             if result != 0:
@@ -408,7 +505,7 @@ class CoordinatorClient:
             :return: None
             """
             address, password = self.tablet
-            if self.connection_in_progress:
+            if self.upload_in_progress:
                 raise ConnectionAbortedError("Connection in progress")
             result = os.system(f"plink weather@{address} -pw {password} -m Configs/Commands/reboot_tablet_commands.command")
             if result != 0:
@@ -417,9 +514,9 @@ class CoordinatorClient:
 
         def download_state(self):
             print("Downloading state from coordinator webserver")
-            if self.connection_in_progress:
+            if self.download_in_progress:
                 return self.data
-            self.connection_in_progress = True
+            self.download_in_progress = True
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.connect((self.address, self.port))
@@ -432,24 +529,26 @@ class CoordinatorClient:
                             break
                         data_buff += data
                     data = json.loads(data_buff.decode())
-                    # print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
+                    print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
             except Exception as e:
                 print(f"Error downloading state from coordinator webserver: {e}")
-                self.connection_in_progress = False
+                self.download_in_progress = False
                 self.coordinator_available = False
                 self.data['temperature'] = -9999
                 self.data['humidity'] = -1
                 return self.data
-            self.connection_in_progress = False
+            self.download_in_progress = False
             self.coordinator_available = True
             self.data = data
             return data
 
         def upload_state(self, state_data):
             print("Uploading state change to coordinator webserver")
-            if self.connection_in_progress or not self.coordinator_available:
-                return
-            self.connection_in_progress = True
+            if self.upload_in_progress:
+                raise ConnectionAbortedError("Upload already in progress")
+            if not self.coordinator_available:
+                raise ConnectionError("Coordinator not available")
+            self.upload_in_progress = True
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.connect((self.address, self.port))
@@ -457,24 +556,13 @@ class CoordinatorClient:
                     s.sendall(request.encode())
                     response = s.recv(1024)
                     s.sendall(json.dumps(state_data).encode())
-                    # print("Waiting for coordinator webserver to respond")
-                    # # response = s.recv(1024)
-                    # # if response == b'ready':
-                    #     print("Coordinator standing by for new state data, uploading...")
-                    #
-                    #     # response = s.recv(1024)
-                    #     # if response == b'ack':
-                    #     #     print("State change accepted")
-                    #     # else:
-                    #     #     print("State change rejected")
-                    # else:
-                    #     print("Coordinator rejected attempt to upload new state data")
+
             except Exception as e:
                 print(f"Error uploading state change to coordinator webserver: {e}")
-                self.connection_in_progress = False
+                self.upload_in_progress = False
                 raise e
             finally:
-                self.connection_in_progress = False
+                self.upload_in_progress = False
 
     def __init__(self):
         """
@@ -482,26 +570,11 @@ class CoordinatorClient:
         """
         self.last_download = 0  # The time of the last download from the thermostat in seconds
         self.last_upload = 0  # The time of the last upload to the thermostat in seconds
-        self.data = {
-            "temperature": -9999,
-            "humidity": -1,
-            "temp_set_point": 999999,
-            "humid_set_point": 0,
-            "last_update": time.time(),
-            "last_read": 0.,
-            "big_wind_state": -1,
-            "room_lights_state": [
-                -1,
-                -1,
-            ],
-            "bed_lights_state": [
-                -1,
-                -1,
-            ],
-            "big_humid_state": None,
-            "bed_fan_state": None,
-            "errors": ["No data"]
-        }
+        if os.path.isfile("Configs/states_template.json"):
+            with open("Configs/states_template.json") as f:
+                self.data = json.load(f)
+        else:
+            self.data = {}
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 data = json.load(f)
@@ -549,6 +622,13 @@ class CoordinatorClient:
     #     """
     #     self.sftp.close()
     #     self.ssh.close()
+
+    def close_server(self):
+        """
+        Close the webserver connection
+        :return: None
+        """
+        self.webclient.coordinator_available = False
 
     def silent_read_data(self):
         """
@@ -613,6 +693,41 @@ class CoordinatorClient:
         elif target == "tablet" or target == "all":
             self.webclient.command_tablet_reboot()
 
+    def get_object_state(self, object_name, update=True):
+        """
+        Get the state of an object from the coordinator
+        :param object_name: The name of the object
+        :param update: If True, update the data from the coordinator
+        :return: The state of the object
+        """
+        if update:
+            self.read_data()
+        if object_name in self.data:
+            return self.data[object_name]
+        else:
+            return None
+
+    def set_object_state(self, object_name, state):
+        """
+        Set the state of an object on the coordinator
+        :param object_name: The name of the object
+        :param state: The state to set
+        :return:
+        """
+        self.data[object_name] = state
+        self.webclient.upload_state({object_name: self.data[object_name]})
+
+    def set_object_states(self, object_name, states: dict):
+        """
+        Set the state of an object on the coordinator
+        :param object_name: The name of the object
+        :param states: The state to set
+        :return:
+        """
+        for state in states:
+            self.data[object_name][state] = states[state]
+        self.webclient.upload_state(self.data[object_name])
+
     def get_big_wind_state(self, update=True):
         """
         Get the state of the big wind fan
@@ -637,6 +752,18 @@ class CoordinatorClient:
         if update:
             self.webclient.download_state()
         return self.data['big_humid_state']
+
+    def get_little_humid_state(self, update=True):
+        """
+        Get the state of the little humid fan
+        :param update: Default True, if True, update the local data
+        :return: The state of the little humid fan
+        """
+        if update:
+            self.webclient.download_state()
+        if "little_humid_state" not in self.data:
+            return None
+        return self.data['little_humid_state']
 
     def get_bed_fan_state(self, update=True):
         """
@@ -735,6 +862,15 @@ class CoordinatorClient:
         self.data['big_humid_state'] = state
         self.webclient.upload_state({'big_humid_state': state})
 
+    def set_little_humid_state(self, state):
+        """
+        Set the state of the little humid fan
+        :param state: The state of the little humid fan
+        :return: None
+        """
+        self.data['little_humid_state'] = state
+        self.webclient.upload_state({'little_humid_state': state})
+
     def set_bed_fan_state(self, state):
         """
         Set the state of the bed fan
@@ -749,7 +885,7 @@ class CoordinatorClient:
         Get the current temperature of the room
         :return: The current temperature of the room in Celsius
         """
-        return self.data['temperature']
+        return celsius_to_fahrenheit(float(self.data['temperature'])) if self.data['temperature'] != -9999 else -9999
 
     def get_humidity(self):
         """
@@ -757,6 +893,20 @@ class CoordinatorClient:
         :return: The current humidity of the room in relative humidity
         """
         return self.data['humidity']
+
+    def get_temperature_setpoint(self):
+        """
+        Get the current temperature setpoint of the room
+        :return: The current temperature setpoint of the room in Celsius
+        """
+        return self.data['temp_set_point']
+
+    def get_humidity_setpoint(self):
+        """
+        Get the current humidity setpoint of the room
+        :return: The current humidity setpoint of the room in relative humidity
+        """
+        return self.data['humid_set_point']
 
     def set_temperature(self, temperature):
         """

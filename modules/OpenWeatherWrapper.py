@@ -8,6 +8,10 @@ import urllib.error
 from urllib.request import urlopen
 
 import dill
+
+from modules.pyowm.weatherapi25.observation import Observation
+from modules.pyowm.weatherapi25.one_call import OneCall
+from modules.pyowm.weatherapi25.weather import Weather
 from pyowm.owm import OWM
 
 api_file = "../APIKey.json"
@@ -50,8 +54,8 @@ class OpenWeatherWrapper:
         self._last_cache_refresh = 0
         self.radar_refresh_amount = 0
         self._last_future_refresh = 0
-        self.current_weather = None
-        self.weather_forecast = None
+        self.current_weather: Weather = None
+        self.weather_forecast: OneCall = None
         self.one_call = None
         self.radar_buffer = {}
         self.log = log
