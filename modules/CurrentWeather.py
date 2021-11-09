@@ -78,8 +78,8 @@ class CurrentWeather:
             top, bottom = float(visibility).as_integer_ratio()
             visibility = f"{top}/{bottom} mi"
 
-        if self.coordinator.get_temperature() != -9999:
-            secondary_temp = f"{round(self.coordinator.get_temperature(), 2)}°F"
+        # if self.coordinator.get_temperature() != -9999:
+        #     secondary_temp = f"{round(self.coordinator.get_temperature(), 2)}°F"
 
         updated = datetime.datetime.fromtimestamp(updated)
         self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one, pallet_four).convert_alpha()

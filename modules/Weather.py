@@ -144,7 +144,7 @@ room_control = AlexaIntegration(log, coordinator.coordinator)
 current_weather = CurrentWeather(weatherAPI, icon_cache, icon, coordinator)
 loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
 radar = Radar(log, weatherAPI)
-data_log = dataLogger.dataLogger("data.txt", coordinator, weatherAPI)
+data_log = dataLogger.dataLogger("data", coordinator, weatherAPI)
 
 # This is where the buttons are created
 room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
@@ -202,7 +202,8 @@ def update(dt, screen):
         room_control.run_routine("f", "big-wind-off")
         room_control.raincheck = True
 
-    if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams'):
+    if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams')\
+            and (py or tablet):
         # After 15 seconds of inactivity, reduce the refresh rate to 1 frame per second
         fps = 1
 
@@ -420,7 +421,7 @@ def update_weather_data():
             if py and coordinator.coordinator.get_room_lights_state()[0] <= 1 and screen_dimmed != 30:
                 os.system(f"sudo sh -c 'echo \"30\" > /sys/class/backlight/rpi_backlight/brightness'")
                 screen_dimmed = 30
-            elif py and screen_dimmed != 124:
+            elif py and coordinator.coordinator.get_room_lights_state()[0] > 1 and screen_dimmed != 124:
                 os.system(f"sudo sh -c 'echo \"124\" > /sys/class/backlight/rpi_backlight/brightness'")
                 screen_dimmed = 124
 
@@ -531,6 +532,8 @@ def draw(screen, dt):
                 loading_screen.loading_percentage += loading_screen.loading_percent_bias['Webcams'] / 4
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
                 if webcams.resize(screen):
+                    if not py and not tablet:
+                        data_log.export()
                     coordinator.coordinator.read_data()
                     display_mode = "home"
                     radar.update_radar()

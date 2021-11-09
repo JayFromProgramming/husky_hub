@@ -36,6 +36,15 @@ class NoCoordinatorData(Exception):
         return f"Coordinator data error: {self.message}"
 
 
+class UnknownObjectError(Exception):
+
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return f"Unknown object error: {self.message}"
+
+
 class CoordinatorHost:
     class WebServerHost:
 
@@ -379,17 +388,31 @@ class CoordinatorHost:
         Maintain the temperature of the room
         :return: The action that should be taken to maintain the temperature
         """
-        if self.server.data['temp_set_point'] == 999999 or self.server.data['temperature'] == -9999:
+        if self.server.data['temp_set_point'] == 999999 or self.server.data['temperature'] == -9999 or not self.get_object_state("fan_auto_enable"):
             return
         if self.get_temperature() < self.server.data['temp_set_point'] - 2 and self.get_big_wind_state() != 0:
             self.set_big_wind_state(0)
             return "big-wind-off"
-        elif self.get_temperature() <= self.server.data['temp_set_point'] and self.get_big_wind_state() == 3:
+        elif self.get_temperature() <= self.server.data['temp_set_point'] - 1 and self.get_big_wind_state() == 3:
             self.set_big_wind_state(2)
             return "big-wind-out"
-        elif self.get_temperature() > self.server.data['temp_set_point'] + 2 and self.get_big_wind_state() == 0:
+        elif self.get_temperature() > self.server.data['temp_set_point'] + 1.5 and self.get_big_wind_state() != 3:
             self.set_big_wind_state(3)
             return "big-wind-on"
+
+    def _calculate_humid_state(self):
+        """
+        Convert the states of the humidifiers into a single int value
+        :return:
+        """
+        if self.get_object_state("big_humid_state") and self.get_object_state("little_humid_state"):
+            return 3
+        elif not self.get_object_state("big_humid_state") and self.get_object_state("little_humid_state"):
+            return 2
+        elif self.get_object_state("big_humid_state") and not self.get_object_state("little_humid_state"):
+            return 1
+        else:
+            return 0
 
     def maintain_humidity(self):
         """
@@ -398,20 +421,21 @@ class CoordinatorHost:
         """
         if self.server.data['humid_set_point'] == 0 or self.server.data['humidity'] == -1:
             return
-        if self.server.data['humidity'] > self.server.data['humid_set_point'] + 2 and self.get_object_state("big_humid_state"):
-            self.set_object_state("big_humid_state", False)
-            self.set_object_state("little_humid_state", False)
-            return "humid-off"
-        elif self.server.data['humidity'] >= self.server.data['humid_set_point'] \
-                and self.get_object_state("big_humid_state") and self.get_object_state("little_humid_state"):
-            self.set_big_humid_state(True)
-            self.set_object_state("little_humid_state", False)
-            return "humid-half"
-        elif self.server.data['humidity'] < self.server.data['humid_set_point'] - 2 \
-                and not self.get_object_state("big_humid_state") and not self.get_object_state("little_humid_state"):
-            self.set_object_state("big_humid_state", True)
-            self.set_object_state("little_humid_state", True)
-            return "humid-full"
+        if self.server.data['humidity'] > self.server.data['humid_set_point'] + 2:
+            if self._calculate_humid_state() != 0:
+                self.set_object_state("big_humid_state", False)
+                self.set_object_state("little_humid_state", False)
+                return "humid-off"
+        elif self.server.data['humidity'] >= self.server.data['humid_set_point']:
+            if self._calculate_humid_state() != 1:
+                self.set_big_humid_state(True)
+                self.set_object_state("little_humid_state", False)
+                return "humid-half"
+        elif self.server.data['humidity'] < self.server.data['humid_set_point'] - 2:
+            if self._calculate_humid_state() != 3:
+                self.set_object_state("big_humid_state", True)
+                self.set_object_state("little_humid_state", True)
+                return "humid-full"
 
     def get_temperature(self):
         """
@@ -445,14 +469,14 @@ class CoordinatorHost:
         self.server.data['humid_set_point'] = humidity
         self._save_data()
 
-    def get_temperature_setpoint(self):
+    def get_temperature_setpoint(self, update=False):
         """
         Get the current temperature set point of the room
         :return: The current temperature set point of the room in Celsius
         """
         return self.server.data['temp_set_point']
 
-    def get_humidity_setpoint(self):
+    def get_humidity_setpoint(self, update=False):
         """
         Get the current humidity set point of the room
         :return: The current humidity set point of the room in relative humidity
@@ -461,6 +485,9 @@ class CoordinatorHost:
 
 
 # --------------------------------------- Remote Thermostat --------------------------------------- #
+
+
+
 
 
 class CoordinatorClient:
@@ -668,11 +695,11 @@ class CoordinatorClient:
         :return: The state of the object
         """
         if update:
-            self.read_data()
+            self.webclient.download_state()
         if object_name in self.data:
             return self.data[object_name]
         else:
-            return None
+            raise UnknownObjectError(object_name)
 
     def set_object_state(self, object_name, state):
         """
@@ -861,18 +888,22 @@ class CoordinatorClient:
         """
         return self.data['humidity']
 
-    def get_temperature_setpoint(self):
+    def get_temperature_setpoint(self, update=True):
         """
         Get the current temperature setpoint of the room
         :return: The current temperature setpoint of the room in Celsius
         """
+        if update:
+            self.webclient.download_state()
         return self.data['temp_set_point']
 
-    def get_humidity_setpoint(self):
+    def get_humidity_setpoint(self, update=True):
         """
         Get the current humidity setpoint of the room
         :return: The current humidity setpoint of the room in relative humidity
         """
+        if update:
+            self.webclient.download_state()
         return self.data['humid_set_point']
 
     def set_temperature(self, temperature):
@@ -881,7 +912,7 @@ class CoordinatorClient:
         :param temperature: Integer value of the temperature in Celsius
         :return:
         """
-        self.silent_read_data()
+        # self.silent_read_data()
         self.data['temp_set_point'] = temperature
         self._save_data()
 
@@ -891,7 +922,7 @@ class CoordinatorClient:
         :param humidity: Integer value of the humidity in relative humidity
         :return: None
         """
-        self.silent_read_data()
+        # self.silent_read_data()
         self.data['humid_set_point'] = humidity
         self._save_data()
 

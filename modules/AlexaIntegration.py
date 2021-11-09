@@ -62,11 +62,13 @@ class RoutineButton:
         if "state_exec" in self.data:
             threading.Thread(target=self._exec, args=(self, self.data['state_exec'])).start()
             # exec(self.data['state_exec'])
-        if (not self.host_bar.host.coordinator.is_connected() and self.status_color_enabled is True) or self.status_color_enabled is None:
-            self.color = [255, 64, 64]
-        elif self.status_color_enabled is True:
-            self.color = [64, 128, 255]
-        elif self.status_color_enabled is False:
+            if (not self.host_bar.host.coordinator.is_connected() and self.status_color_enabled is True) or self.status_color_enabled is None:
+                self.color = [255, 64, 64]
+            elif self.status_color_enabled is True:
+                self.color = [64, 128, 255]
+            elif self.status_color_enabled is False:
+                self.color = [64, 64, 64]
+        elif time.time() > self.last_run + 0.75:
             self.color = [64, 64, 64]
         self.render_self()
 
@@ -105,6 +107,9 @@ class RoutineButton:
                 return self.data['request']
             elif self.type == "SubMenu":
                 self.run = False
+                self.color_changed = True
+                self.request_success = True
+                self.last_run = time.time()
                 if self.host_bar.expanded and self.host_bar.expanded_to == self:
                     self.host_bar.collapse()
                     self.name = self.data['name']
@@ -180,6 +185,10 @@ class RoutineButton:
             self.render_self()
 
         self.button = pygame.Rect(x, y, 75, 60)
+
+        if self.data['type'] == "spacer":
+            return
+
         screen.blit(self.surf, (x, y))
 
 
@@ -315,10 +324,8 @@ class SubOptionBar:
         """
         self.master_bar: OptionBar = master_bar
         self.host: AlexaIntegration = master_bar.host
-        temp = round(self.host.coordinator.get_temperature(), 2)
-        humid = round(self.host.coordinator.get_humidity(), 2)
+        self.name = name
         self.name_template = name
-        self.name = name.format(room_temp=f"{temp}F" if temp != -9999 else "N/A", room_humid=f"{humid}%" if humid != -1 else "N/A")
         self.button = None
         self.action_buttons = []
         self.running_routine = None
@@ -338,9 +345,6 @@ class SubOptionBar:
         :return: If the mouse is colliding with any of the buttons in this sub-option bar.
         """
         count = 0
-        temp = round(self.host.coordinator.get_temperature(), 2)
-        humid = round(self.host.coordinator.get_humidity(), 2)
-        self.name = self.name_template.format(room_temp=f"{temp}F" if temp != -9999 else "N/A", room_humid=f"{humid}%" if humid != -1 else "N/A")
         for button in self.action_buttons:
             if button.button.collidepoint(mouse_pos):
                 button.run = True
@@ -357,6 +361,11 @@ class SubOptionBar:
         :param position: The X,Y position of the sub-option bar.
         :return: None
         """
+        temp = round(self.host.coordinator.get_temperature(), 2)
+        humid = round(self.host.coordinator.get_humidity(), 2)
+        set_temp = self.host.coordinator.get_temperature_setpoint(False)
+        self.name = self.name_template.format(room_temp=f"{temp}F" if temp != -9999 else "N/A", room_humid=f"{humid}%" if humid != -1 else "N/A",
+                                              set_temp=f"{set_temp}F" if set_temp != -9999 else "N/A")
         x, y = position
         # self.action_buttons = []
         self.button = pygame.Rect(x + 50, y, 650, 70)
