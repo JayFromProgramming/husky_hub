@@ -5,6 +5,7 @@ import time
 import traceback
 
 import socket
+import typing
 
 api_file = "../APIKey.json"
 temp_file = "Caches/Room_Coordination.json"
@@ -45,7 +46,21 @@ class UnknownObjectError(Exception):
         return f"Unknown object error: {self.message}"
 
 
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+
 class CoordinatorHost:
+
     class WebServerHost:
 
         def __init__(self, host, port, auth, data: dict):
@@ -53,8 +68,16 @@ class CoordinatorHost:
             self.port = port
             self.data = data
             self.auth = auth
+            self.download_in_progress = False
+            self.upload_in_progress = False
+            self.coordinator_available = True
             self.run_server = True
-            self.thread = threading.Thread(target=self.run).start()
+            ip = get_ip()
+            if ip != self.host:
+                print("Coordinator IP not valid")
+                self.coordinator_available = False
+            else:
+                self.thread = threading.Thread(target=self.run).start()
 
         def run(self):
             print(f"Starting Coordinator Websocket on {self.host}:{self.port}")
@@ -80,31 +103,37 @@ class CoordinatorHost:
                     return
 
                 if request['type'] == "download_state":
-                    print(f"Client {request['client']} has requested room state data")
+                    self.upload_in_progress = True
                     conn.sendall(json.dumps(self.data).encode())
-                    print(f"Client {request['client']} has been sent room state data")
-
+                    self.upload_in_progress = None
                 elif request['type'] == "upload_state":
+                    self.download_in_progress = True
                     print(f"Client {request['client']} is uploading new state data")
-                    conn.sendall(b'ready')  # Let the client know that we are ready to receive data
+                    conn.sendall(b'up-ready')  # Let the client know that we are ready to receive data
                     data_buff = b''
-                    while True:
-                        data = conn.recv(1024)
-                        print(data)
-                        if not data:
-                            break
-                        data_buff += data
-                    data: dict = json.loads(data_buff.decode())
-                    # Update values that are matching in the updated data
-                    for key in data.keys():
-                        self.data[key] = data[key]
-                    print(self.data)
-                    print(f"Client {request['client']} has uploaded new room state data")
-                    # conn.sendall(b'ack')  # Acknowledge the new state data was received and updated
-
+                    try:
+                        while True:
+                            data = conn.recv(1024)
+                            if not data:
+                                break
+                            data_buff += data
+                        data: dict = json.loads(data_buff.decode())
+                        # Update values that are matching in the updated data
+                        for key in data.keys():
+                            self.data[key] = data[key]
+                        # print(self.data)
+                        print(f"Client {request['client']} has uploaded new room state data")
+                        # conn.sendall(b'ack')  # Acknowledge the new state data was received and updated
+                    except Exception as e:
+                        print(f"Client {request['client']} has failed to upload proper room state data")
+                        print(e)
+                        # conn.sendall(b'503: ' + bytes(str(e)))  # Let the client know that the new state data was received but not understood
+                    finally:
+                        self.download_in_progress = None
                 else:
                     print(f"Client {request['client']} has requested unknown action {request['type']}")
                     conn.sendall(b'404')  # Acknowledge the request was received but not understood
+
             print(f"Connection with client {request['client']} (action: {request['type']}) has been closed")
 
     def __init__(self):
@@ -124,9 +153,9 @@ class CoordinatorHost:
                 self.thermostat_server_path = data['rPi_file_path']
 
         self.last_download = time.time()
-        self.server = self.WebServerHost(self.coordinator_server, 47670, self.coordinator_server_password, self.data)
+        self.net_client = self.WebServerHost(self.coordinator_server, 47670, self.coordinator_server_password, self.data)
         self._load_data()
-        self.data = self.server.data
+        self.data = self.net_client.data
         self.data['errors'] = []
         try:
             import Adafruit_DHT
@@ -141,10 +170,10 @@ class CoordinatorHost:
         self._save_data()
 
     def close_server(self):
-        self.server.run_server = False
+        self.net_client.run_server = False
 
     def is_connected(self):
-        return self.server.run_server
+        return self.net_client.run_server
 
     def read_data(self):
         """
@@ -178,27 +207,27 @@ class CoordinatorHost:
 
             humidity, temp = Adafruit_DHT.read_retry(self.sensor, 4)
             if humidity is not None:
-                self.server.data['humidity'] = humidity
-                self.server.data['last_read'] = time.time()
+                self.net_client.data['humidity'] = humidity
+                self.net_client.data['last_read'] = time.time()
             else:
-                self.server.data['humidity'] = -1
-                self.server.data['errors'].append("Failed to read humidity")
+                self.net_client.data['humidity'] = -1
+                self.net_client.data['errors'].append("Failed to read humidity")
             if temp is not None:
-                self.server.data['temperature'] = temp
-                self.server.data['last_read'] = time.time()
+                self.net_client.data['temperature'] = temp
+                self.net_client.data['last_read'] = time.time()
             else:
-                self.server.data['temperature'] = -9999
-                self.server.data['errors'].append("Failed to read temperature")
+                self.net_client.data['temperature'] = -9999
+                self.net_client.data['errors'].append("Failed to read temperature")
 
             if len(self.data['errors']) > 10:
-                self.server.data['errors'] = self.data['errors'][-10:]
+                self.net_client.data['errors'] = self.data['errors'][-10:]
 
         except Exception as e:
             self.data['errors'].append(f"{str(e)}; Traceback: {traceback.format_exc()}")
             if len(self.data['errors']) > 10:
-                self.server.data['temperature'] = -9999
-                self.server.data['humidity'] = -1
-                self.server.data['errors'] = self.data['errors'][-10:]
+                self.net_client.data['temperature'] = -9999
+                self.net_client.data['humidity'] = -1
+                self.net_client.data['errors'] = self.data['errors'][-10:]
         finally:
             self._save_data()
 
@@ -207,9 +236,9 @@ class CoordinatorHost:
         Save the thermostat data to a file to be read by remote thermostats
         :return:
         """
-        self.server.data['last_update'] = time.time()
+        self.net_client.data['last_update'] = time.time()
         with open(temp_file, "w") as f:
-            json.dump(self.server.data, f, indent=2)
+            json.dump(self.net_client.data, f, indent=2)
 
     def _load_data(self):
         """
@@ -219,7 +248,7 @@ class CoordinatorHost:
         if os.path.isfile(temp_file):
             with open(temp_file) as f:
                 # Merge the data from the file with the local data
-                self.server.data = json.load(f)
+                self.net_client.data = json.load(f)
 
     def get_object_state(self, object_name, update=True):
         """
@@ -261,7 +290,7 @@ class CoordinatorHost:
         :return:
         """
         # self._load_data()
-        self.server.data['big_wind_state'] = state
+        self.net_client.data['big_wind_state'] = state
         self._save_data()
 
     def set_big_humid_state(self, state):
@@ -271,7 +300,7 @@ class CoordinatorHost:
         :return:
         """
         # self._load_data()
-        self.server.data['big_humid_state'] = state
+        self.net_client.data['big_humid_state'] = state
         self._save_data()
 
     def set_little_humid_state(self, state):
@@ -281,7 +310,7 @@ class CoordinatorHost:
         :return:
         """
         # self._load_data()
-        self.server.data['little_humid_state'] = state
+        self.net_client.data['little_humid_state'] = state
         self._save_data()
 
     def set_bed_fan_state(self, state):
@@ -303,9 +332,9 @@ class CoordinatorHost:
         """
         # self._load_data()
         if brightness is not None:
-            self.server.data['room_lights_state'][0] = brightness
+            self.net_client.data['room_lights_state'][0] = brightness
         if color is not None:
-            self.server.data['room_lights_state'][1] = color
+            self.net_client.data['room_lights_state'][1] = color
         self._save_data()
 
     def set_bed_lights_state(self, brightness=None, color=None):
@@ -317,9 +346,9 @@ class CoordinatorHost:
         """
         # self._load_data()
         if brightness is not None:
-            self.server.data['bed_lights_state'][0] = brightness
+            self.net_client.data['bed_lights_state'][0] = brightness
         if color is not None:
-            self.server.data['bed_lights_state'][1] = color
+            self.net_client.data['bed_lights_state'][1] = color
         self._save_data()
 
     def get_big_wind_state(self, update=False):
@@ -334,7 +363,7 @@ class CoordinatorHost:
         """
         # if update:
         #     self._load_data()
-        return self.server.data['big_wind_state']
+        return self.net_client.data['big_wind_state']
 
     def get_big_humid_state(self, update=False):
         """
@@ -343,7 +372,7 @@ class CoordinatorHost:
         """
         # if update:
         #     self._load_data()
-        return self.server.data['big_humid_state']
+        return self.net_client.data['big_humid_state']
 
     def get_little_humid_state(self, update=False):
         """
@@ -352,9 +381,9 @@ class CoordinatorHost:
         """
         # if update:
         #     self._load_data()
-        if "little_humid_state" not in self.server.data:
+        if "little_humid_state" not in self.net_client.data:
             return None
-        return self.server.data['little_humid_state']
+        return self.net_client.data['little_humid_state']
 
     def get_bed_fan_state(self, update=False):
         """
@@ -363,7 +392,7 @@ class CoordinatorHost:
         """
         # if update:
         #     self._load_data()
-        return self.server.data['bed_fan_state']
+        return self.net_client.data['bed_fan_state']
 
     def get_room_lights_state(self, update=False):
         """
@@ -372,7 +401,7 @@ class CoordinatorHost:
         """
         # if update:
         #     self._load_data()
-        return self.server.data['room_lights_state']
+        return self.net_client.data['room_lights_state']
 
     def get_bed_lights_state(self, update=False):
         """
@@ -381,22 +410,22 @@ class CoordinatorHost:
         """
         # if update:
         #     self._load_data()
-        return self.server.data['bed_lights_state']
+        return self.net_client.data['bed_lights_state']
 
     def maintain_temperature(self):
         """
         Maintain the temperature of the room
         :return: The action that should be taken to maintain the temperature
         """
-        if self.server.data['temp_set_point'] == 999999 or self.server.data['temperature'] == -9999 or not self.get_object_state("fan_auto_enable"):
+        if self.net_client.data['temp_set_point'] == 999999 or self.net_client.data['temperature'] == -9999 or not self.get_object_state("fan_auto_enable"):
             return
-        if self.get_temperature() < self.server.data['temp_set_point'] - 2 and self.get_big_wind_state() != 0:
+        if self.get_temperature() < self.net_client.data['temp_set_point'] - 2 and self.get_big_wind_state() != 0:
             self.set_big_wind_state(0)
             return "big-wind-off"
-        elif self.get_temperature() <= self.server.data['temp_set_point'] - 1 and self.get_big_wind_state() == 3:
+        elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 1 and self.get_big_wind_state() == 3:
             self.set_big_wind_state(2)
             return "big-wind-out"
-        elif self.get_temperature() > self.server.data['temp_set_point'] + 1.5 and self.get_big_wind_state() != 3:
+        elif self.get_temperature() > self.net_client.data['temp_set_point'] + 1.5 and self.get_big_wind_state() != 3:
             self.set_big_wind_state(3)
             return "big-wind-on"
 
@@ -419,19 +448,19 @@ class CoordinatorHost:
         Maintain the humidity of the room
         :return: The action that should be taken to maintain the humidity
         """
-        if self.server.data['humid_set_point'] == 0 or self.server.data['humidity'] == -1:
+        if self.net_client.data['humid_set_point'] == 0 or self.net_client.data['humidity'] == -1:
             return
-        if self.server.data['humidity'] > self.server.data['humid_set_point'] + 2:
+        if self.net_client.data['humidity'] > self.net_client.data['humid_set_point'] + 2:
             if self._calculate_humid_state() != 0:
                 self.set_object_state("big_humid_state", False)
                 self.set_object_state("little_humid_state", False)
                 return "humid-off"
-        elif self.server.data['humidity'] >= self.server.data['humid_set_point']:
+        elif self.net_client.data['humidity'] >= self.net_client.data['humid_set_point']:
             if self._calculate_humid_state() != 1:
                 self.set_big_humid_state(True)
                 self.set_object_state("little_humid_state", False)
                 return "humid-half"
-        elif self.server.data['humidity'] < self.server.data['humid_set_point'] - 2:
+        elif self.net_client.data['humidity'] < self.net_client.data['humid_set_point'] - 2:
             if self._calculate_humid_state() != 3:
                 self.set_object_state("big_humid_state", True)
                 self.set_object_state("little_humid_state", True)
@@ -442,14 +471,14 @@ class CoordinatorHost:
         Get the current temperature of the room
         :return: The current temperature of the room in Celsius
         """
-        return celsius_to_fahrenheit(self.server.data['temperature']) if self.server.data['temperature'] != -9999 else -9999
+        return celsius_to_fahrenheit(self.net_client.data['temperature']) if self.net_client.data['temperature'] != -9999 else -9999
 
     def get_humidity(self):
         """
         Get the current humidity of the room
         :return: The current humidity of the room in relative humidity
         """
-        return self.server.data['humidity']
+        return self.net_client.data['humidity']
 
     def set_temperature(self, temperature):
         """
@@ -457,7 +486,7 @@ class CoordinatorHost:
         :param temperature: Integer value of the temperature in Celsius
         :return: None
         """
-        self.server.data['temp_set_point'] = temperature
+        self.net_client.data['temp_set_point'] = temperature
         self._save_data()
 
     def set_humidity(self, humidity):
@@ -466,7 +495,7 @@ class CoordinatorHost:
         :param humidity: Integer value of the humidity in relative humidity
         :return: None
         """
-        self.server.data['humid_set_point'] = humidity
+        self.net_client.data['humid_set_point'] = humidity
         self._save_data()
 
     def get_temperature_setpoint(self, update=False):
@@ -474,23 +503,21 @@ class CoordinatorHost:
         Get the current temperature set point of the room
         :return: The current temperature set point of the room in Celsius
         """
-        return self.server.data['temp_set_point']
+        return self.net_client.data['temp_set_point']
 
     def get_humidity_setpoint(self, update=False):
         """
         Get the current humidity set point of the room
         :return: The current humidity set point of the room in relative humidity
         """
-        return self.server.data['humid_set_point']
+        return self.net_client.data['humid_set_point']
 
 
 # --------------------------------------- Remote Thermostat --------------------------------------- #
 
 
-
-
-
 class CoordinatorClient:
+
     class WebserverClient:
 
         def __init__(self, address, port, client_name, auth, password, tablet, data: dict):
@@ -543,7 +570,7 @@ class CoordinatorClient:
             self.coordinator_available = False
 
         def download_state(self):
-            print("Downloading state from coordinator webserver")
+            # print("Downloading state from coordinator webserver")
             if self.download_in_progress:
                 return self.data
             self.download_in_progress = True
@@ -559,15 +586,15 @@ class CoordinatorClient:
                             break
                         data_buff += data
                     data = json.loads(data_buff.decode())
-                    print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
+                    # print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
             except Exception as e:
                 print(f"Error downloading state from coordinator webserver: {e}")
-                self.download_in_progress = False
+                self.download_in_progress = None
                 self.coordinator_available = False
                 self.data['temperature'] = -9999
                 self.data['humidity'] = -1
                 return self.data
-            self.download_in_progress = False
+            self.download_in_progress = None
             self.coordinator_available = True
             self.data = data
             return data
@@ -585,14 +612,17 @@ class CoordinatorClient:
                     request = json.dumps({"client": self.client_name, "auth": self.auth, "type": "upload_state"})
                     s.sendall(request.encode())
                     response = s.recv(1024)
+                    print(f"Response from coordinator: {response.decode()}")
                     s.sendall(json.dumps(state_data).encode())
+                    # response = s.recv(1024)
+                    # print(f"Uploaded state change to coordinator, response: {response.decode()}")
 
             except Exception as e:
                 print(f"Error uploading state change to coordinator webserver: {e}")
-                self.upload_in_progress = False
+                self.upload_in_progress = None
                 raise e
             finally:
-                self.upload_in_progress = False
+                self.upload_in_progress = None
 
     def __init__(self):
         """
@@ -615,12 +645,12 @@ class CoordinatorClient:
                 tablet_ip = data['tablet_ip']
                 tablet_password = data['tablet_password']
                 self.tablet = tablet_ip, tablet_password
-                self.webclient = self.WebserverClient(self.coordinator_server, 47670, "test", self.coordinator_server_auth,
-                                                      self.coordinator_server_password, self.tablet, self.data)
+                self.net_client = self.WebserverClient(self.coordinator_server, 47670, "test", self.coordinator_server_auth,
+                                                       self.coordinator_server_password, self.tablet, self.data)
         else:
             print("No API file found, configuring dummy server")
-            self.webclient = self.WebserverClient("", 47670, "test", None, None, None, self.data)
-            self.webclient.coordinator_available = False
+            self.net_client = self.WebserverClient("", 47670, "test", None, None, None, self.data)
+            self.net_client.coordinator_available = False
 
         # self.data = self.webclient.download_state()
 
@@ -629,7 +659,7 @@ class CoordinatorClient:
         Close the webserver connection
         :return: None
         """
-        self.webclient.coordinator_available = False
+        self.net_client.coordinator_available = False
 
     def silent_read_data(self):
         """
@@ -643,7 +673,7 @@ class CoordinatorClient:
         Read the data from the coordinator server
         :return: None
         """
-        self.data = self.webclient.download_state()
+        self.data = self.net_client.download_state()
 
     def read_data(self):
         """
@@ -665,7 +695,7 @@ class CoordinatorClient:
         Check if the coordinator server is available
         :return: True if connected, False otherwise
         """
-        return self.webclient.coordinator_available
+        return self.net_client.coordinator_available
 
     def attempt_restart(self, target):
         """
@@ -673,9 +703,9 @@ class CoordinatorClient:
         :return:
         """
         if target == "coordinator" or target == "all":
-            self.webclient.command_coordinator_restart()
+            self.net_client.command_coordinator_restart()
         elif target == "tablet" or target == "all":
-            self.webclient.command_tablet_restart()
+            self.net_client.command_tablet_restart()
 
     def attempt_reboot(self, target):
         """
@@ -683,9 +713,9 @@ class CoordinatorClient:
         :return:
         """
         if target == "coordinator" or target == "all":
-            self.webclient.command_coordinator_reboot()
+            self.net_client.command_coordinator_reboot()
         elif target == "tablet" or target == "all":
-            self.webclient.command_tablet_reboot()
+            self.net_client.command_tablet_reboot()
 
     def get_object_state(self, object_name, update=True):
         """
@@ -695,7 +725,7 @@ class CoordinatorClient:
         :return: The state of the object
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         if object_name in self.data:
             return self.data[object_name]
         else:
@@ -709,18 +739,18 @@ class CoordinatorClient:
         :return:
         """
         self.data[object_name] = state
-        self.webclient.upload_state({object_name: self.data[object_name]})
+        self.net_client.upload_state({object_name: self.data[object_name]})
 
-    def set_object_states(self, object_name, states: dict):
+    def set_object_states(self, object_name, states: typing.Union[dict, list]):
         """
         Set the state of an object on the coordinator
         :param object_name: The name of the object
         :param states: The state to set
         :return:
         """
-        for state in states:
-            self.data[object_name][state] = states[state]
-        self.webclient.upload_state(self.data[object_name])
+
+        self.data[object_name] = states
+        self.net_client.upload_state(self.data[object_name])
 
     def get_big_wind_state(self, update=True):
         """
@@ -734,7 +764,7 @@ class CoordinatorClient:
         :return: The state of the big wind fan
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         return self.data['big_wind_state']
 
     def get_big_humid_state(self, update=True):
@@ -744,7 +774,7 @@ class CoordinatorClient:
         :return: The state of the big humid fan
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         return self.data['big_humid_state']
 
     def get_little_humid_state(self, update=True):
@@ -754,7 +784,7 @@ class CoordinatorClient:
         :return: The state of the little humid fan
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         if "little_humid_state" not in self.data:
             return None
         return self.data['little_humid_state']
@@ -766,7 +796,7 @@ class CoordinatorClient:
         :return: The state of the bed fan
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         return self.data['bed_fan_state']
 
     def get_room_lights_state(self, update=True):
@@ -776,7 +806,7 @@ class CoordinatorClient:
         :return: The state of the room lights
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         return self.data['room_lights_state']
 
     def get_bed_lights_state(self, update=True):
@@ -786,7 +816,7 @@ class CoordinatorClient:
         :return: The state of the bed lights
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         return self.data['bed_lights_state']
 
     def set_big_wind_state(self, state):
@@ -797,7 +827,7 @@ class CoordinatorClient:
         """
         # self.silent_read_data()
         self.data['big_wind_state'] = state
-        self.webclient.upload_state({"big_wind_state": self.data['big_wind_state']})
+        self.net_client.upload_state({"big_wind_state": self.data['big_wind_state']})
 
     def set_room_lights_state(self, brightness=None, color=None):
         """
@@ -821,7 +851,7 @@ class CoordinatorClient:
             self.data['room_lights_state'][0] = brightness
         if color is not None:
             self.data['room_lights_state'][1] = color
-        self.webclient.upload_state({"room_lights_state": self.data['room_lights_state']})
+        self.net_client.upload_state({"room_lights_state": self.data['room_lights_state']})
 
     def set_bed_lights_state(self, brightness=None, color=None):
         """
@@ -845,7 +875,7 @@ class CoordinatorClient:
             self.data['bed_lights_state'][0] = brightness
         if color is not None:
             self.data['bed_lights_state'][1] = color
-        self.webclient.upload_state({"bed_lights_state": self.data['bed_lights_state']})
+        self.net_client.upload_state({"bed_lights_state": self.data['bed_lights_state']})
 
     def set_big_humid_state(self, state):
         """
@@ -854,7 +884,7 @@ class CoordinatorClient:
         :return: None
         """
         self.data['big_humid_state'] = state
-        self.webclient.upload_state({'big_humid_state': state})
+        self.net_client.upload_state({'big_humid_state': state})
 
     def set_little_humid_state(self, state):
         """
@@ -863,7 +893,7 @@ class CoordinatorClient:
         :return: None
         """
         self.data['little_humid_state'] = state
-        self.webclient.upload_state({'little_humid_state': state})
+        self.net_client.upload_state({'little_humid_state': state})
 
     def set_bed_fan_state(self, state):
         """
@@ -872,7 +902,7 @@ class CoordinatorClient:
         :return: None
         """
         self.data['bed_fan_state'] = state
-        self.webclient.upload_state({'bed_fan_state': state})
+        self.net_client.upload_state({'bed_fan_state': state})
 
     def get_temperature(self):
         """
@@ -894,7 +924,7 @@ class CoordinatorClient:
         :return: The current temperature setpoint of the room in Celsius
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         return self.data['temp_set_point']
 
     def get_humidity_setpoint(self, update=True):
@@ -903,7 +933,7 @@ class CoordinatorClient:
         :return: The current humidity setpoint of the room in relative humidity
         """
         if update:
-            self.webclient.download_state()
+            self.net_client.download_state()
         return self.data['humid_set_point']
 
     def set_temperature(self, temperature):
@@ -939,7 +969,7 @@ class CoordinatorClient:
         :return: False if the upload is rate limited, None otherwise
         """
 
-        self.webclient.upload_state(self.data)
+        self.net_client.upload_state(self.data)
 
     def _download_data(self):
         """

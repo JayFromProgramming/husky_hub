@@ -83,6 +83,12 @@ no_mouse_icon = pygame.image.load(os.path.join("Assets/Images/NoMouse.png")).con
 weather_alert = pygame.image.load(os.path.join("Assets/Images/alert.png")).convert_alpha()
 no_fan_icon = pygame.image.load(os.path.join("Assets/Images/No_fan.png")).convert_alpha()
 overheat_icon = pygame.image.load(os.path.join("Assets/Images/overheat.png")).convert_alpha()
+down_only_icon = pygame.image.load(os.path.join("Assets/Images/download_only.png")).convert_alpha()
+up_only_icon = pygame.image.load(os.path.join("Assets/Images/upload_only.png")).convert_alpha()
+up_down_icon = pygame.image.load(os.path.join("Assets/Images/up_down.png")).convert_alpha()
+net_error_icon = pygame.image.load(os.path.join("Assets/Images/net_error.png")).convert_alpha()
+net_normal_icon = pygame.image.load(os.path.join("Assets/Images/net_standby.png")).convert_alpha()
+net_status: pygame.Surface = None
 pygame.display.set_icon(icon)
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
@@ -416,7 +422,10 @@ def update_weather_data():
             if humid:
                 room_control.run_routine(None, humid)
 
-        if datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunset_time(timeformat='date'):
+        sunset_time = weatherAPI.current_weather.sunset_time(timeformat='date')
+        sunrise_time = weatherAPI.current_weather.sunrise_time(timeformat='date')
+
+        if datetime.datetime.now(tz=datetime.timezone.utc) > sunset_time or datetime.datetime.now(tz=datetime.timezone.utc) < sunrise_time:
             # print("After sunset")
             if py and coordinator.coordinator.get_room_lights_state()[0] <= 1 and screen_dimmed != 30:
                 os.system(f"sudo sh -c 'echo \"30\" > /sys/class/backlight/rpi_backlight/brightness'")
@@ -425,7 +434,7 @@ def update_weather_data():
                 os.system(f"sudo sh -c 'echo \"124\" > /sys/class/backlight/rpi_backlight/brightness'")
                 screen_dimmed = 124
 
-        elif datetime.datetime.now(tz=datetime.timezone.utc) > weatherAPI.current_weather.sunrise_time(timeformat='date'):
+        elif datetime.datetime.now(tz=datetime.timezone.utc) > sunrise_time:
             # print("After sunrise")
             if py and screen_dimmed != 255:
                 os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
@@ -497,7 +506,7 @@ def draw(screen, dt):
     """
     global refresh_forecast, last_current_update, current_icon, forecast, loading_hour, fps, selected_loading_hour
     global failed_current_updates, screen_dimmed, display_mode, weather_alert_display, overheat_halt, loading_screen
-    global radar
+    global radar, net_status
     screen.fill((0, 0, 0))  # Fill the screen with black.
 
     def draw_clock(pallet):
@@ -607,29 +616,48 @@ def draw(screen, dt):
         pallet_one, pallet_four)
     screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width() / 2, screen.get_height() - 30))))
 
-    if alert:
-        # If a weather alert is active, draw the alert icon
-        screen.blit(weather_alert, weather_alert.get_rect(topright=(800, 2)))
-    if room_control.raincheck:
-        # If a raincheck is active, draw the raincheck icon
-        screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
-    if (py and temp > 70) or overheat_halt:
-        # If the CPU is too hot, draw the overheat icon
-        screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))
-        overheat_halt = True
-        fps = 7
-        if temp < 60:
-            overheat_halt = False
-            fps = 14
-        if display_mode == "webcams" and temp > 70:
-            # webcams.focus(None)
-            fps = 0.5
-    if no_mouse:
-        # If the mouse is not detected, draw the mouse icon
+    if not coordinator.coordinator.net_client.coordinator_available:
+        net_status = net_error_icon
+    elif coordinator.coordinator.net_client.download_in_progress is not False and coordinator.coordinator.net_client.upload_in_progress is not False:
+        net_status = up_down_icon
+    elif coordinator.coordinator.net_client.download_in_progress is not False:
+        net_status = down_only_icon
+    elif coordinator.coordinator.net_client.upload_in_progress is not False:
+        net_status = up_only_icon
+    else:
+        net_status = net_normal_icon
+
+    if coordinator.coordinator.net_client.upload_in_progress is None:
+        coordinator.coordinator.net_client.upload_in_progress = False
+    if coordinator.coordinator.net_client.download_in_progress is None:
+        coordinator.coordinator.net_client.download_in_progress = False
+
+    if display_mode != "webcams" and display_mode != "radar":
+        screen.blit(net_status, net_status.get_rect(topright=(screen.get_width() - 5, 2))),
+    if display_mode == "home":
         if alert:
-            screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))
-        else:
-            screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 2)))
+            # If a weather alert is active, draw the alert icon
+            screen.blit(weather_alert, weather_alert.get_rect(topright=(763, 2)))
+        if room_control.raincheck:
+            # If a raincheck is active, draw the raincheck icon
+            screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
+        if (py and temp > 70) or overheat_halt:
+            # If the CPU is too hot, draw the overheat icon
+            screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))
+            overheat_halt = True
+            fps = 7
+            if temp < 60:
+                overheat_halt = False
+                fps = 14
+            if display_mode == "webcams" and temp > 70:
+                # webcams.focus(None)
+                fps = 0.5
+        if no_mouse:
+            # If the mouse is not detected, draw the mouse icon
+            if alert:
+                screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))
+            else:
+                screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 2)))
 
     # Flip the display so that the things we drew actually show up.
     pygame.display.flip()
