@@ -60,7 +60,6 @@ def get_ip():
 
 
 class CoordinatorHost:
-
     class WebServerHost:
 
         def __init__(self, host, port, auth, data: dict):
@@ -71,6 +70,10 @@ class CoordinatorHost:
             self.download_in_progress = False
             self.upload_in_progress = False
             self.coordinator_available = True
+            self.approved_actions = {}
+            if os.path.isfile(os.path.join("Configs/approved_actions.json")):
+                with open(os.path.join("Configs/approved_actions.json"), "r") as f:
+                    self.approved_actions = json.load(f)
             self.run_server = True
             ip = get_ip()
             if ip != self.host:
@@ -130,6 +133,25 @@ class CoordinatorHost:
                         # conn.sendall(b'503: ' + bytes(str(e)))  # Let the client know that the new state data was received but not understood
                     finally:
                         self.download_in_progress = None
+                elif request['type'] == "preform_action":
+                    self.download_in_progress = True
+                    print(f"Client {request['client']} is requesting an action to be preformed")
+                    conn.sendall(b'command-ready')
+                    data_buff = b''
+                    while True:
+                        data = conn.recv(1024)
+                        if not data:
+                            break
+                        data_buff += data
+                    data: dict = json.loads(data_buff.decode())
+                    action = self.approved_actions(data['action'])
+                    if data['auth'] == action['auth']:
+                        print(f"Client {request['client']} has requested action {action['name']} be preformed")
+                        if action['action_type'] == "internal_code_execution":
+                            code = ""
+                            for line in action['code']:
+                                code += line + "\n"
+                            exec(code)
                 else:
                     print(f"Client {request['client']} has requested unknown action {request['type']}")
                     conn.sendall(b'404')  # Acknowledge the request was received but not understood
@@ -159,11 +181,7 @@ class CoordinatorHost:
         self.data['errors'] = []
         try:
             import Adafruit_DHT
-
-            # self.address = 0x5C  # device I2C address
-            # self.bus = smbus2.SMBus(1)
             self.sensor = Adafruit_DHT.DHT22
-
         except Exception as e:
             self.data['errors'].append(f"Init error: {str(e)}")
         self.read_data()
@@ -199,16 +217,17 @@ class CoordinatorHost:
         # self._load_data()
         try:
             import Adafruit_DHT
-            # read 5 bytes of data from the device address (0x05C) starting from an offset of zero
-            # data = self.bus.read_i2c_block_data(self.address, 0x00, 5)
-            #
-            # self.server.data['temperature'] = celsius_to_fahrenheit(int(f"{data[2]}.{data[3]}"))
-            # self.server.data['humidity'] = celsius_to_fahrenheit(int(f"{data[0]}.{data[1]}"))
 
             humidity, temp = Adafruit_DHT.read_retry(self.sensor, 4)
             if humidity is not None:
                 self.net_client.data['humidity'] = humidity
                 self.net_client.data['last_read'] = time.time()
+            elif humidity > 100:
+                self.net_client.data['humidity'] = -1
+                self.net_client.data['errors'].append("Humidity off scale high")
+            elif humidity < 0:
+                self.net_client.data['humidity'] = -1
+                self.net_client.data['errors'].append("Humidity off scale low")
             else:
                 self.net_client.data['humidity'] = -1
                 self.net_client.data['errors'].append("Failed to read humidity")
@@ -272,161 +291,33 @@ class CoordinatorHost:
         self.data[object_name] = object_state
         self._save_data()
 
-    def set_object_states(self, object_name, states: dict):
+    def set_object_states(self, object_name, **kwargs):
         """
         Set the state of an object on the coordinator
         :param object_name: The name of the object
-        :param states: The state to set
+        :param kwargs: The state of the object via keyword arguments
         :return:
         """
-        for state in states:
-            self.data[object_name][state] = states[state]
+        for key, value in kwargs.items():
+            self.data[object_name][key] = value
         self._save_data()
-
-    def set_big_wind_state(self, state):
-        """
-        Set the state of the big wind fan
-        :param state: The state of the big wind fan
-        :return:
-        """
-        # self._load_data()
-        self.net_client.data['big_wind_state'] = state
-        self._save_data()
-
-    def set_big_humid_state(self, state):
-        """
-        Set the state of the big humid fan
-        :param state: The state of the big humid fan
-        :return:
-        """
-        # self._load_data()
-        self.net_client.data['big_humid_state'] = state
-        self._save_data()
-
-    def set_little_humid_state(self, state):
-        """
-        Set the state of the little humid fan
-        :param state: The state of the little humid fan
-        :return:
-        """
-        # self._load_data()
-        self.net_client.data['little_humid_state'] = state
-        self._save_data()
-
-    def set_bed_fan_state(self, state):
-        """
-        Set the state of the bed fan
-        :param state: The state of the bed fan
-        :return:
-        """
-        # self._load_data()
-        self.data['bed_fan_state'] = state
-        self._save_data()
-
-    def set_room_lights_state(self, brightness=None, color=None):
-        """
-        Set the state of the room lights
-        :param brightness: The brightness of the lights
-        :param color: The color of the lights
-        :return:
-        """
-        # self._load_data()
-        if brightness is not None:
-            self.net_client.data['room_lights_state'][0] = brightness
-        if color is not None:
-            self.net_client.data['room_lights_state'][1] = color
-        self._save_data()
-
-    def set_bed_lights_state(self, brightness=None, color=None):
-        """
-        Set the state of the bed lights
-        :param brightness: The brightness of the lights
-        :param color: The color of the lights
-        :return:
-        """
-        # self._load_data()
-        if brightness is not None:
-            self.net_client.data['bed_lights_state'][0] = brightness
-        if color is not None:
-            self.net_client.data['bed_lights_state'][1] = color
-        self._save_data()
-
-    def get_big_wind_state(self, update=False):
-        """
-        Get the state of the big wind fan
-        -1: Error unknown state
-        0 = All fans off
-        1 = Exhaust fan only
-        2 = Intake fan only
-        3 = Both fans
-        :return: The state of the big wind fan
-        """
-        # if update:
-        #     self._load_data()
-        return self.net_client.data['big_wind_state']
-
-    def get_big_humid_state(self, update=False):
-        """
-        Get the state of the big humid fan
-        :return: The state of the big humid fan
-        """
-        # if update:
-        #     self._load_data()
-        return self.net_client.data['big_humid_state']
-
-    def get_little_humid_state(self, update=False):
-        """
-        Get the state of the little humid fan
-        :return: The state of the little humid fan
-        """
-        # if update:
-        #     self._load_data()
-        if "little_humid_state" not in self.net_client.data:
-            return None
-        return self.net_client.data['little_humid_state']
-
-    def get_bed_fan_state(self, update=False):
-        """
-        Get the state of the bed fan
-        :return: The state of the bed fan
-        """
-        # if update:
-        #     self._load_data()
-        return self.net_client.data['bed_fan_state']
-
-    def get_room_lights_state(self, update=False):
-        """
-        Get the state of the room lights
-        :return: The state of the room lights
-        """
-        # if update:
-        #     self._load_data()
-        return self.net_client.data['room_lights_state']
-
-    def get_bed_lights_state(self, update=False):
-        """
-        Get the state of the bed lights
-        :return: The state of the bed lights
-        """
-        # if update:
-        #     self._load_data()
-        return self.net_client.data['bed_lights_state']
 
     def maintain_temperature(self):
         """
         Maintain the temperature of the room
         :return: The action that should be taken to maintain the temperature
         """
-        if self.net_client.data['temp_set_point'] == 999999 or self.net_client.data['temperature'] == -9999 or not self.get_object_state("fan_auto_enable"):
+        if self.net_client.data['temp_set_point'] == 999999 or self.net_client.data['temperature'] == -9999 or not self.get_object_state(
+                "fan_auto_enable"):
             return
-        if self.get_temperature() < self.net_client.data['temp_set_point'] - 2 and self.get_big_wind_state() != 0:
-            self.set_big_wind_state(0)
+        if self.get_temperature() < self.net_client.data['temp_set_point'] - 2 and self.get_object_state("big_wind_state") != 0:
+            self.set_object_state("big_wind_state", 0)
             return "big-wind-off"
-        elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 1 and self.get_big_wind_state() == 3:
-            self.set_big_wind_state(2)
+        elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 1 and self.get_object_state("big_wind_state") == 3:
+            self.set_object_state("big_wind_state", 2)
             return "big-wind-out"
-        elif self.get_temperature() > self.net_client.data['temp_set_point'] + 1.5 and self.get_big_wind_state() != 3:
-            self.set_big_wind_state(3)
+        elif self.get_temperature() > self.net_client.data['temp_set_point'] + 1.5 and self.get_object_state("big_wind_state") != 3:
+            self.set_object_state("big_wind_state", 3)
             return "big-wind-on"
 
     def _calculate_humid_state(self):
@@ -455,9 +346,9 @@ class CoordinatorHost:
                 self.set_object_state("big_humid_state", False)
                 self.set_object_state("little_humid_state", False)
                 return "humid-off"
-        elif self.net_client.data['humidity'] >= self.net_client.data['humid_set_point']:
+        elif self.net_client.data['humid_set_point'] <= self.net_client.data['humidity'] <= self.net_client.data['humid_set_point'] + 2:
             if self._calculate_humid_state() != 1:
-                self.set_big_humid_state(True)
+                self.set_object_state("big_humid_state", True)
                 self.set_object_state("little_humid_state", False)
                 return "humid-half"
         elif self.net_client.data['humidity'] < self.net_client.data['humid_set_point'] - 2:
@@ -517,7 +408,6 @@ class CoordinatorHost:
 
 
 class CoordinatorClient:
-
     class WebserverClient:
 
         def __init__(self, address, port, client_name, auth, password, tablet, data: dict):
@@ -741,141 +631,18 @@ class CoordinatorClient:
         self.data[object_name] = state
         self.net_client.upload_state({object_name: self.data[object_name]})
 
-    def set_object_states(self, object_name, states: typing.Union[dict, list]):
+    def set_object_states(self, object_name, **kwargs):
         """
         Set the state of an object on the coordinator
         :param object_name: The name of the object
         :param states: The state to set
         :return:
         """
-
-        self.data[object_name] = states
-        self.net_client.upload_state(self.data[object_name])
-
-    def get_big_wind_state(self, update=True):
-        """
-        Get the state of the big wind fan
-        -1 = Error unknown state
-        0 = All fans off
-        1 = Exhaust fan only
-        2 = Intake fan only
-        3 = Both fans
-        :param update: Default True. If True, update the data from the thermostat
-        :return: The state of the big wind fan
-        """
-        if update:
-            self.net_client.download_state()
-        return self.data['big_wind_state']
-
-    def get_big_humid_state(self, update=True):
-        """
-        Get the state of the big humid fan
-        :param update: Default True, if True, update the local data
-        :return: The state of the big humid fan
-        """
-        if update:
-            self.net_client.download_state()
-        return self.data['big_humid_state']
-
-    def get_little_humid_state(self, update=True):
-        """
-        Get the state of the little humid fan
-        :param update: Default True, if True, update the local data
-        :return: The state of the little humid fan
-        """
-        if update:
-            self.net_client.download_state()
-        if "little_humid_state" not in self.data:
-            return None
-        return self.data['little_humid_state']
-
-    def get_bed_fan_state(self, update=True):
-        """
-        Get the state of the bed fan
-        :param update: Default True, if True, update the local data
-        :return: The state of the bed fan
-        """
-        if update:
-            self.net_client.download_state()
-        return self.data['bed_fan_state']
-
-    def get_room_lights_state(self, update=True):
-        """
-        Get the state of the room lights
-        :param update: Default True, if True, update the local data
-        :return: The state of the room lights
-        """
-        if update:
-            self.net_client.download_state()
-        return self.data['room_lights_state']
-
-    def get_bed_lights_state(self, update=True):
-        """
-        Get the state of the bed lights
-        :param update: Default True, if True, update the local data
-        :return: The state of the bed lights
-        """
-        if update:
-            self.net_client.download_state()
-        return self.data['bed_lights_state']
-
-    def set_big_wind_state(self, state):
-        """
-        Set the state of the big wind fan
-        :param state: The state of the big wind fan
-        :return: None
-        """
-        # self.silent_read_data()
-        self.data['big_wind_state'] = state
-        self.net_client.upload_state({"big_wind_state": self.data['big_wind_state']})
-
-    def set_room_lights_state(self, brightness=None, color=None):
-        """
-        Set the state of the room lights
-        :param brightness: The brightness of the lights
-            -1 = Unknown brightness
-            0 = Off
-            1 = Low
-            2 = Medium
-            3 = High
-        :param color: The color of the lights
-            -1 = Unknown color
-            0 = Off
-            1 = Red
-            2 = Green
-            3 = Blue
-        :return: None
-        """
-        # self.read_data()
-        if brightness is not None:
-            self.data['room_lights_state'][0] = brightness
-        if color is not None:
-            self.data['room_lights_state'][1] = color
-        self.net_client.upload_state({"room_lights_state": self.data['room_lights_state']})
-
-    def set_bed_lights_state(self, brightness=None, color=None):
-        """
-        Set the state of the bed lights
-        :param brightness: The brightness of the lights
-            - -1 = Unknown brightness
-            - 0 = Off
-            - 1 = Low
-            - 2 = Medium
-            - 3 = High
-        :param color: The color of the lights
-            - -1 = Unknown color
-            - 0 = Off
-            - 1 = Red
-            - 2 = Green
-            - 3 = Blue
-        :return: None
-        """
-        # self.read_data()
-        if brightness is not None:
-            self.data['bed_lights_state'][0] = brightness
-        if color is not None:
-            self.data['bed_lights_state'][1] = color
-        self.net_client.upload_state({"bed_lights_state": self.data['bed_lights_state']})
+        if not isinstance(self.data[object_name], dict):
+            self.data[object_name] = {}
+        for key, value in kwargs.items():
+            self.data[object_name][key] = value
+        self.net_client.upload_state({object_name: self.data[object_name]})
 
     def set_big_humid_state(self, state):
         """
@@ -885,24 +652,6 @@ class CoordinatorClient:
         """
         self.data['big_humid_state'] = state
         self.net_client.upload_state({'big_humid_state': state})
-
-    def set_little_humid_state(self, state):
-        """
-        Set the state of the little humid fan
-        :param state: The state of the little humid fan
-        :return: None
-        """
-        self.data['little_humid_state'] = state
-        self.net_client.upload_state({'little_humid_state': state})
-
-    def set_bed_fan_state(self, state):
-        """
-        Set the state of the bed fan
-        :param state: The state of the bed fan
-        :return: None
-        """
-        self.data['bed_fan_state'] = state
-        self.net_client.upload_state({'bed_fan_state': state})
 
     def get_temperature(self):
         """

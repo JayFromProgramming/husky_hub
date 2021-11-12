@@ -1,13 +1,15 @@
 import io
 import time
 
+import pint
 import pygame
 import datetime
 
 from urllib.request import urlopen
 import logging as log
 
-import pyowm.weatherapi25.forecast
+from atmos import calculate
+# import metpy.calc as mpcalc
 from OpenWeatherWrapper import OpenWeatherWrapper
 from Utils import buttonGenerator
 
@@ -60,12 +62,16 @@ class FocusedForecast:
         uvi = self.weather.uvi
         updated = self.weather.reference_time()
         updated = datetime.datetime.fromtimestamp(updated)
-        # Calculate the inside relative humidity based on the outside humidity and temperature
-        # This is a very rough approximation
-        rh = self.weather.humidity
-        rh = rh * (temp['temp'] - 32) / (temp['temp'] - rh * (temp['temp'] - 32))
-        rh = rh * 100
-        inside_humidity = rh
+        pressure = self.weather.pressure['press']
+        dew_point = self.weather.dewpoint
+        temp_difference = 67 - temp['temp']
+        inside_humidity = humidity / (temp_difference / 20)
+        inside_humidity = "Unknown"
+
+        # absolute_humidity = calculate('AH', RH=humidity, p=pressure, T=temp['temp'], p_units='hPa', T_units='fahrenheit', debug=True)
+        # inside_humidity = mpcalc.relative_humidity_from_specific_humidity(
+        #     specific_humidity=pint.Quantity(absolute_humidity), temperature=pint.Quantity(67, units="fahrenheit"),
+        #     pressure=pint.Quantity(pressure, units="hPa"))
 
         self.time_info = font4.render(updated.strftime('Forecast for %A, %B %d at %I:00 %p'), True, pallet_one)
         self.big_info = font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one)

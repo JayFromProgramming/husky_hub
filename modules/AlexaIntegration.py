@@ -146,7 +146,7 @@ class RoutineButton:
             else:
                 self.request_success = True
         except Exception as err:
-            print(f"Custom code button error: {err} Traceback: {traceback.format_exc()}")
+            print(f"Custom code button({self.name}:{self.id}) error: {err} Traceback: {traceback.format_exc()}")
             self.request_success = False
             return
 
@@ -259,7 +259,7 @@ class OptionBar:
         self.expanded = True
         self.expanded_to = button
         count = 0
-        for page in button.data['sub_menus']:
+        for page in button.recent_data['sub_menus']:
             self.sub_menus.append(SubOptionBar(self, page['actions'], page['name']))
             count += 1
 
@@ -271,7 +271,7 @@ class OptionBar:
         self.host.vertical_scroll_offset = 0
         self.sub_menus = []
         if self.expanded_to:
-            self.expanded_to.name = self.expanded_to.data['name']
+            self.expanded_to.name = self.expanded_to.recent_data['name']
         self.expanded = False
         self.expanded_to = None
 
@@ -365,7 +365,7 @@ class SubOptionBar:
         humid = round(self.host.coordinator.get_humidity(), 2)
         set_temp = self.host.coordinator.get_temperature_setpoint(False)
         self.name = self.name_template.format(room_temp=f"{temp}F" if temp != -9999 else "N/A", room_humid=f"{humid}%" if humid != -1 else "N/A",
-                                              set_temp=f"{set_temp}F" if set_temp != -9999 else "N/A")
+                                              set_temp=f"{set_temp}F" if set_temp is not None else "N/A")
         x, y = position
         # self.action_buttons = []
         self.button = pygame.Rect(x + 50, y, 650, 70)

@@ -24,11 +24,20 @@ import pygame
 from pygame.locals import *
 import logging as log
 
+
 ################################################################################
 
 py = platform.platform() == 'Linux-5.10.17-v7+-armv7l-with-debian-10.9'
-tablet = platform.platform() == 'Windows-10-10.0.14393-SP0'
+windows = platform.platform() == 'Windows-10-10.0.19041-SP0'
 # Yes i know this will break when i update my py, and i don't care
+
+tablet = False
+
+if windows:
+    if platform.machine() == "AMD64":
+        tablet = False
+    else:
+        tablet = True
 
 if py:
     # os.chdir("/home/pi/Downloads/modules")
@@ -41,6 +50,7 @@ elif tablet:
                     level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
     base_fps = 14
     width, height = 800, 480
+
 else:
     log.basicConfig(filename="../weatherLogs.txt", level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
     base_fps = 30
@@ -207,6 +217,8 @@ def update(dt, screen):
         log.info("Shutting off big wind due to rain")
         room_control.run_routine("f", "big-wind-off")
         room_control.raincheck = True
+        coordinator.coordinator.set_object_state("big_wind_state", -1)
+        coordinator.coordinator.set_object_state("fan_auto_enable", False)
 
     if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams')\
             and (py or tablet):
@@ -313,17 +325,17 @@ def update(dt, screen):
 
                 if webcams.cycle_forward.collidepoint(mouse_pos):
                     # If the cycle forward button is clicked, cycle forward.
-                    weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
                     weather_alert_number += 1
                     if weather_alert_number >= len(alert):
                         weather_alert_number = 0
+                    weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
 
                 if webcams.cycle_backward.collidepoint(mouse_pos):
                     # If the cycle backward button is clicked, cycle backward.
-                    weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
                     weather_alert_number -= 1
                     if weather_alert_number < 0:
-                        weather_alert_number = 0
+                        weather_alert_number = len(alert) - 1
+                    weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
 
             elif display_mode == "webcams":
                 # This is the webcams mouse click handler.
@@ -413,8 +425,6 @@ def update_weather_data():
         coordinator.coordinator.read_data()
         if py:
             data_log.log()
-
-        if py and not room_control.raincheck:
             temp = coordinator.coordinator.maintain_temperature()
             if temp:
                 room_control.run_routine(None, temp)
@@ -427,10 +437,10 @@ def update_weather_data():
 
         if datetime.datetime.now(tz=datetime.timezone.utc) > sunset_time or datetime.datetime.now(tz=datetime.timezone.utc) < sunrise_time:
             # print("After sunset")
-            if py and coordinator.coordinator.get_room_lights_state()[0] <= 1 and screen_dimmed != 30:
+            if py and coordinator.coordinator.get_object_state("room_lights_state", False)['b'] <= 1 and screen_dimmed != 30:
                 os.system(f"sudo sh -c 'echo \"30\" > /sys/class/backlight/rpi_backlight/brightness'")
                 screen_dimmed = 30
-            elif py and coordinator.coordinator.get_room_lights_state()[0] > 1 and screen_dimmed != 124:
+            elif py and coordinator.coordinator.get_object_state("room_lights_state", False)['b'] > 1 and screen_dimmed != 124:
                 os.system(f"sudo sh -c 'echo \"124\" > /sys/class/backlight/rpi_backlight/brightness'")
                 screen_dimmed = 124
 
@@ -541,6 +551,8 @@ def draw(screen, dt):
                 loading_screen.loading_percentage += loading_screen.loading_percent_bias['Webcams'] / 4
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
                 if webcams.resize(screen):
+                    if py:
+                        data_log.condense()
                     if not py and not tablet:
                         data_log.export()
                     coordinator.coordinator.read_data()
@@ -640,7 +652,7 @@ def draw(screen, dt):
             screen.blit(weather_alert, weather_alert.get_rect(topright=(763, 2)))
         if room_control.raincheck:
             # If a raincheck is active, draw the raincheck icon
-            screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(763, 2)))
+            screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(723, 2)))
         if (py and temp > 70) or overheat_halt:
             # If the CPU is too hot, draw the overheat icon
             screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))

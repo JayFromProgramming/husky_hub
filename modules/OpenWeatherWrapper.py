@@ -203,7 +203,7 @@ class OpenWeatherWrapper:
         :return: None
         """
         x, y = location
-        tile = tile_manager.get_tile(x=x, y=y, zoom=6).image.data
+        tile = tile_manager.get_tile(x=x, y=y, zoom=6).image.recent_data
         self.radar_buffer[0].append(((x, y), tile, layer_name, (0, 0, time.time())))
         self.radar_refresh_amount += 1
 
