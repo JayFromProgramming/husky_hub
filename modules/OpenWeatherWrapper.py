@@ -4,6 +4,7 @@ import logging
 import os
 import threading
 import time
+import traceback
 import urllib.error
 from urllib.request import urlopen
 
@@ -141,7 +142,7 @@ class OpenWeatherWrapper:
                 self.one_call = self.mgr.one_call(lat=47.1219, lon=-88.569)
                 self._save_cache()
             except Exception as e:
-                self.log.warning(f"Unable to load forecast: {e}")
+                self.log.warning(f"Unable to load forecast: {e}\nTraceback: {traceback.format_exc()}")
                 return False
             return True
         return None

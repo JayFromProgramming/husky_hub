@@ -24,7 +24,6 @@ import pygame
 from pygame.locals import *
 import logging as log
 
-
 ################################################################################
 
 py = platform.platform() == 'Linux-5.10.17-v7+-armv7l-with-debian-10.9'
@@ -59,6 +58,9 @@ else:
 screen = None
 pygame.init()
 pygame.font.init()
+
+if pygame.image.get_extended() == 0:
+    raise Exception("Extended image formats not supported!")
 
 
 ################################################################################
@@ -194,6 +196,147 @@ def resize(screen):
     #     fore.resize(screen)
 
 
+def process_click(mouse_pos):
+    global focused_forecast, display_mode, weather_alert_display, refresh_forecast, forecast, weather_alert_number, selected_loading_hour, \
+        slot_position, loading_hour, max_loading_hour, last_forecast_update, last_current_update, failed_current_updates, fps, \
+        low_refresh, was_focused, no_mouse, overheat_halt, weather_alert_number, weather_alert_display, current_icon
+    # This is where we handle mouse clicks.
+    alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
+    low_refresh = time.time()
+    fps = base_fps
+    if focused_forecast:
+        for button in focused_forecast.focused_object.radar_buttons:
+            if button.rect.collidepoint(mouse_pos):
+                display_mode = "radar"
+                radar.v1_layers = []
+                radar.v2_layers = button.button_data
+                radar.radar_display = False
+                radar.playing = False
+                radar.update_radar()
+        focused_forecast = None
+        forecast = []
+        refresh_forecast = True
+    # checks if mouse position is over the button
+    if display_mode == "init":
+        pass  # Don't do anything
+    elif home_button_render.rect.collidepoint(mouse_pos) and display_mode != "home":
+        # When the home button is clicked, go back to the home screen.
+        webcams.focus(None)
+        webcams.page = 0
+        display_mode = "home"
+        room_control.open_since = 0
+
+    elif room_button_render.rect.collidepoint(mouse_pos) and display_mode == "home":
+        # When the room button is clicked, go to the room control screen.
+        webcams.focus(None)
+        webcams.page = 0
+        display_mode = "room_control"
+        coordinator.coordinator.read_data()
+        room_control.open_since = time.time()
+
+    elif alert_collider.collidepoint(mouse_pos) and display_mode == "home" and alert:
+        # When the alert button is clicked, go to the alert screen.
+        weather_alert_display = WeatherAlert(1, len(alert), alert=alert[weather_alert_number])
+        weather_alert_display.build_alert()
+        display_mode = "weather_alert"
+
+    elif display_mode == "weather_alert":
+        # This is the weather alert mouse click handler.
+        if home_button_render.rect.collidepoint(mouse_pos) or current_weather.big_info.get_rect().collidepoint(mouse_pos) or \
+                weather_alert.get_rect().collidepoint(mouse_pos):
+            # If the home button is clicked, go back to the home screen.
+            display_mode = "home"
+            weather_alert_display = None
+
+        if webcams.cycle_forward.collidepoint(mouse_pos):
+            # If the cycle forward button is clicked, cycle forward.
+            weather_alert_number += 1
+            if weather_alert_number >= len(alert):
+                weather_alert_number = 0
+            weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
+
+        if webcams.cycle_backward.collidepoint(mouse_pos):
+            # If the cycle backward button is clicked, cycle backward.
+            weather_alert_number -= 1
+            if weather_alert_number < 0:
+                weather_alert_number = len(alert) - 1
+            weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
+
+    elif display_mode == "webcams":
+        # This is the webcams mouse click handler.
+        if webcams.cycle_forward.collidepoint(mouse_pos):
+            # If the cycle forward button is clicked, cycle forward.
+            webcams.cycle(1)
+        if webcams.cycle_backward.collidepoint(mouse_pos):
+            # If the cycle backward button is clicked, cycle backward.
+            webcams.cycle(-1)
+
+        cam_id = 0
+        for cam in webcams.image_frame_boxes:
+            # Checks if the mouse is over a webcam.
+            if cam.collidepoint(mouse_pos):
+                if webcams.current_focus is None:
+                    # If the mouse is over a webcam and there is no webcam currently being focused, focus on the webcam.
+                    webcams.focus(cam_id)
+                    break
+                else:
+                    # If the mouse is over a webcam and there is a webcam currently being focused, unfocus the webcam.
+                    webcams.focus(None)
+                    break
+            cam_id += 1
+    elif display_mode == "radar":
+        # This is the radar mouse click handler.
+        if webcams.cycle_forward.collidepoint(mouse_pos):
+            # If the next button is clicked, play/pause the radar.
+            radar.play_pause()
+        if webcams.cycle_backward.collidepoint(mouse_pos):
+            # If the previous button is clicked, stop playback and jump to now
+            radar.jump_too_now()
+        if forecast_button_render.rect.collidepoint(mouse_pos):
+            # If the live button is clicked, return to live radar.
+            radar.v1_layers = []
+            radar.v2_layers = [("CL", 0, "")]
+            radar.radar_display = True
+            radar.update_radar()
+
+    elif display_mode == "home":
+        # This is the home mouse click handler.
+        if webcam_button_render.rect.collidepoint(mouse_pos):
+            # If the webcam button is clicked, go to the webcams screen.
+            display_mode = "webcams"
+        if webcams.cycle_forward.collidepoint(mouse_pos):
+            # If the cycle forward button is clicked, go to the next forecast page
+            if selected_loading_hour + 9 < max_loading_hour:
+                # If the selected loading hour is not the last forecast hour, go to the next forecast hour.
+                selected_loading_hour += 9
+                slot_position = 1
+                loading_hour = selected_loading_hour
+                forecast = []
+                refresh_forecast = True
+        elif webcams.cycle_backward.collidepoint(mouse_pos):
+            # If the cycle backward button is clicked, go to the previous forecast page
+            if selected_loading_hour - 9 >= 1:
+                # If the selected loading hour is not the first forecast hour, go to the previous forecast hour.
+                selected_loading_hour -= 9
+                slot_position = 1
+                loading_hour = selected_loading_hour
+                forecast = []
+                refresh_forecast = True
+        elif radar_collider.collidepoint(mouse_pos):
+            # If the radar button is clicked, go to the radar screen.
+            display_mode = "radar"
+            radar.update_radar()
+        for hour in forecast:
+            # Checks if the mouse is over a forecast hour.
+            hour.check_click(mouse_pos)
+
+    elif display_mode == "room_control":
+        # This is the room control mouse click handler.
+        response = room_control.check_click(mouse_pos)
+        # if response:
+        #     room_control.run_routine(response)
+
+
 def update(dt, screen):
     global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, weather_alert_display
     global weather_alert_number, slot_position, focused_forecast, fps, low_refresh
@@ -220,7 +363,7 @@ def update(dt, screen):
         coordinator.coordinator.set_object_state("big_wind_state", -1)
         coordinator.coordinator.set_object_state("fan_auto_enable", False)
 
-    if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams')\
+    if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams') \
             and (py or tablet):
         # After 15 seconds of inactivity, reduce the refresh rate to 1 frame per second
         fps = 1
@@ -229,6 +372,11 @@ def update(dt, screen):
         # If the tablet battery is low, shut down tablet
         log.warning("Shutting down due to low battery")
         os.system("shutdown -f")
+
+    if py:  # The mouse down event is no longer working on the raspberry pi for some reason.
+        if pygame.mouse.get_pos() != (0, 0):  # So as a workaround, we check if the mouse is not at its parking position.
+            process_click(pygame.mouse.get_pos())  # If it is not, then process the click.
+            pygame.mouse.set_pos((0, 0))  # And set the mouse back to its parking position.
 
     for event in pygame.event.get():
         # This is the event handler.
@@ -274,144 +422,7 @@ def update(dt, screen):
                 log.info("Saved Screenshot")
                 pygame.image.save(screen, "../screenshot.png")
         elif event.type == pygame.MOUSEBUTTONDOWN:
-            # This is where we handle mouse clicks.
-            mouse_pos = event.pos  # gets mouse position
-            alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
-            low_refresh = time.time()
-            fps = base_fps
-            if focused_forecast:
-                for button in focused_forecast.focused_object.radar_buttons:
-                    if button.rect.collidepoint(mouse_pos):
-                        display_mode = "radar"
-                        radar.v1_layers = []
-                        radar.v2_layers = button.button_data
-                        radar.radar_display = False
-                        radar.playing = False
-                        radar.update_radar()
-                focused_forecast = None
-                forecast = []
-                refresh_forecast = True
-            # checks if mouse position is over the button
-            if display_mode == "init":
-                pass  # Don't do anything
-            elif home_button_render.rect.collidepoint(mouse_pos) and display_mode != "home":
-                # When the home button is clicked, go back to the home screen.
-                webcams.focus(None)
-                webcams.page = 0
-                display_mode = "home"
-                room_control.open_since = 0
-
-            elif room_button_render.rect.collidepoint(mouse_pos) and display_mode == "home":
-                # When the room button is clicked, go to the room control screen.
-                webcams.focus(None)
-                webcams.page = 0
-                display_mode = "room_control"
-                coordinator.coordinator.read_data()
-                room_control.open_since = time.time()
-
-            elif alert_collider.collidepoint(mouse_pos) and display_mode == "home" and alert:
-                # When the alert button is clicked, go to the alert screen.
-                weather_alert_display = WeatherAlert(1, len(alert), alert=alert[weather_alert_number])
-                weather_alert_display.build_alert()
-                display_mode = "weather_alert"
-
-            elif display_mode == "weather_alert":
-                # This is the weather alert mouse click handler.
-                if home_button_render.rect.collidepoint(mouse_pos) or current_weather.big_info.get_rect().collidepoint(mouse_pos) or \
-                        weather_alert.get_rect().collidepoint(mouse_pos):
-                    # If the home button is clicked, go back to the home screen.
-                    display_mode = "home"
-                    weather_alert_display = None
-
-                if webcams.cycle_forward.collidepoint(mouse_pos):
-                    # If the cycle forward button is clicked, cycle forward.
-                    weather_alert_number += 1
-                    if weather_alert_number >= len(alert):
-                        weather_alert_number = 0
-                    weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
-
-                if webcams.cycle_backward.collidepoint(mouse_pos):
-                    # If the cycle backward button is clicked, cycle backward.
-                    weather_alert_number -= 1
-                    if weather_alert_number < 0:
-                        weather_alert_number = len(alert) - 1
-                    weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
-
-            elif display_mode == "webcams":
-                # This is the webcams mouse click handler.
-                if webcams.cycle_forward.collidepoint(mouse_pos):
-                    # If the cycle forward button is clicked, cycle forward.
-                    webcams.cycle(1)
-                if webcams.cycle_backward.collidepoint(mouse_pos):
-                    # If the cycle backward button is clicked, cycle backward.
-                    webcams.cycle(-1)
-
-                cam_id = 0
-                for cam in webcams.image_frame_boxes:
-                    # Checks if the mouse is over a webcam.
-                    if cam.collidepoint(mouse_pos):
-                        if webcams.current_focus is None:
-                            # If the mouse is over a webcam and there is no webcam currently being focused, focus on the webcam.
-                            webcams.focus(cam_id)
-                            break
-                        else:
-                            # If the mouse is over a webcam and there is a webcam currently being focused, unfocus the webcam.
-                            webcams.focus(None)
-                            break
-                    cam_id += 1
-            elif display_mode == "radar":
-                # This is the radar mouse click handler.
-                if webcams.cycle_forward.collidepoint(mouse_pos):
-                    # If the next button is clicked, play/pause the radar.
-                    radar.play_pause()
-                if webcams.cycle_backward.collidepoint(mouse_pos):
-                    # If the previous button is clicked, stop playback and jump to now
-                    radar.jump_too_now()
-                if forecast_button_render.rect.collidepoint(mouse_pos):
-                    # If the live button is clicked, return to live radar.
-                    radar.v1_layers = []
-                    radar.v2_layers = [("CL", 0, "")]
-                    radar.radar_display = True
-                    radar.update_radar()
-
-            elif display_mode == "home":
-                # This is the home mouse click handler.
-                if webcam_button_render.rect.collidepoint(mouse_pos):
-                    # If the webcam button is clicked, go to the webcams screen.
-                    display_mode = "webcams"
-                if webcams.cycle_forward.collidepoint(mouse_pos):
-                    # If the cycle forward button is clicked, go to the next forecast page
-                    if selected_loading_hour + 9 < max_loading_hour:
-                        # If the selected loading hour is not the last forecast hour, go to the next forecast hour.
-                        selected_loading_hour += 9
-                        slot_position = 1
-                        loading_hour = selected_loading_hour
-                        forecast = []
-                        refresh_forecast = True
-                elif webcams.cycle_backward.collidepoint(mouse_pos):
-                    # If the cycle backward button is clicked, go to the previous forecast page
-                    if selected_loading_hour - 9 >= 1:
-                        # If the selected loading hour is not the first forecast hour, go to the previous forecast hour.
-                        selected_loading_hour -= 9
-                        slot_position = 1
-                        loading_hour = selected_loading_hour
-                        forecast = []
-                        refresh_forecast = True
-                elif radar_collider.collidepoint(mouse_pos):
-                    # If the radar button is clicked, go to the radar screen.
-                    display_mode = "radar"
-                    radar.update_radar()
-                for hour in forecast:
-                    # Checks if the mouse is over a forecast hour.
-                    hour.check_click(mouse_pos)
-
-            elif display_mode == "room_control":
-                # This is the room control mouse click handler.
-                response = room_control.check_click(mouse_pos)
-                # if response:
-                #     room_control.run_routine(response)
-
-        # Handle other events as you wish.
+            process_click(event.pos)
 
 
 def update_weather_data():
@@ -702,6 +713,9 @@ def run():
             was_focused = False
         elif pygame.display.get_active() and not was_focused and tablet:
             make_screen()
+            update_weather_data()
+        elif pygame.display.get_active() and not was_focused and not tablet:
+            update_weather_data()
 
         fps_clock.tick(fps)
         dt = round(fps_clock.get_fps())

@@ -259,7 +259,7 @@ class OptionBar:
         self.expanded = True
         self.expanded_to = button
         count = 0
-        for page in button.recent_data['sub_menus']:
+        for page in button.data['sub_menus']:
             self.sub_menus.append(SubOptionBar(self, page['actions'], page['name']))
             count += 1
 
@@ -271,7 +271,7 @@ class OptionBar:
         self.host.vertical_scroll_offset = 0
         self.sub_menus = []
         if self.expanded_to:
-            self.expanded_to.name = self.expanded_to.recent_data['name']
+            self.expanded_to.name = self.expanded_to.data['name']
         self.expanded = False
         self.expanded_to = None
 

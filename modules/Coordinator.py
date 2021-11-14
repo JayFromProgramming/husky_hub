@@ -307,17 +307,17 @@ class CoordinatorHost:
         Maintain the temperature of the room
         :return: The action that should be taken to maintain the temperature
         """
-        if self.net_client.data['temp_set_point'] == 999999 or self.net_client.data['temperature'] == -9999 or not self.get_object_state(
-                "fan_auto_enable"):
+        if self.net_client.data['temp_set_point'] is None or self.net_client.data['temperature'] == -9999 \
+                or not self.get_object_state("fan_auto_enable"):
             return
-        if self.get_temperature() < self.net_client.data['temp_set_point'] - 2 and self.get_object_state("big_wind_state") != 0:
-            self.set_object_state("big_wind_state", 0)
+        if self.get_temperature() <= self.net_client.data['temp_set_point'] - 2 and self.get_object_state("big_wind_state") != 0:
+            self.set_object_state("big_wind_state", 0)  # If the temperature is 2 degrees below the set point, turn off both fans
             return "big-wind-off"
         elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 1 and self.get_object_state("big_wind_state") == 3:
-            self.set_object_state("big_wind_state", 2)
+            self.set_object_state("big_wind_state", 2)  # If the temperature is 1 degrees below the set point, turn off the intake fan
             return "big-wind-out"
-        elif self.get_temperature() > self.net_client.data['temp_set_point'] + 1.5 and self.get_object_state("big_wind_state") != 3:
-            self.set_object_state("big_wind_state", 3)
+        elif self.get_temperature() >= self.net_client.data['temp_set_point'] + 1.5 and self.get_object_state("big_wind_state") != 3:
+            self.set_object_state("big_wind_state", 3)  # If the temperature is 1.5 degrees above the set point, turn on both fans
             return "big-wind-on"
 
     def _calculate_humid_state(self):

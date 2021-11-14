@@ -74,6 +74,8 @@ class CurrentWeather:
             visibility = f"{int(visibility)} mi"
         elif visibility > 1:
             visibility = f"{round(visibility, 2)} mi"
+        elif len(str(float(visibility).as_integer_ratio()[0])) > 4:
+            visibility = f"{round(visibility, 2)} mi"
         else:
             top, bottom = float(visibility).as_integer_ratio()
             visibility = f"{top}/{bottom} mi"

@@ -26,6 +26,16 @@ class CampusCams:
     def text(self, text):
         return self.text_font.render(text, True, pallet_one, pallet_three)
 
+    def clear_buffers(self):
+        """
+        This is used to clear the buffers used to store the images
+        """
+        self.buffers = []
+        self.overlay_buffers = []
+        for x in range(len(self.cameras)):
+            self.buffers.append([self.husky, self.husky, self.husky, self.husky])
+            self.overlay_buffers.append([self.empty_image, self.empty_image, self.empty_image, self.empty_image])
+
     def __init__(self, logs, static_images, live_mode_enable, multi_stream=False, linux=False):
         """
         This is the constructor for the CampusCams class.
@@ -51,9 +61,8 @@ class CampusCams:
         self.time_buffer = []
         self.updated_buffer = []
         self.stream_buffer = [None, None, None, None]
+        self.clear_buffers()
         for x in range(len(self.cameras)):
-            self.buffers.append([self.husky, self.husky, self.husky, self.husky])
-            self.overlay_buffers.append([self.empty_image, self.empty_image, self.empty_image, self.empty_image])
             self.name_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
             self.time_buffer.append([self.text("None"), self.text("None"), self.text("None"), self.text("None")])
             self.updated_buffer.append([time.time(), time.time(), time.time(), time.time()])

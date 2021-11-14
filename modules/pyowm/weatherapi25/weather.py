@@ -63,7 +63,7 @@ class Weather:
 
     def __init__(self, reference_time, sunset_time, sunrise_time, clouds, rain,
                  snow, wind, humidity, pressure, temperature, status,
-                 detailed_status, weather_code, weather_icon_name,
+                 detailed_status, weather_code, weather_icon_name, extra_status_info,
                  visibility_distance, dewpoint, humidex, heat_index,
                  utc_offset=None, uvi=None, precipitation_probability=None):
         if reference_time < 0:
@@ -96,6 +96,7 @@ class Weather:
         self.detailed_status = detailed_status
         self.weather_code = weather_code
         self.weather_icon_name = weather_icon_name
+        self.extra_status_info = extra_status_info
 
         if visibility_distance is not None and visibility_distance < 0:
             raise ValueError("'visibility_distance' must be greater than 0")
@@ -471,11 +472,13 @@ class Weather:
             detailed_status = the_dict['weather'][0]['description']
             weather_code = the_dict['weather'][0]['id']
             weather_icon_name = the_dict['weather'][0]['icon']
+            extra_status_info = the_dict['weather'][1:]
         else:
             status = ''
             detailed_status = ''
             weather_code = 0
             weather_icon_name = ''
+            extra_status_info = []
 
         # -- timezone
         utc_offset = the_dict['timezone'] if 'timezone' in the_dict else None
@@ -487,7 +490,7 @@ class Weather:
 
         return Weather(reference_time, sunset_time, sunrise_time, clouds,
                        rain, snow, wind, humidity, pressure, temperature,
-                       status, detailed_status, weather_code, weather_icon_name,
+                       status, detailed_status, weather_code, weather_icon_name, extra_status_info,
                        visibility_distance, dewpoint, humidex, heat_index,
                        utc_offset=utc_offset, uvi=uvi,
                        precipitation_probability=precipitation_probability)
