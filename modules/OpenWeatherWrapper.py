@@ -1,4 +1,4 @@
-import io
+import geocoder
 import json
 import logging
 import os
@@ -52,12 +52,16 @@ class OpenWeatherWrapper:
         self._last_cache_refresh = 0
         self.radar_refresh_amount = 0
         self._last_future_refresh = 0
+        self._last_location = None
+        self.location_address = geocoder.ip('me').address
+        self.location_latlng = geocoder.ip('me').latlng
         self.current_weather = None
         self.weather_forecast = None
         self.one_call = None
         self.radar_buffer = {}
         self.log = log
         self._read_cache()
+        self.log.info(f"Weather Wrapper Initialized, GeoLocation is {self.location_address} {self.location_latlng}")
 
     def _read_cache(self):
         """
@@ -69,6 +73,9 @@ class OpenWeatherWrapper:
             with open(cache_location, 'rb') as inp:
                 try:
                     cache: OpenWeatherWrapper = dill.load(inp)
+                    if cache.location_latlng != self.location_latlng:
+                        self.log.warning("Cache location does not match current location, invalidating!")
+                        return
                     self.current_weather = cache.current_weather
                     self.one_call = cache.one_call
                     self.radar_buffer = cache.radar_buffer
@@ -80,7 +87,7 @@ class OpenWeatherWrapper:
                 except EOFError:
                     self.log.warning("Cache File Corrupted")
                 except Exception as e:
-                    self.log.warning(f"Failed to load cached weather because: {e}")
+                    self.log.warning(f"Failed to load cached weather because: {e}\nTraceback: {traceback.format_exc()}")
 
     def _load_pi_cache(self):
         """
@@ -121,7 +128,7 @@ class OpenWeatherWrapper:
             print("Updating Current")
             self._last_current_refresh = time.time()
             try:
-                self.current_weather = self.mgr.weather_at_place('Houghton,US').weather
+                self.current_weather = self.mgr.weather_at_place(self.location_address).weather
                 self._save_cache()
             except Exception as e:
                 self.log.warning(f"Unable to load weather: {e}")
@@ -139,7 +146,7 @@ class OpenWeatherWrapper:
             print("Updating Forecast")
             self._last_forecast_refresh = time.time()
             try:
-                self.one_call = self.mgr.one_call(lat=47.1219, lon=-88.569)
+                self.one_call = self.mgr.one_call(lat=self.location_latlng[0], lon=self.location_latlng[1])
                 self._save_cache()
             except Exception as e:
                 self.log.warning(f"Unable to load forecast: {e}\nTraceback: {traceback.format_exc()}")

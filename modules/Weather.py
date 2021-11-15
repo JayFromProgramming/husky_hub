@@ -55,6 +55,13 @@ else:
     base_fps = 30
     width, height = 800, 480
 
+arguments = sys.argv
+headless = False
+if len(arguments) > 1:
+    if arguments[1] == 'headless':
+        log.info("Running in headless mode")
+        headless = True
+
 screen = None
 pygame.init()
 pygame.font.init()
@@ -68,7 +75,9 @@ if pygame.image.get_extended() == 0:
 def make_screen():
     """Create the screen and set the background"""
     global no_mouse, screen
-    if py:
+    if headless:
+        pygame.display.init()
+    elif py:
         screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.ASYNCBLIT)
         if pygame.mouse.get_pos() == (0, 0):
             log.warning("Touch screen is not properly calibrated, attempting to recalibrate")
@@ -86,22 +95,23 @@ def make_screen():
 
 make_screen()
 # This is where the icons are loaded
-no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png")).convert_alpha()
-husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png")).convert_alpha()
-empty_image = pygame.image.load(os.path.join(f"Assets/Images/Empty.png")).convert_alpha()
-icon = pygame.image.load(os.path.join("Assets/Images/Icon.png"))
-splash = pygame.image.load(os.path.join("Assets/Images/splash_background2.jpg")).convert()
-no_mouse_icon = pygame.image.load(os.path.join("Assets/Images/NoMouse.png")).convert()
-weather_alert = pygame.image.load(os.path.join("Assets/Images/alert.png")).convert_alpha()
-no_fan_icon = pygame.image.load(os.path.join("Assets/Images/No_fan.png")).convert_alpha()
-overheat_icon = pygame.image.load(os.path.join("Assets/Images/overheat.png")).convert_alpha()
-down_only_icon = pygame.image.load(os.path.join("Assets/Images/download_only.png")).convert_alpha()
-up_only_icon = pygame.image.load(os.path.join("Assets/Images/upload_only.png")).convert_alpha()
-up_down_icon = pygame.image.load(os.path.join("Assets/Images/up_down.png")).convert_alpha()
-net_error_icon = pygame.image.load(os.path.join("Assets/Images/net_error.png")).convert_alpha()
-net_normal_icon = pygame.image.load(os.path.join("Assets/Images/net_standby.png")).convert_alpha()
-net_status: pygame.Surface = None
-pygame.display.set_icon(icon)
+if not headless:
+    no_image = pygame.image.load(os.path.join(f"Assets/Images/No_image.png")).convert_alpha()
+    husky = pygame.image.load(os.path.join(f"Assets/Images/Husky.png")).convert_alpha()
+    empty_image = pygame.image.load(os.path.join(f"Assets/Images/Empty.png")).convert_alpha()
+    icon = pygame.image.load(os.path.join("Assets/Images/Icon.png")).convert_alpha()
+    splash = pygame.image.load(os.path.join("Assets/Images/splash_background2.jpg")).convert_alpha()
+    no_mouse_icon = pygame.image.load(os.path.join("Assets/Images/NoMouse.png")).convert_alpha()
+    weather_alert = pygame.image.load(os.path.join("Assets/Images/alert.png")).convert_alpha()
+    no_fan_icon = pygame.image.load(os.path.join("Assets/Images/No_fan.png")).convert_alpha()
+    overheat_icon = pygame.image.load(os.path.join("Assets/Images/overheat.png")).convert_alpha()
+    down_only_icon = pygame.image.load(os.path.join("Assets/Images/download_only.png")).convert_alpha()
+    up_only_icon = pygame.image.load(os.path.join("Assets/Images/upload_only.png")).convert_alpha()
+    up_down_icon = pygame.image.load(os.path.join("Assets/Images/up_down.png")).convert_alpha()
+    net_error_icon = pygame.image.load(os.path.join("Assets/Images/net_error.png")).convert_alpha()
+    net_normal_icon = pygame.image.load(os.path.join("Assets/Images/net_standby.png")).convert_alpha()
+    net_status: pygame.Surface = None
+    pygame.display.set_icon(icon)
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
 
@@ -157,18 +167,19 @@ fps = 0
 # This is where all the support modules are loaded
 weatherAPI = OpenWeatherWrapper(log)
 coordinator = Coordinator.Coordinator(py)
-webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
-room_control = AlexaIntegration(log, coordinator.coordinator)
-current_weather = CurrentWeather(weatherAPI, icon_cache, icon, coordinator)
-loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
-radar = Radar(log, weatherAPI)
 data_log = dataLogger.dataLogger("data", coordinator, weatherAPI)
+if not headless:
+    webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
+    room_control = AlexaIntegration(log, coordinator.coordinator)
+    current_weather = CurrentWeather(weatherAPI, icon_cache, icon, coordinator)
+    loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
+    radar = Radar(log, weatherAPI)
 
-# This is where the buttons are created
-room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
-webcam_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), webcam_button_text, [255, 206, 0], pallet_four)
-home_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), home_button_text, [255, 206, 0], pallet_four)
-forecast_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), forecast_button_text, [255, 206, 0], pallet_four)
+    # This is where the buttons are created
+    room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
+    webcam_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), webcam_button_text, [255, 206, 0], pallet_four)
+    home_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), home_button_text, [255, 206, 0], pallet_four)
+    forecast_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), forecast_button_text, [255, 206, 0], pallet_four)
 
 
 def uncaught(exctype, value, tb):
@@ -343,18 +354,6 @@ def update(dt, screen):
     global room_button, room_button_text, webcam_button, webcam_button_text, home_button, home_button_text, forecast_button
     # Go through events that are passed to the script by the window.
 
-    if room_control.queued_routine:
-        # If room control has any queued routines, run them.
-        room_control.run_queued()
-
-    if weather_alert_display:
-        # If the weather alert display is active, build it.
-        weather_alert_display.build_alert()
-
-    if display_mode == "home":
-        # If the display mode is home, then we need to update the weather and the forecast.
-        update_weather_data()
-
     if weatherAPI.current_weather and weatherAPI.current_weather.status == "Rain" and not room_control.raincheck and py:
         # If the weather is raining, and the raincheck is not set, set it and turn off big wind.
         log.info("Shutting off big wind due to rain")
@@ -363,66 +362,79 @@ def update(dt, screen):
         coordinator.coordinator.set_object_state("big_wind_state", -1)
         coordinator.coordinator.set_object_state("fan_auto_enable", False)
 
-    if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams') \
-            and (py or tablet):
-        # After 15 seconds of inactivity, reduce the refresh rate to 1 frame per second
-        fps = 1
+    if not headless:
+        if room_control.queued_routine:
+            # If room control has any queued routines, run them.
+            room_control.run_queued()
 
-    if tablet and psutil.sensors_battery()[0] < 30 and psutil.sensors_battery()[2] is False:
-        # If the tablet battery is low, shut down tablet
-        log.warning("Shutting down due to low battery")
-        os.system("shutdown -f")
+        if weather_alert_display:
+            # If the weather alert display is active, build it.
+            weather_alert_display.build_alert()
 
-    if py:  # The mouse down event is no longer working on the raspberry pi for some reason.
-        if pygame.mouse.get_pos() != (0, 0):  # So as a workaround, we check if the mouse is not at its parking position.
-            process_click(pygame.mouse.get_pos())  # If it is not, then process the click.
-            pygame.mouse.set_pos((0, 0))  # And set the mouse back to its parking position.
+        if display_mode == "home":
+            # If the display mode is home, then we need to update the weather and the forecast.
+            update_weather_data()
 
-    for event in pygame.event.get():
-        # This is the event handler.
-        if event.type == QUIT:
-            # If the user tries to close the window, close the window.
-            webcams.close_multicast()
-            coordinator.coordinator.close_server()
-            webcams.focus(None)
-            pygame.quit()  # Opposite of pygame.init
-            sys.exit()  # Not including this line crashes the script on Windows. Possibly
-            # on other operating systems too, but I don't know for sure.
-        elif event.type == pygame.VIDEORESIZE:
-            # If the user resizes the window, resize the window.
-            resize(screen)
-        elif event.type == pygame.KEYDOWN:
-            # This is where we handle keypresses.
-            low_refresh = time.time()
-            fps = base_fps
-            if event.key == pygame.K_ESCAPE:
-                # If escape is pressed, quit the program.
+        if low_refresh < time.time() - 15 and ((webcams.current_focus is None and not webcams.multi_cast) or display_mode != 'webcams') \
+                and (py or tablet):
+            # After 15 seconds of inactivity, reduce the refresh rate to 1 frame per second
+            fps = 1
+
+        if tablet and psutil.sensors_battery()[0] < 30 and psutil.sensors_battery()[2] is False:
+            # If the tablet battery is low, shut down tablet
+            log.warning("Shutting down due to low battery")
+            os.system("shutdown -f")
+
+        if py:  # The mouse down event is no longer working on the raspberry pi for some reason.
+            if pygame.mouse.get_pos() != (0, 0):  # So as a workaround, we check if the mouse is not at its parking position.
+                process_click(pygame.mouse.get_pos())  # If it is not, then process the click.
+                pygame.mouse.set_pos((0, 0))  # And set the mouse back to its parking position.
+
+        for event in pygame.event.get():
+            # This is the event handler.
+            if event.type == QUIT:
+                # If the user tries to close the window, close the window.
+                webcams.close_multicast()
+                coordinator.coordinator.close_server()
                 webcams.focus(None)
-                pygame.quit()
-                sys.exit(1)
-            if display_mode == 'webcams':
-                if event.key == pygame.K_l:
-                    if webcams.multi_cast:
-                        webcams.close_multicast()
-                        webcams.multi_cast = False
-                    else:
-                        webcams.multi_cast = True
-                        webcams.last_update = time.time() - webcams.update_rate
-                        webcams.update()
-                elif event.key == pygame.K_LEFT:
-                    webcams.cycle(-1)
-                elif event.key == pygame.K_RIGHT:
-                    webcams.cycle(1)
-                elif event.key == pygame.K_a:
-                    webcams.high_performance_enabled = not webcams.high_performance_enabled
-                elif event.key == pygame.K_p:
-                    webcams.pause_multicast()
-            if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_CTRL:
-                # If ctrl+c is pressed, save a screenshot.
-                log.info("Saved Screenshot")
-                pygame.image.save(screen, "../screenshot.png")
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            process_click(event.pos)
+                pygame.quit()  # Opposite of pygame.init
+                sys.exit()  # Not including this line crashes the script on Windows. Possibly
+                # on other operating systems too, but I don't know for sure.
+            elif event.type == pygame.VIDEORESIZE:
+                # If the user resizes the window, resize the window.
+                resize(screen)
+            elif event.type == pygame.KEYDOWN:
+                # This is where we handle keypresses.
+                low_refresh = time.time()
+                fps = base_fps
+                if event.key == pygame.K_ESCAPE:
+                    # If escape is pressed, quit the program.
+                    webcams.focus(None)
+                    pygame.quit()
+                    sys.exit(1)
+                if display_mode == 'webcams':
+                    if event.key == pygame.K_l:
+                        if webcams.multi_cast:
+                            webcams.close_multicast()
+                            webcams.multi_cast = False
+                        else:
+                            webcams.multi_cast = True
+                            webcams.last_update = time.time() - webcams.update_rate
+                            webcams.update()
+                    elif event.key == pygame.K_LEFT:
+                        webcams.cycle(-1)
+                    elif event.key == pygame.K_RIGHT:
+                        webcams.cycle(1)
+                    elif event.key == pygame.K_a:
+                        webcams.high_performance_enabled = not webcams.high_performance_enabled
+                    elif event.key == pygame.K_p:
+                        webcams.pause_multicast()
+                if event.key == pygame.K_c and pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    # If ctrl+c is pressed, save a screenshot.
+                    log.info("Saved Screenshot")
+                    pygame.image.save(screen, "../screenshot.png")
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                process_click(event.pos)
 
 
 def update_weather_data():
@@ -703,10 +715,11 @@ def run():
     # Main game loop.
     fps = base_fps
     dt = 1 / fps  # dt is the time since last frame.
-    resize(screen)
+    if not headless:
+        resize(screen)
     while True:  # Loop forever!
         update(dt, screen)  # You can update/draw here, I've just moved the code for neatness.
-        if pygame.display.get_active():
+        if pygame.display.get_active() and not headless:
             draw(screen, dt)
             was_focused = True
         elif not pygame.display.get_active() and was_focused:

@@ -218,24 +218,33 @@ class CoordinatorHost:
         try:
             import Adafruit_DHT
 
-            humidity, temp = Adafruit_DHT.read_retry(self.sensor, 4)
-            if humidity is not None:
-                self.net_client.data['humidity'] = humidity
-                self.net_client.data['last_read'] = time.time()
-            elif humidity > 100:
-                self.net_client.data['humidity'] = -1
-                self.net_client.data['errors'].append("Humidity off scale high")
-            elif humidity < 0:
-                self.net_client.data['humidity'] = -1
-                self.net_client.data['errors'].append("Humidity off scale low")
+            humidity1, temp1 = Adafruit_DHT.read_retry(self.sensor, 4)
+            humidity2, temp2 = Adafruit_DHT.read_retry(self.sensor, 4)
+
+            if humidity1 is not None and humidity2 is not None:
+                humidity = (humidity1 + humidity2) / 2
+                if abs(humidity1 - humidity2) > 2:
+                    self.net_client.data['errors'].append("Humidity difference is too large")
+                    humidity = None
+                if humidity > 100:
+                    self.net_client.data['errors'].append("Humidity off scale high")
+                elif humidity < 0:
+                    self.net_client.data['errors'].append("Humidity off scale low")
+                else:
+                    self.net_client.data['humidity'] = humidity
+                    self.net_client.data['last_read'] = time.time()
             else:
-                self.net_client.data['humidity'] = -1
+                self.net_client.data['humidity'] = None
                 self.net_client.data['errors'].append("Failed to read humidity")
-            if temp is not None:
+            if temp1 is not None and temp2 is not None:
+                temp = (temp1 + temp2) / 2
+                if abs(temp1 - temp2) > 2:
+                    self.net_client.data['errors'].append("Temperature difference is too large")
+                    temp = None
                 self.net_client.data['temperature'] = temp
                 self.net_client.data['last_read'] = time.time()
             else:
-                self.net_client.data['temperature'] = -9999
+                self.net_client.data['temperature'] = None
                 self.net_client.data['errors'].append("Failed to read temperature")
 
             if len(self.data['errors']) > 10:
@@ -310,11 +319,11 @@ class CoordinatorHost:
         if self.net_client.data['temp_set_point'] is None or self.net_client.data['temperature'] == -9999 \
                 or not self.get_object_state("fan_auto_enable"):
             return
-        if self.get_temperature() <= self.net_client.data['temp_set_point'] - 2 and self.get_object_state("big_wind_state") != 0:
-            self.set_object_state("big_wind_state", 0)  # If the temperature is 2 degrees below the set point, turn off both fans
+        if self.get_temperature() <= self.net_client.data['temp_set_point'] - 1 and self.get_object_state("big_wind_state") != 0:
+            self.set_object_state("big_wind_state", 0)  # If the temperature is 1 degrees below the set point, turn off both fans
             return "big-wind-off"
-        elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 1 and self.get_object_state("big_wind_state") == 3:
-            self.set_object_state("big_wind_state", 2)  # If the temperature is 1 degrees below the set point, turn off the intake fan
+        elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 0.75 and self.get_object_state("big_wind_state") == 3:
+            self.set_object_state("big_wind_state", 2)  # If the temperature is 0.75 degrees below the set point, turn off the intake fan
             return "big-wind-out"
         elif self.get_temperature() >= self.net_client.data['temp_set_point'] + 1.5 and self.get_object_state("big_wind_state") != 3:
             self.set_object_state("big_wind_state", 3)  # If the temperature is 1.5 degrees above the set point, turn on both fans

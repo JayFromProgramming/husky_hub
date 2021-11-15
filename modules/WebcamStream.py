@@ -198,9 +198,9 @@ class CampusCams:
             stream = Video(stream_url)
             if stream.fps > 30:
                 stream.set_fps(30)
-                self.stream_info_text = self.text(f"{stream.frame_height}x{stream.frame_width}@{round(stream.fps)}?fps")
+                self.stream_info_text = self.text(f"{stream.frame_width}x{stream.frame_height}@{round(stream.fps)}?fps")
             else:
-                self.stream_info_text = self.text(f"{stream.frame_height}x{stream.frame_width}@{round(stream.fps)}fps")
+                self.stream_info_text = self.text(f"{stream.frame_width}x{stream.frame_height}@{round(stream.fps)}fps")
             if stream.fps == 0:
                 raise BrokenPipeError("No Stream Data")
             if self.current_focus is None:

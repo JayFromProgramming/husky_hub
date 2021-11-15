@@ -9,7 +9,7 @@ geojson~=2.5.0
 requests~=2.26.0
 Pillow~=8.3.1
 Pint~=0.18
-MetPy~=1.1.0
 atmos~=0.2.6
 urllib3~=1.26.6
-Adafruit_DHT
+django-os-geocoder~=0.1.6
+win10toast~=0.9
