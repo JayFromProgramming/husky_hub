@@ -162,6 +162,7 @@ class CoordinatorHost:
         """
         Initialize the local thermostat reader and server
         """
+        from Utils import occupancyDetector
         if os.path.isfile("Configs/states_template.json"):
             with open("Configs/states_template.json") as f:
                 self.data = json.load(f)
@@ -173,6 +174,10 @@ class CoordinatorHost:
                 self.coordinator_server = data['rPi_address']
                 self.coordinator_server_password = data['rPi_password']
                 self.thermostat_server_path = data['rPi_file_path']
+        self.occupancyDetector = None
+        if os.path.isfile(os.path.join("Configs/occupants.json")):
+            with open(os.path.join("Configs/occupants.json"), "r") as f:
+                self.occupancy_detector = occupancyDetector.OccupancyDetector(json.load(f), 24)
 
         self.last_download = time.time()
         self.net_client = self.WebServerHost(self.coordinator_server, 47670, self.coordinator_server_password, self.data)
@@ -193,6 +198,16 @@ class CoordinatorHost:
     def is_connected(self):
         return self.net_client.run_server
 
+    def is_occupied(self):
+        if self.occupancy_detector.is_occupied():
+            self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
+                                   occupants=self.occupancy_detector.which_targets_present())
+            return True
+        else:
+            self.set_object_states("room_occupancy_info", room_occupied=False, last_motion=self.occupancy_detector.last_motion_time,
+                                   occupants=self.occupancy_detector.which_targets_present())
+            return False
+
     def read_data(self):
         """
         Start a thread to read the data from the local thermostat
@@ -200,6 +215,7 @@ class CoordinatorHost:
         """
         self.last_download = time.time()
         thread = threading.Thread(target=self._read_thermostat, args=()).start()
+        self.occupancy_detector.run_stalk()
 
     def read_states(self):
         """
@@ -307,6 +323,8 @@ class CoordinatorHost:
         :param kwargs: The state of the object via keyword arguments
         :return:
         """
+        if object_name not in self.data:
+            self.data[object_name] = {}
         for key, value in kwargs.items():
             self.data[object_name][key] = value
         self._save_data()
@@ -485,7 +503,7 @@ class CoordinatorClient:
                             break
                         data_buff += data
                     data = json.loads(data_buff.decode())
-                    # print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
+                    print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
             except Exception as e:
                 print(f"Error downloading state from coordinator webserver: {e}")
                 self.download_in_progress = None

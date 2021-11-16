@@ -1,7 +1,6 @@
 import os
 import platform
 import statistics
-import threading
 import time
 import sys
 import datetime
@@ -110,7 +109,16 @@ if not headless:
     up_down_icon = pygame.image.load(os.path.join("Assets/Images/up_down.png")).convert_alpha()
     net_error_icon = pygame.image.load(os.path.join("Assets/Images/net_error.png")).convert_alpha()
     net_normal_icon = pygame.image.load(os.path.join("Assets/Images/net_standby.png")).convert_alpha()
+    blue_idle = pygame.image.load(os.path.join("Assets/Images/blueIdle.png")).convert_alpha()
+    blue_scan = pygame.image.load(os.path.join("Assets/Images/blueScan.png")).convert_alpha()
+    blue_found = pygame.image.load(os.path.join("Assets/Images/blueFound.png")).convert_alpha()
+    blue_error = pygame.image.load(os.path.join("Assets/Images/blueError.png")).convert_alpha()
+    unoccupied_green = pygame.image.load(os.path.join("Assets/Images/Unoccupied_green.png")).convert_alpha()
+    unoccupied_red = pygame.image.load(os.path.join("Assets/Images/Unoccupied_red.png")).convert_alpha()
+    occupied_green = pygame.image.load(os.path.join("Assets/Images/Occupied_green.png")).convert_alpha()
+    occupied_yellow = pygame.image.load(os.path.join("Assets/Images/Occupied_yellow.png")).convert_alpha()
     net_status: pygame.Surface = None
+    blue_status: pygame.Surface = None
     pygame.display.set_icon(icon)
 log.getLogger().addHandler(log.StreamHandler(sys.stdout))
 log.captureWarnings(True)
@@ -362,6 +370,12 @@ def update(dt, screen):
         coordinator.coordinator.set_object_state("big_wind_state", -1)
         coordinator.coordinator.set_object_state("fan_auto_enable", False)
 
+    if py:
+        if coordinator.coordinator.is_occupied():
+            room_control.change_occupancy(True)
+        else:
+            room_control.change_occupancy(False)
+
     if not headless:
         if room_control.queued_routine:
             # If room control has any queued routines, run them.
@@ -446,6 +460,7 @@ def update_weather_data():
         log.debug("Requesting Update")
 
         coordinator.coordinator.read_data()
+        # stalker.background_stalk()
         if py:
             data_log.log()
             temp = coordinator.coordinator.maintain_temperature()
@@ -576,9 +591,10 @@ def draw(screen, dt):
                 if webcams.resize(screen):
                     if py:
                         data_log.condense()
+                        # stalker.background_stalk()
                     if not py and not tablet:
                         data_log.export()
-                    coordinator.coordinator.read_data()
+                    # coordinator.coordinator.read_data()
                     display_mode = "home"
                     radar.update_radar()
                     room_control.build_routines()
@@ -661,6 +677,17 @@ def draw(screen, dt):
         net_status = up_only_icon
     else:
         net_status = net_normal_icon
+    occupancy_info = coordinator.coordinator.get_object_state('room_occupancy_info', False)
+
+    if occupancy_info['room_occupied'] is None or not coordinator.coordinator.net_client.coordinator_available:
+        occupancy_icon = unoccupied_red
+    elif occupancy_info['room_occupied']:
+        if len(occupancy_info['occupants']) > 0:
+            occupancy_icon = occupied_green
+        else:
+            occupancy_icon = occupied_yellow
+    else:
+        occupancy_icon = unoccupied_green
 
     if coordinator.coordinator.net_client.upload_in_progress is None:
         coordinator.coordinator.net_client.upload_in_progress = False
@@ -668,7 +695,11 @@ def draw(screen, dt):
         coordinator.coordinator.net_client.download_in_progress = False
 
     if display_mode != "webcams" and display_mode != "radar":
-        screen.blit(net_status, net_status.get_rect(topright=(screen.get_width() - 5, 2))),
+        screen.blit(net_status, net_status.get_rect(topright=(screen.get_width() - 5, 2)))
+        if display_mode != "room_control":
+            screen.blit(occupancy_icon, occupancy_icon.get_rect(topright=(screen.get_width() - 40, 2)))
+        else:
+            screen.blit(occupancy_icon, occupancy_icon.get_rect(topleft=(5, 2)))
     if display_mode == "home":
         if alert:
             # If a weather alert is active, draw the alert icon

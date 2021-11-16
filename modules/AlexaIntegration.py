@@ -416,6 +416,30 @@ class AlexaIntegration:
             self.monkeys = {}
             # raise FileNotFoundError("No monkey file found")
 
+    def change_occupancy(self, occupied):
+        """
+        Change the occupancy of the room.
+        :param occupied: The new occupancy of the room.
+        :return: None
+        """
+        state = self.coordinator.get_object_state('room_state')
+        if self.coordinator.get_object_state('room_state_auto'):
+            if occupied:
+                if state != 1 and state != 3:
+                    self.run_routine(None, 'normal')
+                    self.coordinator.set_object_state('room_state', 1)
+                    self.coordinator.set_object_state('bed_fan_state', False)
+                    self.coordinator.set_object_states('room_lights_state', b=3, c=0)
+                    self.coordinator.set_object_states('bed_lights_state', b=3, c=0)
+                # if self.coordinator.get_object_state('room_state') == 0:
+            else:
+                if state != 2 and state != 3:
+                    self.run_routine(None, 'away')
+                    self.coordinator.set_object_state('room_state', 2)
+                    self.coordinator.set_object_state('bed_fan_state', False)
+                    self.coordinator.set_object_states('room_lights_state', b=1, c=1)
+                    self.coordinator.set_object_states('bed_lights_state', b=0, c=1)
+
     def run_queued(self):
         """
         Run all queued button actions.
