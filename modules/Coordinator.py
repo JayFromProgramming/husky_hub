@@ -201,11 +201,11 @@ class CoordinatorHost:
     def is_occupied(self):
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
-                                   occupants=self.occupancy_detector.which_targets_present())
+                                   occupants=self.occupancy_detector.which_targets_present(), logs=self.occupancy_detector.stalker.stalker_logs)
             return True
         else:
             self.set_object_states("room_occupancy_info", room_occupied=False, last_motion=self.occupancy_detector.last_motion_time,
-                                   occupants=self.occupancy_detector.which_targets_present())
+                                   occupants=self.occupancy_detector.which_targets_present(), logs=self.occupancy_detector.stalker.stalker_logs)
             return False
 
     def read_data(self):
@@ -337,10 +337,10 @@ class CoordinatorHost:
         if self.net_client.data['temp_set_point'] is None or self.net_client.data['temperature'] == -9999 \
                 or not self.get_object_state("fan_auto_enable"):
             return
-        if self.get_temperature() <= self.net_client.data['temp_set_point'] - 1 and self.get_object_state("big_wind_state") != 0:
+        if self.get_temperature() <= self.net_client.data['temp_set_point'] - 0.75 and self.get_object_state("big_wind_state") != 0:
             self.set_object_state("big_wind_state", 0)  # If the temperature is 1 degrees below the set point, turn off both fans
             return "big-wind-off"
-        elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 0.75 and self.get_object_state("big_wind_state") == 3:
+        elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 0.25 and self.get_object_state("big_wind_state") == 3:
             self.set_object_state("big_wind_state", 2)  # If the temperature is 0.75 degrees below the set point, turn off the intake fan
             return "big-wind-out"
         elif self.get_temperature() >= self.net_client.data['temp_set_point'] + 1.5 and self.get_object_state("big_wind_state") != 3:

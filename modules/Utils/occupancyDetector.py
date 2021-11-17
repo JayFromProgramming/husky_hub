@@ -14,7 +14,7 @@ class OccupancyDetector:
         GPIO.setup(self.motion_pin, GPIO.IN)
 
     def is_occupied(self):
-        if time.time() - self.last_motion_time < 30 or self.stalker.room_occupied:
+        if self.last_motion_time < time.time() - 30 and self.stalker.room_occupied:
             return True
         else:
             return False

@@ -431,6 +431,7 @@ class AlexaIntegration:
                     self.coordinator.set_object_state('bed_fan_state', False)
                     self.coordinator.set_object_states('room_lights_state', b=3, c=0)
                     self.coordinator.set_object_states('bed_lights_state', b=3, c=0)
+                    self.run_routine(None, 'normal')
                 # if self.coordinator.get_object_state('room_state') == 0:
             else:
                 if state != 2 and state != 3:
@@ -439,6 +440,7 @@ class AlexaIntegration:
                     self.coordinator.set_object_state('bed_fan_state', False)
                     self.coordinator.set_object_states('room_lights_state', b=1, c=1)
                     self.coordinator.set_object_states('bed_lights_state', b=0, c=1)
+                    self.run_routine(None, 'away')
 
     def run_queued(self):
         """

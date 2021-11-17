@@ -113,10 +113,10 @@ if not headless:
     blue_scan = pygame.image.load(os.path.join("Assets/Images/blueScan.png")).convert_alpha()
     blue_found = pygame.image.load(os.path.join("Assets/Images/blueFound.png")).convert_alpha()
     blue_error = pygame.image.load(os.path.join("Assets/Images/blueError.png")).convert_alpha()
-    unoccupied_green = pygame.image.load(os.path.join("Assets/Images/Unoccupied_green.png")).convert_alpha()
-    unoccupied_red = pygame.image.load(os.path.join("Assets/Images/Unoccupied_red.png")).convert_alpha()
-    occupied_green = pygame.image.load(os.path.join("Assets/Images/Occupied_green.png")).convert_alpha()
-    occupied_yellow = pygame.image.load(os.path.join("Assets/Images/Occupied_yellow.png")).convert_alpha()
+    unoccupied_green = pygame.image.load(os.path.join("Assets/Images/Unoccupied_green.png")).convert()
+    unoccupied_red = pygame.image.load(os.path.join("Assets/Images/Unoccupied_red.png")).convert()
+    occupied_green = pygame.image.load(os.path.join("Assets/Images/Occupied_green.png")).convert()
+    occupied_yellow = pygame.image.load(os.path.join("Assets/Images/Occupied_yellow.png")).convert()
     net_status: pygame.Surface = None
     blue_status: pygame.Surface = None
     pygame.display.set_icon(icon)
@@ -576,8 +576,9 @@ def draw(screen, dt):
     if display_mode == "init":
         # This the loading screen method
         loading_screen.draw_progress(screen, (100, 300), 600)
-
+        occupancy_icon = unoccupied_green
         if loading_screen.cache_icons():
+            occupancy_icon = occupied_yellow
             loading_screen.load_weather()
             current_weather.update()
             current_weather.draw_current(screen, (0, 0))
@@ -586,9 +587,11 @@ def draw(screen, dt):
                 (loading_screen.loading_percent_bias['Forecast'] / 9)
             loading_screen.loading_status_strings.append(f"Building forecast hour ({loading_hour})")
             if refresh_forecast is False:
+                occupancy_icon = unoccupied_red
                 loading_screen.loading_percentage += loading_screen.loading_percent_bias['Webcams'] / 4
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
                 if webcams.resize(screen):
+                    occupancy_icon = occupied_green
                     if py:
                         data_log.condense()
                         # stalker.background_stalk()
@@ -679,15 +682,16 @@ def draw(screen, dt):
         net_status = net_normal_icon
     occupancy_info = coordinator.coordinator.get_object_state('room_occupancy_info', False)
 
-    if occupancy_info['room_occupied'] is None or not coordinator.coordinator.net_client.coordinator_available:
-        occupancy_icon = unoccupied_red
-    elif occupancy_info['room_occupied']:
-        if len(occupancy_info['occupants']) > 0:
-            occupancy_icon = occupied_green
+    if display_mode != 'init':
+        if occupancy_info['room_occupied'] is None or not coordinator.coordinator.net_client.coordinator_available:
+            occupancy_icon = unoccupied_red
+        elif occupancy_info['room_occupied']:
+            if len(occupancy_info['occupants']) > 0:
+                occupancy_icon = occupied_green
+            else:
+                occupancy_icon = occupied_yellow
         else:
-            occupancy_icon = occupied_yellow
-    else:
-        occupancy_icon = unoccupied_green
+            occupancy_icon = unoccupied_green
 
     if coordinator.coordinator.net_client.upload_in_progress is None:
         coordinator.coordinator.net_client.upload_in_progress = False
@@ -697,16 +701,16 @@ def draw(screen, dt):
     if display_mode != "webcams" and display_mode != "radar":
         screen.blit(net_status, net_status.get_rect(topright=(screen.get_width() - 5, 2)))
         if display_mode != "room_control":
-            screen.blit(occupancy_icon, occupancy_icon.get_rect(topright=(screen.get_width() - 40, 2)))
+            screen.blit(occupancy_icon, occupancy_icon.get_rect(topright=(screen.get_width() - 35, 2)))
         else:
             screen.blit(occupancy_icon, occupancy_icon.get_rect(topleft=(5, 2)))
     if display_mode == "home":
         if alert:
             # If a weather alert is active, draw the alert icon
-            screen.blit(weather_alert, weather_alert.get_rect(topright=(763, 2)))
+            screen.blit(weather_alert, weather_alert.get_rect(topleft=(25, 65)))
         if room_control.raincheck:
             # If a raincheck is active, draw the raincheck icon
-            screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(723, 2)))
+            screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(723-40, 2)))
         if (py and temp > 70) or overheat_halt:
             # If the CPU is too hot, draw the overheat icon
             screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))

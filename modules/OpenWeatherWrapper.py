@@ -53,8 +53,13 @@ class OpenWeatherWrapper:
         self.radar_refresh_amount = 0
         self._last_future_refresh = 0
         self._last_location = None
-        self.location_address = geocoder.ip('me').address
-        self.location_latlng = geocoder.ip('me').latlng
+        try:
+            self.location_address = geocoder.ip('me').address
+            self.location_latlng = geocoder.ip('me').latlng
+        except Exception as e:
+            self.log.warning(f"Failed to get location because: {e}\nTraceback: {traceback.format_exc()}")
+            self.location_address = None
+            self.location_latlng = (0, 0)
         self.current_weather = None
         self.weather_forecast = None
         self.one_call = None
@@ -73,9 +78,13 @@ class OpenWeatherWrapper:
             with open(cache_location, 'rb') as inp:
                 try:
                     cache: OpenWeatherWrapper = dill.load(inp)
-                    if cache.location_latlng != self.location_latlng:
-                        self.log.warning("Cache location does not match current location, invalidating!")
-                        return
+                    if self.location_address is None:
+                        self.location_address = cache.location_address
+                        self.location_latlng = cache.location_latlng
+                    else:
+                        if cache.location_latlng != self.location_latlng:
+                            self.log.warning("Cache location does not match current location, invalidating!")
+                            return
                     self.current_weather = cache.current_weather
                     self.one_call = cache.one_call
                     self.radar_buffer = cache.radar_buffer
