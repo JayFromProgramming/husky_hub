@@ -1,6 +1,7 @@
 import datetime
 import random
 import threading
+import time
 import traceback
 
 import bluetooth
@@ -8,12 +9,17 @@ import bluetooth
 
 class BlueStalker:
 
-    def __init__(self, targets: list):
-        self.targets = targets
+    def __init__(self, target_devices: list, targets: dict):
+        self.target_devices = target_devices
         self.failed_attempts = 0
+        self.ready = False
         self.total_devices_detected = 0
         self.room_occupied = True
-        self.targets_present = []
+        self.targets = targets.copy()
+        # self.temp_targets = targets
+        for target in self.target_devices:
+            if target[1] not in self.targets.keys():
+                self.targets[target[1]] = {"name": target[0], "updated_at": 0, "present": None, "stable": None}
         self.socket_connections = []
         self.already_stalking = False
         self.stalk_error = False
@@ -28,10 +34,12 @@ class BlueStalker:
         self.stalker_logs = []
         print("[*] Starting stalk")
         self.stalker_logs.append(f"[*] Starting stalk: {datetime.datetime.now()}")
+        # self.stalker_logs.append(f"[*] Targets: {self.targets}")
+        # self.stalker_logs.append(f"[*] Temp Targets: {self.temp_targets}")
+        self.ready = True
         try:
             self.stalk_error = False
             self.total_devices_detected = 0
-            targets_found = []
 
             for sock, mac_address in self.socket_connections:
                 try:
@@ -43,13 +51,15 @@ class BlueStalker:
                     self.socket_connections.remove((sock, mac_address))
 
             # Find devices in self.targets that don't have a connection in self.socket_connections
-            for target_name, target_mac in self.targets:
+            for target_name, target_mac in self.target_devices:
                 already_connected = False
                 for sock, mac_address in self.socket_connections:
                     if mac_address == target_mac:
                         self.stalker_logs.append(f"[*] {mac_address}: {target_name} is already connected")
-                        targets_found.append(target_name)
+                        self.targets[target_mac]['present'] = True
+                        self.targets[target_mac]['stable'] = True
                         already_connected = True
+                        self.total_devices_detected += 1
                         continue
                 if not already_connected:
                     try:
@@ -60,29 +70,38 @@ class BlueStalker:
                         self.socket_connections.append((sock, target_mac))
                         print("[*] Connected to " + target_name)
                         self.stalker_logs.append("[*] Connected to " + target_name)
-                        targets_found.append(target_name)
+                        if not self.targets[target_mac]['present']:
+                            self.targets[target_mac]['updated_at'] = time.time()
+                        self.targets[target_mac]['present'] = True
+                        self.targets[target_mac]['stable'] = True
+
+                        self.total_devices_detected += 1
                     except bluetooth.btcommon.BluetoothError as e:
                         if str(e) == "[Errno 111] Connection refused":
                             self.stalker_logs.append(f"[*] {target_name} refused connection but is present")
-                            targets_found.append(target_name)
+                            self.targets[target_mac]['present'] = True
+                            self.targets[target_mac]['stable'] = False
+                            self.total_devices_detected += 1
                         else:
                             print("[!] Failed to connect to " + target_name)
                             self.stalker_logs.append(f"[!] Failed to connect to {target_name} because {e}")
+                            if self.targets[target_mac]['present'] is not False:
+                                self.targets[target_mac]['updated_at'] = time.time()
+                            self.targets[target_mac]['present'] = False
+                            self.targets[target_mac]['stable'] = False
 
-            self.targets_present = targets_found
-
-            if len(targets_found) > 0:
+            if self.total_devices_detected > 0:
                 self.room_occupied = True
                 self.failed_attempts = 0
             else:
                 self.failed_attempts += 1
                 if self.failed_attempts > 2:
                     self.room_occupied = False
-            self.stalker_logs.append(f"[*] {len(targets_found)} devices detected")
+            self.stalker_logs.append(f"[*] {self.total_devices_detected} devices detected")
             self.stalker_logs.append(f"[*] Stalk Completed {datetime.datetime.now()}")
             self.already_stalking = False
         except Exception as e:
             self.stalk_error = True
             self.already_stalking = False
-            self.targets_present = str(e)
+            self.room_occupied = None
             self.stalker_logs.append(f"[*] Failed to stalk because {e}\nTraceback: {traceback.format_exc()}")

@@ -18,7 +18,7 @@ from CurrentWeather import CurrentWeather
 from LoadingScreen import LoadingScreen
 from ForecastEntry import ForecastEntry
 from WeatherAlert import WeatherAlert
-
+from Occupancy_display import Occupancy_display
 import pygame
 from pygame.locals import *
 import logging as log
@@ -114,7 +114,7 @@ if not headless:
     blue_found = pygame.image.load(os.path.join("Assets/Images/blueFound.png")).convert_alpha()
     blue_error = pygame.image.load(os.path.join("Assets/Images/blueError.png")).convert_alpha()
     unoccupied_green = pygame.image.load(os.path.join("Assets/Images/Unoccupied_green.png")).convert()
-    unoccupied_red = pygame.image.load(os.path.join("Assets/Images/Unoccupied_red.png")).convert()
+    unoccupied_red = pygame.image.load(os.path.join("Assets/Images/Unoccupied_red.png")).convert_alpha()
     occupied_green = pygame.image.load(os.path.join("Assets/Images/Occupied_green.png")).convert()
     occupied_yellow = pygame.image.load(os.path.join("Assets/Images/Occupied_yellow.png")).convert()
     net_status: pygame.Surface = None
@@ -158,6 +158,7 @@ home_button_text = "Home"
 forecast_button_text = "Live"
 alert_collider = pygame.Rect(100, 0, 200, 40)
 radar_collider = pygame.Rect(0, 0, 75, 75)
+occupancy_collider = pygame.Rect(760, 0, 75, 75)
 
 forecast = []
 cpu_averages = []
@@ -182,7 +183,7 @@ if not headless:
     current_weather = CurrentWeather(weatherAPI, icon_cache, icon, coordinator)
     loading_screen = LoadingScreen(weatherAPI, icon_cache, forecast, (no_image, husky, empty_image, splash), (webcams, current_weather), screen)
     radar = Radar(log, weatherAPI)
-
+    occupancy_info_display = Occupancy_display(coordinator.coordinator)
     # This is where the buttons are created
     room_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), room_button_text, [255, 206, 0], pallet_four)
     webcam_button_render = buttonGenerator.Button(button_font, (10, 430, 100, 35), webcam_button_text, [255, 206, 0], pallet_four)
@@ -202,6 +203,7 @@ sys.excepthook = uncaught
 
 
 def resize(screen):
+    global alert_collider, radar_collider, occupancy_collider
     # This function is called when the screen is resized.
     room_button_render.move(120, screen.get_height() - 35)
     forecast_button_render.move(120, screen.get_height() - 35)
@@ -211,6 +213,9 @@ def resize(screen):
     webcams.cycle_forward = pygame.Rect(screen.get_width() - 110, screen.get_height() - 35, 100, 35)
     webcams.cycle_backward = pygame.Rect(screen.get_width() - 220, screen.get_height() - 35, 100, 35)
     radar.update_radar()
+    alert_collider = pygame.Rect(100, 0, 200, 40)
+    radar_collider = pygame.Rect(0, 0, 75, 75)
+    occupancy_collider = pygame.Rect(screen.get_width() - 70, 0, abs(70 - screen.get_width()), 50)
     # for fore in forecast:
     #     fore.resize(screen)
 
@@ -253,6 +258,10 @@ def process_click(mouse_pos):
         coordinator.coordinator.read_data()
         room_control.open_since = time.time()
 
+    elif occupancy_collider.collidepoint(mouse_pos) and display_mode == "home":
+        display_mode = "occupancy_info"
+        occupancy_info_display.refresh()
+
     elif alert_collider.collidepoint(mouse_pos) and display_mode == "home" and alert:
         # When the alert button is clicked, go to the alert screen.
         weather_alert_display = WeatherAlert(1, len(alert), alert=alert[weather_alert_number])
@@ -280,6 +289,9 @@ def process_click(mouse_pos):
             if weather_alert_number < 0:
                 weather_alert_number = len(alert) - 1
             weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
+
+    elif display_mode == "occupancy_info":
+        display_mode = "home"
 
     elif display_mode == "webcams":
         # This is the webcams mouse click handler.
@@ -385,7 +397,7 @@ def update(dt, screen):
             # If the weather alert display is active, build it.
             weather_alert_display.build_alert()
 
-        if display_mode == "home":
+        if display_mode == "home" or display_mode == "occupancy_info":
             # If the display mode is home, then we need to update the weather and the forecast.
             update_weather_data()
 
@@ -460,6 +472,7 @@ def update_weather_data():
         log.debug("Requesting Update")
 
         coordinator.coordinator.read_data()
+        occupancy_info_display.refresh()
         # stalker.background_stalk()
         if py:
             data_log.log()
@@ -652,6 +665,13 @@ def draw(screen, dt):
         # pygame.draw.rect(screen, [255, 206, 0], home_button)
         webcams.draw_buttons(screen)
         pygame.display.set_caption("Weather Alert")
+    elif display_mode == "occupancy_info":
+        draw_clock(pallet_one)
+        occupancy_info_display.draw(screen, (10, 100))
+        current_weather.draw_current(screen, (0, 0))
+        # pygame.draw.rect(screen, [255, 206, 0], home_button)
+        webcams.draw_buttons(screen)
+        pygame.display.set_caption("Occupancy Info")
     elif display_mode == "radar":
         # This is where the radar screen is drawn
         radar.draw(screen)
@@ -686,10 +706,11 @@ def draw(screen, dt):
         if occupancy_info['room_occupied'] is None or not coordinator.coordinator.net_client.coordinator_available:
             occupancy_icon = unoccupied_red
         elif occupancy_info['room_occupied']:
-            if len(occupancy_info['occupants']) > 0:
-                occupancy_icon = occupied_green
-            else:
-                occupancy_icon = occupied_yellow
+            occupancy_icon = occupied_yellow
+            for info in dict(occupancy_info['occupants']).values():
+                if info['present']:
+                    occupancy_icon = occupied_green
+                    break
         else:
             occupancy_icon = unoccupied_green
 

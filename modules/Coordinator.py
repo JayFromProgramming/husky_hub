@@ -175,15 +175,14 @@ class CoordinatorHost:
                 self.coordinator_server_password = data['rPi_password']
                 self.thermostat_server_path = data['rPi_file_path']
         self.occupancyDetector = None
-        if os.path.isfile(os.path.join("Configs/occupants.json")):
-            with open(os.path.join("Configs/occupants.json"), "r") as f:
-                self.occupancy_detector = occupancyDetector.OccupancyDetector(json.load(f), 24)
-
         self.last_download = time.time()
         self.net_client = self.WebServerHost(self.coordinator_server, 47670, self.coordinator_server_password, self.data)
         self._load_data()
         self.data = self.net_client.data
         self.data['errors'] = []
+        if os.path.isfile(os.path.join("Configs/occupants.json")):
+            with open(os.path.join("Configs/occupants.json"), "r") as f:
+                self.occupancy_detector = occupancyDetector.OccupancyDetector(json.load(f), 24, self)
         try:
             import Adafruit_DHT
             self.sensor = Adafruit_DHT.DHT22
@@ -199,13 +198,17 @@ class CoordinatorHost:
         return self.net_client.run_server
 
     def is_occupied(self):
+
+        if not self.occupancy_detector.is_ready():
+            return False
+
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
-                                   occupants=self.occupancy_detector.which_targets_present(), logs=self.occupancy_detector.stalker.stalker_logs)
+                                   occupants=self.occupancy_detector.occupancy_info(), logs=self.occupancy_detector.stalker.stalker_logs)
             return True
         else:
             self.set_object_states("room_occupancy_info", room_occupied=False, last_motion=self.occupancy_detector.last_motion_time,
-                                   occupants=self.occupancy_detector.which_targets_present(), logs=self.occupancy_detector.stalker.stalker_logs)
+                                   occupants=self.occupancy_detector.occupancy_info(), logs=self.occupancy_detector.stalker.stalker_logs)
             return False
 
     def read_data(self):
@@ -503,7 +506,7 @@ class CoordinatorClient:
                             break
                         data_buff += data
                     data = json.loads(data_buff.decode())
-                    print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
+                    # print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
             except Exception as e:
                 print(f"Error downloading state from coordinator webserver: {e}")
                 self.download_in_progress = None

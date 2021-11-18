@@ -6,15 +6,20 @@ import RPi.GPIO as GPIO
 
 class OccupancyDetector:
 
-    def __init__(self, target_devices, motion_pin):
-        self.stalker = blueStalker.BlueStalker(target_devices)
+    def __init__(self, target_devices, motion_pin, coordinator):
+        self.stalker = blueStalker.BlueStalker(target_devices, coordinator.get_object_state("room_occupancy_info")['occupants'])
         self.motion_pin = motion_pin
         self.last_motion_time = 0
         GPIO.setmode(GPIO.BOARD)
         GPIO.setup(self.motion_pin, GPIO.IN)
 
+    def is_ready(self):
+        return self.stalker.ready
+
     def is_occupied(self):
-        if self.last_motion_time < time.time() - 30 and self.stalker.room_occupied:
+        if self.stalker.stalk_error:
+            return None
+        elif self.last_motion_time < time.time() - 30 and self.stalker.room_occupied:
             return True
         else:
             return False
@@ -32,6 +37,6 @@ class OccupancyDetector:
     def stalk_targets_present(self):
         return self.stalker.room_occupied
 
-    def which_targets_present(self):
-        return self.stalker.targets_present
+    def occupancy_info(self):
+        return self.stalker.targets
 
