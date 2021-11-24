@@ -7,6 +7,8 @@ import traceback
 import socket
 import typing
 
+from Utils import coprocessor
+
 api_file = "../APIKey.json"
 temp_file = "Caches/Room_Coordination.json"
 
@@ -78,7 +80,9 @@ class CoordinatorHost:
             ip = get_ip()
             if ip != self.host:
                 print("Coordinator IP not valid")
-                self.coordinator_available = False
+                self.host = ip
+                self.thread = threading.Thread(target=self.run).start()
+                # self.coordinator_available = False
             else:
                 self.thread = threading.Thread(target=self.run).start()
 
@@ -158,7 +162,7 @@ class CoordinatorHost:
 
             print(f"Connection with client {request['client']} (action: {request['type']}) has been closed")
 
-    def __init__(self):
+    def __init__(self, coprocessor):
         """
         Initialize the local thermostat reader and server
         """
@@ -178,6 +182,7 @@ class CoordinatorHost:
         self.last_download = time.time()
         self.net_client = self.WebServerHost(self.coordinator_server, 47670, self.coordinator_server_password, self.data)
         self._load_data()
+        self.coprocessor = coprocessor
         self.data = self.net_client.data
         self.data['errors'] = []
         if os.path.isfile(os.path.join("Configs/occupants.json")):
@@ -201,6 +206,12 @@ class CoordinatorHost:
 
         if not self.occupancy_detector.is_ready():
             return False
+
+        data = self.coprocessor.get_data()
+        state = self.coprocessor.data_slots
+        self.set_object_states("room_sensor_data", carbon_monoxide_sensor=f"{data[2].decode('utf-8')} ppm",
+                               gas_smoke_sensor=f"{data[1].decode('utf-8')} ppm", buzzer_alarm=state[5],
+                               flame_sensor=f"{data[0].decode('utf-8')}%", combustible_gas_sensor=f"{data[3].decode('utf-8')} ppm")
 
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
@@ -234,6 +245,7 @@ class CoordinatorHost:
         """
         print("Reading data from local thermostat, saving to file")
         # self._load_data()
+
         try:
             import Adafruit_DHT
 
@@ -766,9 +778,10 @@ class Coordinator:
         Initialize the type of thermostat depending on if it is local or remote
         :param local: If the thermostat is local or remote
         """
+        self.coprocessor = coprocessor.Coprocessor("com3", 9600)
         if local:
             print("Init Thermostat Host")
-            self.coordinator = CoordinatorHost()
+            self.coordinator = CoordinatorHost(self.coprocessor)
         else:
             print("Init Remote Thermostat")
             self.coordinator = CoordinatorClient()

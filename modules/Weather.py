@@ -12,13 +12,14 @@ from OpenWeatherWrapper import OpenWeatherWrapper
 from Radar import Radar
 from Utils import buttonGenerator
 from Utils import dataLogger
+from Utils import coprocessor
 from WebcamStream import CampusCams as WebcamStream
 from AlexaIntegration import AlexaIntegration
 from CurrentWeather import CurrentWeather
 from LoadingScreen import LoadingScreen
 from ForecastEntry import ForecastEntry
 from WeatherAlert import WeatherAlert
-from Occupancy_display import Occupancy_display
+from RoomStateDisplay import Occupancy_display
 import pygame
 from pygame.locals import *
 import logging as log
@@ -175,8 +176,9 @@ fps = 0
 
 # This is where all the support modules are loaded
 weatherAPI = OpenWeatherWrapper(log)
-coordinator = Coordinator.Coordinator(py)
+coordinator = Coordinator.Coordinator(True)
 data_log = dataLogger.dataLogger("data", coordinator, weatherAPI)
+coprocessor = coordinator.coprocessor
 if not headless:
     webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
     room_control = AlexaIntegration(log, coordinator.coordinator)
@@ -195,6 +197,7 @@ def uncaught(exctype, value, tb):
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
     webcams.close_multicast()
     coordinator.coordinator.close_server()
+    coprocessor.arduino.close()
     if not isinstance(exctype, KeyboardInterrupt):
         time.sleep(1)
 
@@ -382,7 +385,7 @@ def update(dt, screen):
         coordinator.coordinator.set_object_state("big_wind_state", -1)
         coordinator.coordinator.set_object_state("fan_auto_enable", False)
 
-    if py:
+    if py or True:
         if coordinator.coordinator.is_occupied():
             room_control.change_occupancy(True)
         else:
@@ -411,6 +414,8 @@ def update(dt, screen):
             log.warning("Shutting down due to low battery")
             os.system("shutdown -f")
 
+        # print(pygame.mouse.get_pos())  # 567
+
         if py:  # The mouse down event is no longer working on the raspberry pi for some reason.
             if pygame.mouse.get_pos() != (0, 0):  # So as a workaround, we check if the mouse is not at its parking position.
                 process_click(pygame.mouse.get_pos())  # If it is not, then process the click.
@@ -423,6 +428,7 @@ def update(dt, screen):
                 webcams.close_multicast()
                 coordinator.coordinator.close_server()
                 webcams.focus(None)
+                coprocessor.arduino.close()
                 pygame.quit()  # Opposite of pygame.init
                 sys.exit()  # Not including this line crashes the script on Windows. Possibly
                 # on other operating systems too, but I don't know for sure.
@@ -583,6 +589,7 @@ def draw(screen, dt):
         cpu_average = psutil.cpu_percent()
     if len(cpu_averages) > fps and display_mode != "webcams":
         cpu_averages.pop(0)
+    mem = (1 - (avail / total)) * 100
 
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
 
@@ -590,6 +597,7 @@ def draw(screen, dt):
         # This the loading screen method
         loading_screen.draw_progress(screen, (100, 300), 600)
         occupancy_icon = unoccupied_green
+        coprocessor.display_splash(line1="Dorminator", line2="Ver: 1.0")
         if loading_screen.cache_icons():
             occupancy_icon = occupied_yellow
             loading_screen.load_weather()
@@ -599,6 +607,7 @@ def draw(screen, dt):
             loading_screen.loading_percentage += \
                 (loading_screen.loading_percent_bias['Forecast'] / 9)
             loading_screen.loading_status_strings.append(f"Building forecast hour ({loading_hour})")
+            # coordinator.coprocessor.set_data_slot_state(5, 1)
             if refresh_forecast is False:
                 occupancy_icon = unoccupied_red
                 loading_screen.loading_percentage += loading_screen.loading_percent_bias['Webcams'] / 4
@@ -612,9 +621,11 @@ def draw(screen, dt):
                         data_log.export()
                     # coordinator.coordinator.read_data()
                     display_mode = "home"
+                    # coordinator.coprocessor.set_data_slot_state(5, 0)
                     radar.update_radar()
                     room_control.build_routines()
                     last_current_update = time.time()
+                    coprocessor.start_refresh()
                     webcams.page = 0
                     del loading_screen
 
@@ -627,7 +638,7 @@ def draw(screen, dt):
         current_weather.draw_current(screen, (0, 0))
         draw_forecast(screen)
         build_forecast(screen, (-80, 125))
-
+        # coprocessor.display_loading_bar("Test loading bar", time.time() % 100)
         # Draw Clock
         draw_clock(pallet_one)
 
@@ -680,10 +691,19 @@ def draw(screen, dt):
         pygame.display.set_caption("Radar")
         forecast_button_render.blit(screen)
 
+    if display_mode != "init":
+        temperature = round(coordinator.coordinator.get_object_state('temperature', False))
+        humidity = round(coordinator.coordinator.get_object_state('humidity', False))
+        hour = time.localtime().tm_hour % 12
+        minute = time.localtime().tm_min
+        # 1:  2: 3: 4: 5: 6: 7: 8:
+        coprocessor.display(upper_line=f"CPU:{str(round(cpu_average)).zfill(2)}% {str(hour).zfill(2)} T:{temperature if -9 < temperature < 99 else '??'}F",
+                            lower_line=f"MEM:{str(round(mem)).zfill(2)}% {str(minute).zfill(2)} H:{humidity if humidity != -1 else '??'}%", )
+
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
     sys_info = sys_info_font.render(
-        f"CPU:{str(round(cpu_average, 2)).zfill(5)}%, Mem:{str(round((1 - (avail / total)) * 100, 2)).zfill(5)}%"
+        f"CPU:{str(round(cpu_average, 2)).zfill(5)}%, Mem:{str(round(mem, 2)).zfill(5)}%"
         + (f", Temp:{temp}°C" if py else "")
         + f", {dt}FPS" + (f", Battery:{datetime.timedelta(seconds=psutil.sensors_battery()[1]) if not True else ''}"
                           f" {psutil.sensors_battery()[0]}%" if not py else ""), True,

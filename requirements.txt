@@ -13,3 +13,5 @@ atmos~=0.2.6
 urllib3~=1.26.6
 django-os-geocoder~=0.1.6
 win10toast~=0.9
+pyserial~=3.5
+geocoder~=1.38.1
