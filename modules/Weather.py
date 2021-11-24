@@ -176,7 +176,7 @@ fps = 0
 
 # This is where all the support modules are loaded
 weatherAPI = OpenWeatherWrapper(log)
-coordinator = Coordinator.Coordinator(True)
+coordinator = Coordinator.Coordinator(True)  # If coordinator is True, it will behave as the room controller
 data_log = dataLogger.dataLogger("data", coordinator, weatherAPI)
 coprocessor = coordinator.coprocessor
 if not headless:

@@ -150,7 +150,7 @@ class Coprocessor:
             data += b'\a'
         data += b'\n'
         self.last_data_slots = self.data_slots.copy()
-        print(data.split(b'\a'))
+        # print(data.split(b'\a'))
         try:
             self.arduino.write(data)
         except serial.SerialException as e:
@@ -163,4 +163,4 @@ class Coprocessor:
             self.connected = False
             for i in range(0, 8):
                 self.returned_data[i] = None
-        print(self.returned_data)
+        # print(self.returned_data)

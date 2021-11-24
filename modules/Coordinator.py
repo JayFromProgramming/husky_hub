@@ -209,9 +209,10 @@ class CoordinatorHost:
 
         data = self.coprocessor.get_data()
         state = self.coprocessor.data_slots
-        self.set_object_states("room_sensor_data", carbon_monoxide_sensor=f"{data[2].decode('utf-8')} ppm",
-                               gas_smoke_sensor=f"{data[1].decode('utf-8')} ppm", buzzer_alarm=state[5],
-                               flame_sensor=f"{data[0].decode('utf-8')}%", combustible_gas_sensor=f"{data[3].decode('utf-8')} ppm")
+        if self.coprocessor.connected:
+            self.set_object_states("room_sensor_data", carbon_monoxide_sensor=f"{data[2].decode('utf-8')} ppm",
+                                   gas_smoke_sensor=f"{data[1].decode('utf-8')} ppm", buzzer_alarm=state[5],
+                                   flame_sensor=f"{data[0].decode('utf-8')}%", combustible_gas_sensor=f"{data[3].decode('utf-8')} ppm")
 
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
