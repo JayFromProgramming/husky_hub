@@ -244,6 +244,8 @@ def blit_error(error_message, traceback_text):
 
 
 def uncaught(exctype, value, tb):
+    if isinstance(exctype, KeyboardInterrupt):
+        graceful_exit()
     log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\n{traceback.print_tb(tb)}")
     if not headless:
         try:
@@ -254,8 +256,6 @@ def uncaught(exctype, value, tb):
             log.critical(f"Error in error_renderer: {e}\n{traceback.format_exc()}")
     time.sleep(7.5)
     graceful_exit()
-    if not isinstance(exctype, KeyboardInterrupt):
-        time.sleep(-1)
 
 
 sys.excepthook = uncaught
@@ -350,7 +350,12 @@ def process_click(mouse_pos):
             weather_alert_display = WeatherAlert(weather_alert_number + 1, len(alert), alert=alert[weather_alert_number])
 
     elif display_mode == "occupancy_info":
-        display_mode = "home"
+        if occupancy_info_display.maximize_collider.collidepoint(mouse_pos):
+            occupancy_info_display.maximize_state = not occupancy_info_display.maximize_state
+        elif occupancy_info_display.maximize_state:
+            occupancy_info_display.maximize_state = False
+        else:
+            display_mode = "home"
 
     elif display_mode == "webcams":
         # This is the webcams mouse click handler.
@@ -448,6 +453,7 @@ def update(dt, screen):
             else:
                 room_control.change_occupancy(False)
         except IndexError:
+            log.info("Coordinator index error")
             pass  # This is a bug in the coordinator, I don't plan to fix it.
 
     if not headless:

@@ -9,6 +9,7 @@ class OccupancyDetector:
     def __init__(self, target_devices, motion_pin, coordinator):
         self.stalker = blueStalker.BlueStalker(target_devices, coordinator.get_object_state("room_occupancy_info")['occupants'])
         self.motion_pin = motion_pin
+        self.coordinator = coordinator
         self.last_motion_time = 0
         # GPIO.setmode(GPIO.BOARD)
         # GPIO.setup(self.motion_pin, GPIO.IN)
@@ -25,12 +26,11 @@ class OccupancyDetector:
             return False
 
     def check_motion(self):
-        pass
-        # if GPIO.input(self.motion_pin) == GPIO.HIGH:
-        #     self.last_motion_time = time.time()
-        #     return True
-        # else:
-        #     return False
+        if self.coordinator.get_object_state("room_sensor_data_displayable", False)['motion_sensor'] == "True":
+            self.last_motion_time = time.time()
+            return True
+        else:
+            return False
 
     def run_stalk(self):
         self.stalker.background_stalk()

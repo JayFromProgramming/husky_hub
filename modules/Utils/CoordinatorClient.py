@@ -2,7 +2,6 @@ import json
 import os
 import threading
 import time
-import traceback
 
 import socket
 
@@ -58,6 +57,7 @@ def get_ip():
     return IP
 
 
+# noinspection PyPackages,PyUnresolvedReferences
 class CoordinatorClient:
     class WebserverClient:
 

@@ -209,19 +209,31 @@ class CoordinatorHost:
         data_2 = self.coprocessor.get_data(target_arduino=1)
         state = self.coprocessor.get_state(target_arduino=0)
         state_2 = self.coprocessor.get_state(target_arduino=1)
-        if self.coprocessor.connected[0]:
+        if self.coprocessor.connected[0] and len(data) > 1:
             self.set_object_states("room_sensor_data_displayable", carbon_monoxide_sensor=f"{data[2].decode('utf-8')} ppm",
-                                   gas_smoke_sensor=f"{data[1].decode('utf-8')} ppm", combustible_gas_sensor=f"{data[3].decode('utf-8')} ppm")
+                                   gas_smoke_sensor=f"{data[1].decode('utf-8')} ppm", combustible_gas_sensor=f"{data[3].decode('utf-8')} ppm",
+                                   motion_sensor=True if data[4].decode('utf-8') == "1" else False)
         else:
-            self.set_object_states("room_sensor_data", carbon_monoxide_sensor=None, gas_smoke_sensor=None, buzzer_alarm=None,
-                                   flame_sensor=None, combustible_gas_sensor=None)
+            self.set_object_states("room_sensor_data_displayable", carbon_monoxide_sensor=None, gas_smoke_sensor=None, buzzer_alarm=None,
+                                   flame_sensor=None, combustible_gas_sensor=None, motion_sensor=None)
 
-        if self.coprocessor.connected[1]:
+        if self.coprocessor.connected[1] and len(data_2) > 1:
+            wind_temp = celsius_to_fahrenheit(data_2[2].decode('utf-8')) if data_2[2].decode('utf-8') != "Error" else None
             self.set_object_states("room_sensor_data_displayable",
-                                   radiator_state=f"T:{celsius_to_fahrenheit(data_2[2].decode('utf-8'))}°F"
-                                                  f" | H:{data_2[3].decode('utf-8')}%")
+                                   radiator_temperature=f"{round(celsius_to_fahrenheit(int(data_2[1].decode('utf-8'))), 2)}°F",
+                                   window_air_sensor=f"T:{wind_temp if not isinstance(wind_temp, float) else round(wind_temp, 2)}°F"
+                                                     f" | H:{(data_2[3].decode('utf-8')).split('.')[0]}%")
         else:
-            self.set_object_states("room_sensor_data_displayable", radiator_state=None)
+            self.set_object_states("room_sensor_data_displayable", radiator_temperature=None, window_air_sensor=None)
+
+        if self.coprocessor.connected[0] and self.coprocessor.connected[1]:
+            self.set_object_states("room_sensor_data_displayable", arduino_connections=f"All Online")
+        elif self.coprocessor.connected[0]:
+            self.set_object_states("room_sensor_data_displayable", arduino_connections=f"Arduino B Offline")
+        elif self.coprocessor.connected[1]:
+            self.set_object_states("room_sensor_data_displayable", arduino_connections=f"Arduino A Offline")
+        else:
+            self.set_object_states("room_sensor_data_displayable", arduino_connections=f"All Offline")
 
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,

@@ -137,13 +137,17 @@ class Coprocessor:
             threading.Thread(target=self._refresh_cycle, args=(None, 1)).start()
 
     def _refresh_cycle(self, dummy, target_arduino=0):
-        while self.enabled and self.connected[target_arduino]:
+        while self.enabled:
             if not self.pause_refresh:
                 try:
-                    self._send(target_arduino=target_arduino)
+                    if self.connected[target_arduino]:
+                        self._send(target_arduino=target_arduino)
+                    else:
+                        self.establish_connection(target_arduino=target_arduino)
                 except Exception as e:
                     print(f"Arduino {target_arduino} serial error: {e}\n{traceback.format_exc()}")
                     self.connected[target_arduino] = False
+
             time.sleep(0.25)
 
     def _send(self, immediately=False, target_arduino=0):
@@ -169,17 +173,17 @@ class Coprocessor:
             data += b'\a'
         data += b'\n'
         self.last_data_slots[target_arduino] = self.data_slots[target_arduino].copy()
-        print(data.split(b'\a')[:-1])
+        # print(data.split(b'\a')[:-1])
         try:
             self.arduino[target_arduino].write(data)
         except serial.SerialException as e:
             print(f"Arduino {target_arduino} write error: {e}\n{traceback.format_exc()}")
-            self.last_update = time.time() + 35
+            self.last_update[target_arduino] = time.time() + 35
         try:
             self.returned_data[target_arduino] = self.arduino[target_arduino].read(self.arduino[target_arduino].inWaiting()).split(b'\a')
         except Exception as e:
             print(f"Arduino {target_arduino} read error: {e}\n{traceback.format_exc()}")
             self.connected[target_arduino] = False
-            for i in range(0, 8):
-                self.returned_data[target_arduino][i] = None
-        print(f"Arduino[{target_arduino}]: {self.returned_data}")
+            # for i in range(0, 8):
+            #     self.returned_data[target_arduino][i] = None
+        # print(f"Arduino[{target_arduino}]: {self.returned_data}")
