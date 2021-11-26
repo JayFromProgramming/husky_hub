@@ -28,7 +28,7 @@ class BlueStalker:
     def background_stalk(self):
         if not self.already_stalking:
             self.already_stalking = True
-            threading.Thread(target=self.stalk).start()
+            threading.Thread(target=self.stalk, daemon=True).start()
 
     def stalk(self):
         self.stalker_logs = []

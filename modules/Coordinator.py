@@ -7,18 +7,18 @@ import traceback
 import socket
 import typing
 
-from Utils import coprocessor
+from Utils import coprocessors
 
 api_file = "../APIKey.json"
 temp_file = "Caches/Room_Coordination.json"
 
 
 def celsius_to_fahrenheit(celsius):
-    return (celsius * (9 / 5)) + 32
+    return (float(celsius) * (9 / 5)) + 32
 
 
 def fahrenheit_to_celsius(fahrenheit):
-    return (fahrenheit - 32) * (5 / 9)
+    return (float(fahrenheit) - 32) * (5 / 9)
 
 
 class NoCoordinatorConnection(Exception):
@@ -81,10 +81,10 @@ class CoordinatorHost:
             if ip != self.host:
                 print("Coordinator IP not valid")
                 self.host = ip
-                self.thread = threading.Thread(target=self.run).start()
+                self.thread = threading.Thread(target=self.run, daemon=True).start()
                 # self.coordinator_available = False
             else:
-                self.thread = threading.Thread(target=self.run).start()
+                self.thread = threading.Thread(target=self.run, daemon=True).start()
 
         def run(self):
             print(f"Starting Coordinator Websocket on {self.host}:{self.port}")
@@ -207,12 +207,28 @@ class CoordinatorHost:
         if not self.occupancy_detector.is_ready():
             return False
 
-        data = self.coprocessor.get_data()
-        state = self.coprocessor.data_slots
-        if self.coprocessor.connected:
-            self.set_object_states("room_sensor_data", carbon_monoxide_sensor=f"{data[2].decode('utf-8')} ppm",
-                                   gas_smoke_sensor=f"{data[1].decode('utf-8')} ppm", buzzer_alarm=state[5],
-                                   flame_sensor=f"{data[0].decode('utf-8')}%", combustible_gas_sensor=f"{data[3].decode('utf-8')} ppm")
+        data = self.coprocessor.get_data(target_arduino=0)
+        data_2 = self.coprocessor.get_data(target_arduino=1)
+        state = self.coprocessor.get_state(target_arduino=0)
+        state_2 = self.coprocessor.get_state(target_arduino=1)
+        if self.coprocessor.connected[0]:
+            try:
+                self.set_object_states("room_sensor_data_displayable", carbon_monoxide_sensor=f"{data[2].decode('utf-8')} ppm",
+                                       gas_smoke_sensor=f"{data[1].decode('utf-8')} ppm", combustible_gas_sensor=f"{data[3].decode('utf-8')} ppm")
+            except IndexError as e:
+                self.set_object_states("room_sensor_data", carbon_monoxide_sensor=None, gas_smoke_sensor=None, buzzer_alarm=None,
+                                       flame_sensor=None, combustible_gas_sensor=None)
+                self.data['errors'].append(f"Error reading data from arduino: {str(e)}")
+        else:
+            self.set_object_states("room_sensor_data", carbon_monoxide_sensor=None, gas_smoke_sensor=None, buzzer_alarm=None,
+                                   flame_sensor=None, combustible_gas_sensor=None)
+
+        if self.coprocessor.connected[1]:
+            self.set_object_states("room_sensor_data_displayable",
+                                   radiator_state=f"T:{celsius_to_fahrenheit(data_2[2].decode('utf-8'))}°F"
+                                                  f" | H:{data_2[3].decode('utf-8')}%")
+        else:
+            self.set_object_states("room_sensor_data_displayable", radiator_state=None)
 
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
@@ -308,7 +324,10 @@ class CoordinatorHost:
         if os.path.isfile(temp_file):
             with open(temp_file) as f:
                 # Merge the data from the file with the local data
-                self.net_client.data = json.load(f)
+                try:
+                    self.net_client.data = json.load(f)
+                except json.JSONDecodeError:
+                    print("Failed to load data from file, corrupt file")
 
     def get_object_state(self, object_name, update=True):
         """
@@ -779,7 +798,7 @@ class Coordinator:
         Initialize the type of thermostat depending on if it is local or remote
         :param local: If the thermostat is local or remote
         """
-        self.coprocessor = coprocessor.Coprocessor("com3", 9600)
+        self.coprocessor = coprocessors.Coprocessor(["com3", "com4"], [9600, 9600])
         if local:
             print("Init Thermostat Host")
             self.coordinator = CoordinatorHost(self.coprocessor)

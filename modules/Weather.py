@@ -1,6 +1,7 @@
 import os
 import platform
 import statistics
+import threading
 import time
 import sys
 import datetime
@@ -12,7 +13,7 @@ from OpenWeatherWrapper import OpenWeatherWrapper
 from Radar import Radar
 from Utils import buttonGenerator
 from Utils import dataLogger
-from Utils import coprocessor
+from Utils import coprocessors
 from WebcamStream import CampusCams as WebcamStream
 from AlexaIntegration import AlexaIntegration
 from CurrentWeather import CurrentWeather
@@ -26,9 +27,8 @@ import logging as log
 
 ################################################################################
 
-py = platform.platform() == 'Linux-5.10.17-v7+-armv7l-with-debian-10.9'
-windows = platform.platform() == 'Windows-10-10.0.19041-SP0'
-# Yes i know this will break when i update my py, and i don't care
+py = 'Linux' in platform.platform()
+windows = 'Windows' in platform.platform()
 
 tablet = False
 
@@ -71,6 +71,22 @@ if pygame.image.get_extended() == 0:
 
 
 ################################################################################
+
+def graceful_exit():
+    """Soft shutdown"""
+    log.info("Attempting to close gracefully")
+    webcams.close_multicast()
+    coordinator.coordinator.close_server()
+    coprocessor.close_all()
+    time.sleep(0.30)
+    pygame.quit()
+    log.info(f"There are currently {threading.active_count()} active threads")
+    for thread in threading.enumerate():
+        if thread.name != "MainThread":
+            log.info(f"Thread {thread.name} is still active! Attempting to terminate...")
+    log.info("Graceful closure complete, attempting to exit")
+    sys.exit(1)
+
 
 def make_screen():
     """Create the screen and set the background"""
@@ -193,13 +209,53 @@ if not headless:
     forecast_button_render = buttonGenerator.Button(button_font, (120, 430, 100, 35), forecast_button_text, [255, 206, 0], pallet_four)
 
 
+def error_renderer(exctype, value, tb):
+    font = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf"), 14)
+    font2 = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf"), 22)
+    coprocessor.display("Oops! Something", "went wrong!", immediately=True)
+    error_message = font2.render(f"Uncaught error: {exctype}", True, pallet_one, pallet_four)
+    pygame.display.set_caption(f"Something went wrong! {exctype}")
+    traceback_text = []
+    for trace in traceback.format_tb(tb):
+        for line in trace.split("\n"):
+            # Make sure the line is not longer than the screen
+            if len(line) == 0:
+                continue
+            if len(line) > 98:
+                traceback_text.append(font.render(line[:98], True, pallet_one, pallet_four))
+                blit_error(error_message, traceback_text)
+                time.sleep(0.2)
+                traceback_text.append(font.render(line[98:], True, pallet_one, pallet_four))
+                blit_error(error_message, traceback_text)
+                time.sleep(0.2)
+            else:
+                traceback_text.append(font.render(line, True, pallet_one, pallet_four))
+                blit_error(error_message, traceback_text)
+                time.sleep(0.2)
+    screen.fill(pallet_four)
+    blit_error(error_message, traceback_text)
+
+
+def blit_error(error_message, traceback_text):
+    screen.blit(error_message, (10, 10))
+    for i in range(len(traceback_text)):
+        screen.blit(traceback_text[i], (10, 50 + (i * 20)))
+    pygame.display.flip()
+
+
 def uncaught(exctype, value, tb):
-    log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\nTraceback: {traceback.print_tb(tb)}")
-    webcams.close_multicast()
-    coordinator.coordinator.close_server()
-    coprocessor.arduino.close()
+    log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\n{traceback.print_tb(tb)}")
+    if not headless:
+        try:
+            pygame.display.flip()
+            error_renderer(exctype, value, tb)
+            pygame.display.flip()
+        except Exception as e:
+            log.critical(f"Error in error_renderer: {e}\n{traceback.format_exc()}")
+    time.sleep(7.5)
+    graceful_exit()
     if not isinstance(exctype, KeyboardInterrupt):
-        time.sleep(1)
+        time.sleep(-1)
 
 
 sys.excepthook = uncaught
@@ -386,10 +442,13 @@ def update(dt, screen):
         coordinator.coordinator.set_object_state("fan_auto_enable", False)
 
     if py or True:
-        if coordinator.coordinator.is_occupied():
-            room_control.change_occupancy(True)
-        else:
-            room_control.change_occupancy(False)
+        try:
+            if coordinator.coordinator.is_occupied():
+                room_control.change_occupancy(True)
+            else:
+                room_control.change_occupancy(False)
+        except IndexError:
+            log.warning(f"Coordinator data index error\n{traceback.format_exc()}")
 
     if not headless:
         if room_control.queued_routine:
@@ -425,12 +484,7 @@ def update(dt, screen):
             # This is the event handler.
             if event.type == QUIT:
                 # If the user tries to close the window, close the window.
-                webcams.close_multicast()
-                coordinator.coordinator.close_server()
-                webcams.focus(None)
-                coprocessor.arduino.close()
-                pygame.quit()  # Opposite of pygame.init
-                sys.exit()  # Not including this line crashes the script on Windows. Possibly
+                graceful_exit()
                 # on other operating systems too, but I don't know for sure.
             elif event.type == pygame.VIDEORESIZE:
                 # If the user resizes the window, resize the window.
@@ -441,9 +495,7 @@ def update(dt, screen):
                 fps = base_fps
                 if event.key == pygame.K_ESCAPE:
                     # If escape is pressed, quit the program.
-                    webcams.focus(None)
-                    pygame.quit()
-                    sys.exit(1)
+                    graceful_exit()
                 if display_mode == 'webcams':
                     if event.key == pygame.K_l:
                         if webcams.multi_cast:
@@ -478,6 +530,7 @@ def update_weather_data():
         log.debug("Requesting Update")
 
         coordinator.coordinator.read_data()
+        coprocessor.update_sensors()
         occupancy_info_display.refresh()
         # stalker.background_stalk()
         if py:
@@ -697,8 +750,9 @@ def draw(screen, dt):
         hour = time.localtime().tm_hour % 12
         minute = time.localtime().tm_min
         # 1:  2: 3: 4: 5: 6: 7: 8:
-        coprocessor.display(upper_line=f"CPU:{str(round(cpu_average)).zfill(2)}% {str(hour).zfill(2)} T:{temperature if -9 < temperature < 99 else '??'}F",
-                            lower_line=f"MEM:{str(round(mem)).zfill(2)}% {str(minute).zfill(2)} H:{humidity if humidity != -1 else '??'}%", )
+        coprocessor.display(
+            upper_line=f"CPU:{str(round(cpu_average)).zfill(2)}% {str(hour).zfill(2)} T:{temperature if -9 < temperature < 99 else '??'}F",
+            lower_line=f"MEM:{str(round(mem)).zfill(2)}% {str(minute).zfill(2)} H:{humidity if humidity != -1 else '??'}%", )
 
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
@@ -751,7 +805,7 @@ def draw(screen, dt):
             screen.blit(weather_alert, weather_alert.get_rect(topleft=(25, 65)))
         if room_control.raincheck:
             # If a raincheck is active, draw the raincheck icon
-            screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(723-40, 2)))
+            screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(723 - 40, 2)))
         if (py and temp > 70) or overheat_halt:
             # If the CPU is too hot, draw the overheat icon
             screen.blit(overheat_icon, overheat_icon.get_rect(topright=(763, 2)))

@@ -20,7 +20,7 @@ class Occupancy_display:
 
     def refresh(self):
         occupancy = self.coordinator.get_object_state("room_occupancy_info", False)
-        room_data = self.coordinator.get_object_state("room_sensor_data", False)
+        room_data = self.coordinator.get_object_state("room_sensor_data_displayable", False)
         self.lines = []
         self.side_lines = []
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 32)
