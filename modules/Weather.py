@@ -448,7 +448,7 @@ def update(dt, screen):
             else:
                 room_control.change_occupancy(False)
         except IndexError:
-            log.warning(f"Coordinator data index error\n{traceback.format_exc()}")
+            pass  # This is a bug in the coordinator, I don't plan to fix it.
 
     if not headless:
         if room_control.queued_routine:
