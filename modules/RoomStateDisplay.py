@@ -8,9 +8,8 @@ pallet_two = (255, 206, 0)
 pallet_three = (0, 0, 0)
 
 
-def chunk(l, n):
-    n = max(1, n)
-    return (l[i:i + n] for i in range(0, len(l), n))
+def celsius_to_fahrenheit(celsius):
+    return (float(celsius) * (9 / 5)) + 32
 
 
 class Occupancy_display:
@@ -27,8 +26,12 @@ class Occupancy_display:
         self.refresh()
 
     def refresh(self):
-        occupancy = self.coordinator.get_object_state("room_occupancy_info", False)
-        room_data = self.coordinator.get_object_state("room_sensor_data_displayable", False)
+        occupancy = self.coordinator.get_object_state("room_occupancy_info", True)
+        room_data: dict = self.coordinator.get_object_state("room_sensor_data_displayable", False)
+        temp = self.coordinator.get_object_state("temperature", False)
+        humid = self.coordinator.get_object_state("humidity", False)
+        temp = celsius_to_fahrenheit(temp) if temp != -9999 else "N/A"
+        humid = humid if humid != -1 else "N/A"
         self.lines = []
         self.side_lines = []
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 32)
@@ -58,7 +61,7 @@ class Occupancy_display:
                                            , True, pallet_one, pallet_three).convert())
             self.lines.append(font3.render(f" Connection: Lost"
                                            , True, pallet_one, pallet_three).convert())
-
+        room_data["room_air_sensor"] = f"{temp}°F | {humid}%"
         for key, value in room_data.items():
             self.side_lines.append(font3.render(f"{str(key).replace('_', ' ').capitalize()}", True, pallet_one, pallet_three).convert())
             self.side_lines.append(font3.render(f"{value if value is not None else 'N/A'}", True, pallet_one, pallet_three).convert())

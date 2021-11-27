@@ -18,15 +18,16 @@ class OccupancyDetector:
         return self.stalker.ready
 
     def is_occupied(self):
+        self.check_motion()
         if self.stalker.stalk_error:
             return None
-        elif self.last_motion_time < time.time() - 30 and self.stalker.room_occupied:
+        elif self.last_motion_time > time.time() - 30 or self.stalker.room_occupied:
             return True
         else:
             return False
 
     def check_motion(self):
-        if self.coordinator.get_object_state("room_sensor_data_displayable", False)['motion_sensor'] == "True":
+        if self.coordinator.get_object_state("room_sensor_data_displayable", False)['motion_sensor']:
             self.last_motion_time = time.time()
             return True
         else:

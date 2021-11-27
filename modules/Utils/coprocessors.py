@@ -27,7 +27,7 @@ class Coprocessor:
             self.data_slots[1].append(None)
             self.last_data_slots[0].append(None)
             self.last_data_slots[1].append(None)
-        self.returned_data = [None, None]
+        self.returned_data = [[], []]
         self.returned_data_slots = [[], []]
         self.data_slots[0][6] = -1
         self.set_state(0)
@@ -49,6 +49,7 @@ class Coprocessor:
             if self.connected[i]:
                 self.arduino[i].close()
                 self.connected[i] = False
+                self.enabled = False
 
     def set_data_slot_state(self, slot: int, state):
         self.data_slots[slot] = state
@@ -64,7 +65,7 @@ class Coprocessor:
         timeout_time = time.time() + 5
         if not self.connected[0] and not self.connected[1]:
             return
-        while not self.ready or time.time() < timeout_time:
+        while not self.ready and time.time() < timeout_time:
             time.sleep(0.1)
             if self.connected[0]:
                 self._send(immediately=True, target_arduino=0)
@@ -133,8 +134,8 @@ class Coprocessor:
     def start_refresh(self):
         if self.connected and not self.enabled:
             self.enabled = True
-            threading.Thread(target=self._refresh_cycle, args=(None, 0)).start()
-            threading.Thread(target=self._refresh_cycle, args=(None, 1)).start()
+            threading.Thread(target=self._refresh_cycle, args=(None, 0), daemon=True).start()
+            threading.Thread(target=self._refresh_cycle, args=(None, 1), daemon=True).start()
 
     def _refresh_cycle(self, dummy, target_arduino=0):
         while self.enabled:

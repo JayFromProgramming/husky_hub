@@ -212,7 +212,7 @@ if not headless:
 def error_renderer(exctype, value, tb):
     font = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf"), 14)
     font2 = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf"), 22)
-    coprocessor.display("Oops! Something", "went wrong!", immediately=True)
+    coprocessor.display("Fatal Error!", str(exctype).strip('< >').strip("class")[2:], immediately=True)
     error_message = font2.render(f"Uncaught error: {exctype}", True, pallet_one, pallet_four)
     pygame.display.set_caption(f"Something went wrong! {exctype}")
     traceback_text = []
