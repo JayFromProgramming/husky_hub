@@ -187,4 +187,4 @@ class Coprocessor:
             self.connected[target_arduino] = False
             # for i in range(0, 8):
             #     self.returned_data[target_arduino][i] = None
-        # print(f"Arduino[{target_arduino}]: {self.returned_data}")
+        print(f"Arduino[{target_arduino}]: {self.returned_data}")

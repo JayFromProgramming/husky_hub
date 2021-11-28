@@ -3,7 +3,7 @@ import os
 import threading
 import time
 import traceback
-
+import datetime
 import socket
 
 api_file = "../APIKey.json"
@@ -16,6 +16,21 @@ def celsius_to_fahrenheit(celsius):
 
 def fahrenheit_to_celsius(fahrenheit):
     return (float(fahrenheit) - 32) * (5 / 9)
+
+
+def time_delta_to_str(td: int):
+    days = round(td // 86400)
+    hours = round(td // 3600 % 24)
+    minutes = round((td // 60) % 60)
+    seconds = round(td % 60)
+    if days > 0:
+        return '{} days {} hours {} minutes'.format(days, hours, minutes, seconds)
+    elif hours > 0:
+        return '{} hours {} minutes'.format(hours, minutes, seconds)
+    elif minutes > 0:
+        return '{}min {}sec'.format(minutes, seconds)
+    else:
+        return '{} seconds'.format(seconds)
 
 
 class NoCoordinatorConnection(Exception):
@@ -218,15 +233,18 @@ class CoordinatorHost:
                                    infrared_sensor=None, combustible_gas_sensor=None, motion_sensor=None)
 
         if self.coprocessor.connected[1] and len(data_2) > 1:
-            wind_temp = celsius_to_fahrenheit(data_2[2].decode('utf-8')) if data_2[2].decode('utf-8') != "Error" else None
+            radiator_temp = celsius_to_fahrenheit(data_2[0].decode('utf-8')) if data_2[0].decode('utf-8') != "Error" else None
+            wind_temp = celsius_to_fahrenheit(data_2[1].decode('utf-8')) if data_2[1].decode('utf-8') != "Error" else None
             self.set_object_states("room_sensor_data_displayable",
-                                   radiator_temperature=f"{round(celsius_to_fahrenheit(float(data_2[1].decode('utf-8'))), 3)}°F",
+                                   radiator_temperature=f"T:{radiator_temp if not isinstance(radiator_temp, float) else round(radiator_temp, 3)}°F",
                                    window_air_sensor=f"T:{wind_temp if not isinstance(wind_temp, float) else round(wind_temp, 2)}°F"
-                                                     f" | H:{(data_2[3].decode('utf-8')).split('.')[0]}%",
-                                   sensors_on_bus_b=f"{data_2[0].decode('utf-8')}", light_sensor=f"{data_2[4].decode('utf-8')}%")
+                                                     f" | H:{(data_2[2].decode('utf-8')).split('.')[0]}%",
+                                   light_sensor=f"{data_2[3].decode('utf-8')}%", vibration_sensor=f"{data_2[4].decode('utf-8')}%",
+                                   sound_sensor=f"{data_2[5].decode('utf-8')}%",
+                                   voltage_sensor=f"{data_2[6].decode('utf-8')}V")
         else:
             self.set_object_states("room_sensor_data_displayable", radiator_temperature=None, window_air_sensor=None, sensors_on_bus_b=None,
-                                   light_sensor=None)
+                                   light_sensor=None, vibration_sensor=None, sound_sensor=None, voltage_sensor=None)
 
         if self.coprocessor.connected[0] and len(data) > 1 and self.coprocessor.connected[1] and len(data_2) > 1:
             self.set_object_states("room_sensor_data_displayable", arduino_connections=f"All Online")
@@ -236,6 +254,10 @@ class CoordinatorHost:
             self.set_object_states("room_sensor_data_displayable", arduino_connections=f"Arduino A Offline")
         else:
             self.set_object_states("room_sensor_data_displayable", arduino_connections=f"All Offline")
+
+        motion_time_delta = time.time() - self.occupancy_detector.last_motion_time
+        # print(f"Motion time delta: {motion_time_delta}")
+        self.set_object_states("room_sensor_data_displayable", last_motion=f"{time_delta_to_str(motion_time_delta)} ago")
 
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,

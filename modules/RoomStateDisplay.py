@@ -23,6 +23,7 @@ class Occupancy_display:
         self.maximize_collider = pygame.Rect(550, 120, 250, 320)
         self.last_update = time.time()
         now = datetime.datetime.now(tz=datetime.timezone.utc)
+        self.sensor_title = None
         self.refresh()
 
     def refresh(self):
@@ -37,6 +38,7 @@ class Occupancy_display:
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 32)
         font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 22)
         font3 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 15)
+        self.sensor_title = font2.render("Room Sensor Data", True, pallet_one, pallet_three).convert()
         if occupancy['room_occupied'] is None:
             state = "Unknown"
         elif occupancy['room_occupied'] is True:
@@ -61,7 +63,7 @@ class Occupancy_display:
                                            , True, pallet_one, pallet_three).convert())
             self.lines.append(font3.render(f" Connection: Lost"
                                            , True, pallet_one, pallet_three).convert())
-        room_data["room_air_sensor"] = f"{temp}°F | {humid}%"
+        room_data["room_air_sensor"] = f"T:{temp}°F | H:{humid}%"
         for key, value in room_data.items():
             self.side_lines.append(font3.render(f"{str(key).replace('_', ' ').capitalize()}", True, pallet_one, pallet_three).convert())
             self.side_lines.append(font3.render(f"{value if value is not None else 'N/A'}", True, pallet_one, pallet_three).convert())
@@ -88,16 +90,22 @@ class Occupancy_display:
                 screen.blit(line, (x + 552, y + 18 + (20 * count)))
                 count += 1
         else:
+            screen.blit(self.sensor_title, (x + 15, y + 10))
+            y += 40
             shift = 0
-            pygame.draw.line(screen, pallet_two, (x + 15 + (220 * shift), 120), (x + 15 + (220 * shift), 440))
+            max_column_width = 0
+            pygame.draw.line(screen, pallet_two, (x + 15, y), (x + 15, (screen.get_height() - 40)))
             count = 0
             for line in self.side_lines:
                 if count % 2 == 0:
-                    if y + 18 + (20 * (count + 1)) > screen.get_height() - 60:
-                        shift += 1
+                    if y + (20 * (count + 1)) > screen.get_height() - 60:
+                        shift += max_column_width + 10
                         count = 0
-                        pygame.draw.line(screen, pallet_two, (x + 15 + (220 * shift), 120), (x + 15 + (220 * shift), 440))
-                screen.blit(line, (x + 20 + (220 * shift), y + 18 + (20 * count)))
+                        max_column_width = 0
+                        pygame.draw.line(screen, pallet_two, (x + 15 + shift, y), (x + 15 + shift, (screen.get_height() - 40)))
+                screen.blit(line, (x + 20 + shift, y + (20 * count)))
+                if line.get_rect().width > max_column_width:
+                    max_column_width = min(220, line.get_rect().width)
                 count += 1
-            shift += 1
-            pygame.draw.line(screen, pallet_two, (x + 15 + (220 * shift), 120), (x + 15 + (220 * shift), 440))
+            shift += max_column_width + 10
+            pygame.draw.line(screen, pallet_two, (x + 15 + shift, y), (x + 15 + shift, (screen.get_height() - 40)))

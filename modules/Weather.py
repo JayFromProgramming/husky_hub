@@ -72,11 +72,13 @@ if pygame.image.get_extended() == 0:
 
 ################################################################################
 
-def graceful_exit():
+def graceful_exit(fatal=False):
     """Soft shutdown"""
     log.info("Attempting to close gracefully")
     webcams.close_multicast()
     coordinator.coordinator.close_server()
+    if not fatal:
+        coprocessor.display(upper_line="Shutting down", lower_line="Disconnected", immediately=True)
     coprocessor.close_all()
     time.sleep(0.30)
     pygame.quit()
@@ -192,7 +194,7 @@ fps = 0
 
 # This is where all the support modules are loaded
 weatherAPI = OpenWeatherWrapper(log)
-coordinator = Coordinator.Coordinator(True)  # If coordinator is True, it will behave as the room controller
+coordinator = Coordinator.Coordinator(py)  # If coordinator is True, it will behave as the room controller
 data_log = dataLogger.dataLogger("data", coordinator, weatherAPI)
 coprocessor = coordinator.coprocessor
 if not headless:
@@ -212,9 +214,14 @@ if not headless:
 def error_renderer(exctype, value, tb):
     font = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf"), 14)
     font2 = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf"), 22)
-    coprocessor.display("Fatal Error!", str(exctype).strip('< >').strip("class")[2:], immediately=True)
-    error_message = font2.render(f"Uncaught error: {exctype}", True, pallet_one, pallet_four)
-    pygame.display.set_caption(f"Something went wrong! {exctype}")
+    font3 = pygame.font.Font(os.path.join("Assets/Fonts/Jetbrains/JetBrainsMono-Regular.ttf"), 18)
+    hour = str(time.localtime().tm_hour).zfill(2)
+    minute = str(time.localtime().tm_min).zfill(2)
+    exec_type = str(exctype).strip('< >').strip("class")[2:].strip("'")
+    coprocessor.display(f"Fatal Error!{hour}{minute}", exec_type, immediately=True)
+    error_type = font2.render(f"Uncaught error: {exec_type}", True, pallet_one, pallet_four)
+    error_message = font3.render(f"{value}", True, pallet_one, pallet_four)
+    pygame.display.set_caption(f"Something went wrong! {exec_type}")
     traceback_text = []
     for trace in traceback.format_tb(tb):
         for line in trace.split("\n"):
@@ -223,23 +230,24 @@ def error_renderer(exctype, value, tb):
                 continue
             if len(line) > 98:
                 traceback_text.append(font.render(line[:98], True, pallet_one, pallet_four))
-                blit_error(error_message, traceback_text)
+                blit_error(error_type, error_message, traceback_text)
                 time.sleep(0.2)
                 traceback_text.append(font.render(line[98:], True, pallet_one, pallet_four))
-                blit_error(error_message, traceback_text)
+                blit_error(error_type, error_message, traceback_text)
                 time.sleep(0.2)
             else:
                 traceback_text.append(font.render(line, True, pallet_one, pallet_four))
-                blit_error(error_message, traceback_text)
+                blit_error(error_type, error_message, traceback_text)
                 time.sleep(0.2)
     screen.fill(pallet_four)
-    blit_error(error_message, traceback_text)
+    blit_error(error_type, error_message, traceback_text)
 
 
-def blit_error(error_message, traceback_text):
-    screen.blit(error_message, (10, 10))
+def blit_error(error_type, error_message, traceback_text):
+    screen.blit(error_type, (10, 5))
+    screen.blit(error_message, (10, 35))
     for i in range(len(traceback_text)):
-        screen.blit(traceback_text[i], (10, 50 + (i * 20)))
+        screen.blit(traceback_text[i], (10, 70 + (i * 20)))
     pygame.display.flip()
 
 
@@ -255,7 +263,7 @@ def uncaught(exctype, value, tb):
         except Exception as e:
             log.critical(f"Error in error_renderer: {e}\n{traceback.format_exc()}")
     time.sleep(7.5)
-    graceful_exit()
+    graceful_exit(fatal=True)
 
 
 sys.excepthook = uncaught
@@ -757,8 +765,8 @@ def draw(screen, dt):
         minute = time.localtime().tm_min
         # 1:  2: 3: 4: 5: 6: 7: 8:
         coprocessor.display(
-            upper_line=f"CPU:{str(round(cpu_average)).zfill(2)}% {str(hour).zfill(2)} T:{temperature if -9 < temperature < 99 else '??'}F",
-            lower_line=f"MEM:{str(round(mem)).zfill(2)}% {str(minute).zfill(2)} H:{humidity if humidity != -1 else '??'}%", )
+            upper_line=f"CPU:{str(round(cpu_average)).zfill(2)}% T:{temperature if -9 < temperature < 99 else '??'}F",
+            lower_line=f"MEM:{str(round(mem)).zfill(2)}% H:{humidity if humidity != -1 else '??'}%", )
 
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)
