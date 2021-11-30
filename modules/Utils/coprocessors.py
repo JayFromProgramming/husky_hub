@@ -8,15 +8,18 @@ import serial
 
 class Coprocessor:
 
-    def __init__(self, port: list, baudrate: list = 19200):
+    def __init__(self, port: list, baudrate: list = 19200, should_connect=True):
         self.port = port
         self.baudrate = baudrate
         self.arduino = [None, None]
         self.ready = False
         self.connected = [False, False]
         self.enabled = False
-        self.establish_connection(target_arduino=0)
-        self.establish_connection(target_arduino=1)
+        self.lcd_backlight_preferred_state = 0
+        self.should_connect = should_connect
+        if should_connect:
+            self.establish_connection(target_arduino=0)
+            self.establish_connection(target_arduino=1)
         self.last_update = [time.time() - 1, time.time() - 1]
         self.data_slots = [[], []]
         self.last_data_slots = [[], []]
@@ -32,11 +35,14 @@ class Coprocessor:
         self.data_slots[0][6] = -1
         self.set_state(0)
         self.wait_ready()
+        self.lcd_backlight(1)
 
     def establish_connection(self, target_arduino=0):
+        if not self.should_connect:
+            return
         print(f"[*] Establishing connection to arduino {target_arduino} on {self.port[target_arduino]}")
         try:
-            self.arduino[target_arduino] = serial.Serial(self.port[target_arduino], self.baudrate[target_arduino], timeout=1)
+            self.arduino[target_arduino] = serial.Serial(self.port[target_arduino], self.baudrate[target_arduino], timeout=0.25)
             self.connected[target_arduino] = True
             print(f"[*] Connection established to arduino {target_arduino} on {self.port[target_arduino]}")
         except Exception as e:
@@ -54,6 +60,21 @@ class Coprocessor:
     def set_data_slot_state(self, slot: int, state):
         self.data_slots[slot] = state
         # self._send()
+
+    def update_lcd_backlight_state(self, override=False, override_state: int = None):
+        if self.lcd_backlight_preferred_state != self.data_slots[0][4] and not override:
+            self.data_slots[0][4] = self.lcd_backlight_preferred_state
+            self._send(target_arduino=0, immediately=True)
+        elif override:
+            self.data_slots[0][4] = override_state
+            self._send(target_arduino=0, immediately=True)
+        else:
+            pass
+
+    def lcd_backlight(self, state: int, immediately=False):
+        self.data_slots[0][4] = state
+        self.lcd_backlight_preferred_state = state
+        self._send(target_arduino=0, immediately=immediately)
 
     def get_data(self, target_arduino=0):
         return self.returned_data[target_arduino]
@@ -84,6 +105,7 @@ class Coprocessor:
                     self.data_slots[target_arduino][2] = 10
                     self.data_slots[target_arduino][8] = i
                     self._send(immediately=True, target_arduino=target_arduino)
+                    time.sleep(0.1)
                     print(f"Sending image {i}", end="\r")
                     for _ in range(8):
                         data = f.read(1)
@@ -101,10 +123,10 @@ class Coprocessor:
 
     def update_sensors(self):
         self.pause_refresh = True
-        # self.set_state(20, target_arduino=0, immediately=True)
+        self.set_state(20, target_arduino=0, immediately=True)
         self.set_state(20, target_arduino=1, immediately=True)
-        # self.set_state(-1, target_arduino=0, immediately=True)
-        self.set_state(-2, target_arduino=1, immediately=True)
+        self.set_state(-1, target_arduino=0, immediately=False)
+        self.set_state(-2, target_arduino=1, immediately=False)
         self.pause_refresh = False
 
     def display_splash(self, line1: bytes = '', line2: bytes = '', file="husky.mtb", target_arduino=0):
@@ -181,10 +203,12 @@ class Coprocessor:
             print(f"Arduino {target_arduino} write error: {e}\n{traceback.format_exc()}")
             self.last_update[target_arduino] = time.time() + 35
         try:
-            self.returned_data[target_arduino] = self.arduino[target_arduino].read(self.arduino[target_arduino].inWaiting()).split(b'\a')
+            returned_data = self.arduino[target_arduino].read(self.arduino[target_arduino].inWaiting()).split(b'\a')[:-1]
+            if len(returned_data) == 8:
+                self.returned_data[target_arduino] = returned_data
         except Exception as e:
             print(f"Arduino {target_arduino} read error: {e}\n{traceback.format_exc()}")
             self.connected[target_arduino] = False
             # for i in range(0, 8):
             #     self.returned_data[target_arduino][i] = None
-        print(f"Arduino[{target_arduino}]: {self.returned_data}")
+        # print(f"Arduino[{target_arduino}]: {self.returned_data}")

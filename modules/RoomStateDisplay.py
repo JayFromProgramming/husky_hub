@@ -27,12 +27,12 @@ class Occupancy_display:
         self.refresh()
 
     def refresh(self):
-        occupancy = self.coordinator.get_object_state("room_occupancy_info", True)
+        occupancy = self.coordinator.get_object_state("room_occupancy_info", True, True)
         room_data: dict = self.coordinator.get_object_state("room_sensor_data_displayable", False)
         temp = self.coordinator.get_object_state("temperature", False)
         humid = self.coordinator.get_object_state("humidity", False)
-        temp = celsius_to_fahrenheit(temp) if temp != -9999 else "N/A"
-        humid = humid if humid != -1 else "N/A"
+        temp = round(celsius_to_fahrenheit(temp), 2) if temp != -9999 else "N/A"
+        humid = round(humid, 2) if humid != -1 else "N/A"
         self.lines = []
         self.side_lines = []
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 32)
@@ -49,19 +49,21 @@ class Occupancy_display:
         self.state_text = font1.render(f"Room State: {state}", True, pallet_one)
         present = [occupant for occupant in occupancy['occupants'].values() if occupant['present'] is True]
         absent = [occupant for occupant in occupancy['occupants'].values() if occupant['present'] is False]
+        max_present_rjust = max([len(occupant['name']) for occupant in present] if len(present) > 0 else [0])
+        max_absent_rjust = max([len(occupant['name']) for occupant in absent] if len(absent) > 0 else [0])
         self.lines.append(font2.render(f"------------Currently Present------------", True, pallet_one, pallet_three).convert())
         for occupant in present:
-            self.lines.append(font2.render(f"{occupant['name']}: Arrived at "
+            self.lines.append(font2.render(f"{occupant['name'].rjust(max_present_rjust, '-')}: Arrived at "
                                            f"{datetime.datetime.fromtimestamp(occupant['updated_at']).strftime('%I:%M:%S%p-%m/%d/%y')}"
                                            , True, pallet_one, pallet_three).convert())
-            self.lines.append(font3.render(f" Connection: {'Stable' if occupant['stable'] else 'Unstable'}"
+            self.lines.append(font3.render(f" Connection: {'Stable' if occupant['stable'] else 'Unstable'}; Device: {occupant['mac']}"
                                            , True, pallet_one, pallet_three).convert())
         self.lines.append(font2.render(f"---------------Not Present---------------", True, pallet_one, pallet_three).convert())
         for occupant in absent:
-            self.lines.append(font2.render(f"{occupant['name']}: Last seen at "
+            self.lines.append(font2.render(f"{occupant['name'].rjust(max_absent_rjust, '-')}: Last seen at "
                                            f"{datetime.datetime.fromtimestamp(occupant['updated_at']).strftime('%I:%M:%S%p-%m/%d/%y')}"
                                            , True, pallet_one, pallet_three).convert())
-            self.lines.append(font3.render(f" Connection: Lost"
+            self.lines.append(font3.render(f" Connection: Lost; Device: {occupant['mac']}"
                                            , True, pallet_one, pallet_three).convert())
         room_data["room_air_sensor"] = f"T:{temp}°F | H:{humid}%"
         for key, value in room_data.items():

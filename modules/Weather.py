@@ -197,6 +197,7 @@ weatherAPI = OpenWeatherWrapper(log)
 coordinator = Coordinator.Coordinator(py)  # If coordinator is True, it will behave as the room controller
 data_log = dataLogger.dataLogger("data", coordinator, weatherAPI)
 coprocessor = coordinator.coprocessor
+
 if not headless:
     webcams = WebcamStream(log, (no_image, husky, empty_image), not py and not tablet, False, py)
     room_control = AlexaIntegration(log, coordinator.coordinator)
@@ -440,9 +441,10 @@ def process_click(mouse_pos):
         #     room_control.run_routine(response)
 
 
+# noinspection PyGlobalUndefined
 def update(dt, screen):
     global display_mode, selected_loading_hour, loading_hour, refresh_forecast, forecast, weather_alert_display
-    global weather_alert_number, slot_position, focused_forecast, fps, low_refresh
+    global weather_alert_number, slot_position, focused_forecast, fps, low_refresh, screen_dimmed
     global room_button, room_button_text, webcam_button, webcam_button_text, home_button, home_button_text, forecast_button
     # Go through events that are passed to the script by the window.
 
@@ -454,7 +456,7 @@ def update(dt, screen):
         coordinator.coordinator.set_object_state("big_wind_state", -1)
         coordinator.coordinator.set_object_state("fan_auto_enable", False)
 
-    if py or True:
+    if py:
         try:
             if coordinator.coordinator.is_occupied():
                 room_control.change_occupancy(True)
@@ -463,6 +465,34 @@ def update(dt, screen):
         except IndexError:
             log.info("Coordinator index error")
             pass  # This is a bug in the coordinator, I don't plan to fix it.
+
+        sunset_time = weatherAPI.current_weather.sunset_time(timeformat='date')
+        sunrise_time = weatherAPI.current_weather.sunrise_time(timeformat='date')
+
+        if not coordinator.coordinator.get_object_state("room_occupancy_info", False)['room_occupied'] and screen_dimmed != 14:
+            os.system(f"sudo sh -c 'echo \"14\" > /sys/class/backlight/rpi_backlight/brightness'")
+            coprocessor.lcd_backlight(0)
+            screen_dimmed = 14
+
+        elif datetime.datetime.now(tz=datetime.timezone.utc) > sunset_time or datetime.datetime.now(tz=datetime.timezone.utc) < sunrise_time:
+            # print("After sunset")
+            if coordinator.coordinator.get_object_state("room_occupancy_info", False)['room_occupied']:
+                if py and coordinator.coordinator.get_object_state("room_lights_state", False)['b'] <= 1 and screen_dimmed != 30:
+                    os.system(f"sudo sh -c 'echo \"30\" > /sys/class/backlight/rpi_backlight/brightness'")
+                    coprocessor.lcd_backlight(0)
+                    screen_dimmed = 30
+                elif py and coordinator.coordinator.get_object_state("room_lights_state", False)['b'] > 1 and screen_dimmed != 124:
+                    os.system(f"sudo sh -c 'echo \"124\" > /sys/class/backlight/rpi_backlight/brightness'")
+                    coprocessor.lcd_backlight(1)
+                    screen_dimmed = 124
+
+        elif datetime.datetime.now(tz=datetime.timezone.utc) > sunrise_time:
+            # print("After sunrise")
+            if coordinator.coordinator.get_object_state("room_occupancy_info", False)['room_occupied']:
+                if py and screen_dimmed != 255:
+                    coprocessor.lcd_backlight(1)
+                    os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
+                    screen_dimmed = 255
 
     if not headless:
         if room_control.queued_routine:
@@ -544,7 +574,7 @@ def update_weather_data():
         log.debug("Requesting Update")
 
         coordinator.coordinator.read_data()
-        coprocessor.update_sensors()
+        # coprocessor.update_sensors()
         occupancy_info_display.refresh()
         # stalker.background_stalk()
         if py:
@@ -555,24 +585,6 @@ def update_weather_data():
             humid = coordinator.coordinator.maintain_humidity()
             if humid:
                 room_control.run_routine(None, humid)
-
-        sunset_time = weatherAPI.current_weather.sunset_time(timeformat='date')
-        sunrise_time = weatherAPI.current_weather.sunrise_time(timeformat='date')
-
-        if datetime.datetime.now(tz=datetime.timezone.utc) > sunset_time or datetime.datetime.now(tz=datetime.timezone.utc) < sunrise_time:
-            # print("After sunset")
-            if py and coordinator.coordinator.get_object_state("room_lights_state", False)['b'] <= 1 and screen_dimmed != 30:
-                os.system(f"sudo sh -c 'echo \"30\" > /sys/class/backlight/rpi_backlight/brightness'")
-                screen_dimmed = 30
-            elif py and coordinator.coordinator.get_object_state("room_lights_state", False)['b'] > 1 and screen_dimmed != 124:
-                os.system(f"sudo sh -c 'echo \"124\" > /sys/class/backlight/rpi_backlight/brightness'")
-                screen_dimmed = 124
-
-        elif datetime.datetime.now(tz=datetime.timezone.utc) > sunrise_time:
-            # print("After sunrise")
-            if py and screen_dimmed != 255:
-                os.system(f"sudo sh -c 'echo \"255\" > /sys/class/backlight/rpi_backlight/brightness'")
-                screen_dimmed = 255
 
         if weatherAPI.update_current_weather():
             radar.update_radar()
@@ -759,14 +771,14 @@ def draw(screen, dt):
         forecast_button_render.blit(screen)
 
     if display_mode != "init":
-        temperature = round(coordinator.coordinator.get_object_state('temperature', False))
+        temperature = round(float(coordinator.coordinator.get_object_state('temperature', False)) * (9 / 5) + 32)
         humidity = round(coordinator.coordinator.get_object_state('humidity', False))
         hour = time.localtime().tm_hour % 12
         minute = time.localtime().tm_min
         # 1:  2: 3: 4: 5: 6: 7: 8:
         coprocessor.display(
-            upper_line=f"CPU:{str(round(cpu_average)).zfill(2)}% T:{temperature if -9 < temperature < 99 else '??'}F",
-            lower_line=f"MEM:{str(round(mem)).zfill(2)}% H:{humidity if humidity != -1 else '??'}%", )
+            upper_line=f"CPU:{str(round(cpu_average)).zfill(2)}% T:{str(temperature).zfill(2) if -9 < temperature < 99 else '??'}F",
+            lower_line=f"MEM:{str(round(mem)).zfill(2)}% H:{str(humidity).zfill(2) if humidity != -1 else '??'}%", )
 
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)

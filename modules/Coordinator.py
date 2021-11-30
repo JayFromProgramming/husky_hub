@@ -10,7 +10,7 @@ class Coordinator:
         Initialize the type of thermostat depending on if it is local or remote
         :param local: If the thermostat is local or remote
         """
-        self.coprocessor = coprocessors.Coprocessor(["com3", "com4"], [9600, 9600])
+        self.coprocessor = coprocessors.Coprocessor(["/dev/ttyACM1", "/dev/ttyACM0"], [9600, 9600], local)
         if local:
             print("Init Thermostat Host")
             self.coordinator = CoordinatorHost(self.coprocessor)

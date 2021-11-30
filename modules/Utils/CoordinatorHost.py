@@ -10,7 +10,7 @@ api_file = "../APIKey.json"
 temp_file = "Caches/Room_Coordination.json"
 
 
-def celsius_to_fahrenheit(celsius):
+def c_f(celsius):
     return (float(celsius) * (9 / 5)) + 32
 
 
@@ -124,7 +124,13 @@ class CoordinatorHost:
 
                 if request['type'] == "download_state":
                     self.upload_in_progress = True
-                    conn.sendall(json.dumps(self.data).encode())
+                    if "state" in request.keys():
+                        if request["state"] in self.data.keys():
+                            conn.sendall(json.dumps({request["state"]: self.data[request["state"]]}).encode())
+                        else:
+                            conn.sendall(b'No state found')
+                    else:
+                        conn.sendall(json.dumps(self.data).encode())
                     self.upload_in_progress = None
                 elif request['type'] == "upload_state":
                     self.download_in_progress = True
@@ -220,31 +226,52 @@ class CoordinatorHost:
         if not self.occupancy_detector.is_ready():
             return False
 
+        def decode(vals, sensor):
+            return vals[sensor].decode('utf-8')
+
+        def decode_num(vals, sensor):
+            try:
+                return float(vals[sensor].decode('utf-8'))
+            except ValueError:
+                return -9999
+
         data = self.coprocessor.get_data(target_arduino=0)
         data_2 = self.coprocessor.get_data(target_arduino=1)
         state = self.coprocessor.get_state(target_arduino=0)
         state_2 = self.coprocessor.get_state(target_arduino=1)
         if self.coprocessor.connected[0] and len(data) > 1:
-            self.set_object_states("room_sensor_data_displayable", carbon_monoxide_sensor=f"{data[2].decode('utf-8')} ppm",
-                                   gas_smoke_sensor=f"{data[1].decode('utf-8')} ppm", combustible_gas_sensor=f"{data[3].decode('utf-8')} ppm",
-                                   motion_sensor=True if data[4].decode('utf-8') == "1" else False, infrared_sensor=f"{data[0].decode('utf-8')}%")
+            # self.set_object_state("temperature", decode_num(data, 5))
+            # self.set_object_state("humidity", decode_num(data, 6) if decode_num(data, 6) != -9999 else -1)
+            # room_temp = c_f(decode_num(data, 5)) if decode(data, 5) != "Error" else "Error"
+            # room_temp = self.get_object_state("temperature")
+            # room_humidity = self.get_object_state("humidity")
+            self.set_object_states("room_sensor_data_displayable",
+                                   # room_air_sensor=f"T:{str(room_temp).zfill(5)}°F | H:{str(room_humidity).zfill(4)}%",
+                                   carbon_monoxide_sensor=f"{data[1].decode('utf-8')} ppm {'- High!' if float(decode_num(data, 2)) > 25 else ''}",
+                                   gas_smoke_sensor=f"{decode(data, 2)} ppm {'- High!' if float(decode_num(data, 2)) > 25 else ''}",
+                                   combustible_gas_sensor=f"{decode(data, 3)} ppm {'- High!' if float(decode_num(data, 3)) > 5 else ''}",
+                                   motion_sensor=True if data[4].decode('utf-8') == "1" else False, light_sensor=f"{data[0].decode('utf-8')}%",
+                                   lcd_backlight="On" if state[4] != 0 else "Off")
         else:
-            self.set_object_states("room_sensor_data_displayable", carbon_monoxide_sensor=None, gas_smoke_sensor=None, buzzer_alarm=None,
-                                   infrared_sensor=None, combustible_gas_sensor=None, motion_sensor=None)
+            # self.set_object_state("temperature", -9999)
+            # self.set_object_state("humidity", -1)
+            self.set_object_states("room_sensor_data_displayable", room_air_sensor=None, carbon_monoxide_sensor=None, gas_smoke_sensor=None,
+                                   buzzer_alarm=None, light_sensor=None, combustible_gas_sensor=None, motion_sensor=None, lcd_backlight=None)
 
         if self.coprocessor.connected[1] and len(data_2) > 1:
-            radiator_temp = celsius_to_fahrenheit(data_2[0].decode('utf-8')) if data_2[0].decode('utf-8') != "Error" else None
-            wind_temp = celsius_to_fahrenheit(data_2[1].decode('utf-8')) if data_2[1].decode('utf-8') != "Error" else None
+            radiator_temp = c_f(data_2[0].decode('utf-8')) if data_2[0].decode('utf-8') != "Error" else None
+            wind_temp = c_f(data_2[1].decode('utf-8')) if data_2[1].decode('utf-8') != "Error" else None
             self.set_object_states("room_sensor_data_displayable",
                                    radiator_temperature=f"T:{radiator_temp if not isinstance(radiator_temp, float) else round(radiator_temp, 3)}°F",
-                                   window_air_sensor=f"T:{wind_temp if not isinstance(wind_temp, float) else round(wind_temp, 2)}°F"
-                                                     f" | H:{(data_2[2].decode('utf-8')).split('.')[0]}%",
-                                   light_sensor=f"{data_2[3].decode('utf-8')}%", vibration_sensor=f"{data_2[4].decode('utf-8')}%",
-                                   sound_sensor=f"{data_2[5].decode('utf-8')}%",
+                                   window_air_sensor=f"T:{wind_temp if not isinstance(wind_temp, float) else str(round(wind_temp, 2)).zfill(5)}°F"
+                                                     f" | H:{str((data_2[2].decode('utf-8')).split('.')[0])}%",
+                                   infrared_sensor=f"{data_2[3].decode('utf-8')}%",
+                                   vibration_sensor=f"{False if decode_num(data_2, 4) != 0 else True}",
+                                   sound_sensor=f"{False if decode_num(data_2, 5) != 0 else True} ",
                                    voltage_sensor=f"{data_2[6].decode('utf-8')}V")
         else:
             self.set_object_states("room_sensor_data_displayable", radiator_temperature=None, window_air_sensor=None, sensors_on_bus_b=None,
-                                   light_sensor=None, vibration_sensor=None, sound_sensor=None, voltage_sensor=None)
+                                   infrared_sensor=None, vibration_sensor=None, sound_sensor=None, voltage_sensor=None)
 
         if self.coprocessor.connected[0] and len(data) > 1 and self.coprocessor.connected[1] and len(data_2) > 1:
             self.set_object_states("room_sensor_data_displayable", arduino_connections=f"All Online")
@@ -258,6 +285,11 @@ class CoordinatorHost:
         motion_time_delta = time.time() - self.occupancy_detector.last_motion_time
         # print(f"Motion time delta: {motion_time_delta}")
         self.set_object_states("room_sensor_data_displayable", last_motion=f"{time_delta_to_str(motion_time_delta)} ago")
+
+        if motion_time_delta < 30:
+            self.coprocessor.update_lcd_backlight_state(override=True, override_state=1)
+        else:
+            self.coprocessor.update_lcd_backlight_state()
 
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
@@ -274,8 +306,10 @@ class CoordinatorHost:
         :return:
         """
         self.last_download = time.time()
-        thread = threading.Thread(target=self._read_thermostat, args=()).start()
-        self.occupancy_detector.run_stalk()
+        thread = threading.Thread(target=self._read_thermostat, args=(), daemon=True).start()
+        self.occupancy_detector.check_inventory()
+        if time.time() - self.occupancy_detector.last_motion_time < 30 or self.occupancy_detector.last_motion_time == 0:
+            self.occupancy_detector.run_stalk()
 
     def read_states(self):
         """
@@ -291,7 +325,8 @@ class CoordinatorHost:
         """
         print("Reading data from local thermostat, saving to file")
         # self._load_data()
-
+        self.coprocessor.update_sensors()
+        # self._save_data()
         try:
             import Adafruit_DHT
 
@@ -311,7 +346,7 @@ class CoordinatorHost:
                     self.net_client.data['humidity'] = humidity
                     self.net_client.data['last_read'] = time.time()
             else:
-                self.net_client.data['humidity'] = None
+                self.net_client.data['humidity'] = -1
                 self.net_client.data['errors'].append("Failed to read humidity")
             if temp1 is not None and temp2 is not None:
                 temp = (temp1 + temp2) / 2
@@ -321,7 +356,7 @@ class CoordinatorHost:
                 self.net_client.data['temperature'] = temp
                 self.net_client.data['last_read'] = time.time()
             else:
-                self.net_client.data['temperature'] = None
+                self.net_client.data['temperature'] = -9999
                 self.net_client.data['errors'].append("Failed to read temperature")
 
             if len(self.data['errors']) > 10:
@@ -358,7 +393,7 @@ class CoordinatorHost:
                 except json.JSONDecodeError:
                     print("Failed to load data from file, corrupt file")
 
-    def get_object_state(self, object_name, update=True):
+    def get_object_state(self, object_name, update=True, dampen=False):
         """
         Get the state of an object from the coordinator
         :param object_name: The name of the object
@@ -453,7 +488,7 @@ class CoordinatorHost:
         Get the current temperature of the room
         :return: The current temperature of the room in Celsius
         """
-        return celsius_to_fahrenheit(self.net_client.data['temperature']) if self.net_client.data['temperature'] != -9999 else -9999
+        return c_f(self.net_client.data['temperature']) if self.net_client.data['temperature'] != -9999 else -9999
 
     def get_humidity(self):
         """

@@ -33,6 +33,9 @@ class OccupancyDetector:
         else:
             return False
 
+    def check_inventory(self):
+        self.stalker.check_inventory()
+
     def run_stalk(self):
         self.stalker.background_stalk()
 

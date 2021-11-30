@@ -110,7 +110,7 @@ class CoordinatorClient:
                 raise ConnectionError("Connection failed")
             self.coordinator_available = False
 
-        def download_state(self):
+        def download_state(self, selected_state=None):
             # print("Downloading state from coordinator webserver")
             if self.download_in_progress:
                 return self.data
@@ -118,7 +118,10 @@ class CoordinatorClient:
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.connect((self.address, self.port))
-                    request = json.dumps({"client": self.client_name, "auth": self.auth, "type": "download_state"})
+                    if selected_state is not None:
+                        request = json.dumps({"client": self.client_name, "auth": self.auth, "type": "download_state", "state": selected_state})
+                    else:
+                        request = json.dumps({"client": self.client_name, "auth": self.auth, "type": "download_state"})
                     s.sendall(request.encode())
                     data_buff = b''
                     while True:
@@ -137,8 +140,9 @@ class CoordinatorClient:
                 return self.data
             self.download_in_progress = None
             self.coordinator_available = True
-            self.data = data
-            return data
+            for key in data.keys():
+                self.data[key] = data[key]
+            return self.data
 
         def upload_state(self, state_data):
             print("Uploading state change to coordinator webserver")
@@ -258,15 +262,19 @@ class CoordinatorClient:
         elif target == "tablet" or target == "all":
             self.net_client.command_tablet_reboot()
 
-    def get_object_state(self, object_name, update=True):
+    def get_object_state(self, object_name, update=True, dameon=False):
         """
         Get the state of an object from the coordinator
         :param object_name: The name of the object
         :param update: If True, update the data from the coordinator
+        :param dameon: If True, updating the data from the coordinator will be done in a daemon thread
         :return: The state of the object
         """
         if update:
-            self.net_client.download_state()
+            if dameon:
+                self.read_data()
+            else:
+                self.net_client.download_state()
         if object_name in self.data:
             return self.data[object_name]
         else:
