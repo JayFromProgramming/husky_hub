@@ -11,15 +11,22 @@ class BlueStalker:
 
     def __init__(self, target_devices: list, targets: dict):
         self.target_devices = target_devices
+        self.non_priority_devices = []
+        for target in self.target_devices:
+            if target[2] is False:
+                self.non_priority_devices.append(target)
         self.failed_attempts = 0
         self.ready = False
         self.total_devices_detected = 0
+        self.seek_offset = 0
+        self.max_seek = 2
         self.room_occupied = True
         self.targets = targets.copy()
         self.temp_targets = targets
-        for target in self.target_devices:
+        for target in target_devices:
             if target[1] not in self.targets.keys():
-                self.targets[target[1]] = {"name": target[0], "updated_at": 0, "present": None, "stable": None, "mac": target[1]}
+                self.targets[target[1]] = {"name": target[0], "updated_at": 0, "present": None, "stable": None, "mac": target[1],
+                                           "priority": target[2]}
         self.socket_connections = []
         self.already_stalking = False
         self.stalk_error = False
@@ -34,6 +41,16 @@ class BlueStalker:
             except bluetooth.BluetoothError:  # If not, remove it from the connected socket list
                 self.stalker_logs.append(f"[!] {mac_address} is not connected anymore")
                 self.socket_connections.remove((sock, mac_address))
+                if self.targets[mac_address]['present'] is not False:
+                    self.targets[mac_address]['updated_at'] = time.time()
+                self.targets[mac_address]['present'] = False
+                self.targets[mac_address]['stable'] = False
+
+        if len(self.socket_connections) > 0:
+            self.room_occupied = True
+            self.failed_attempts = 0
+        else:
+            self.room_occupied = False
 
     def seek_device(self, target_name: str, target_mac: str):
         try:
@@ -90,8 +107,11 @@ class BlueStalker:
             self.stalk_error = False
             self.total_devices_detected = 0
             search_threads = []
+            seeked_this_round = 0
             # Find devices in self.targets that don't have a connection in self.socket_connections
-            for target_name, target_mac in self.target_devices:
+            index = 0
+            self.seek_offset += 1
+            for target_name, target_mac, priority in self.target_devices:
                 already_connected = False
                 for sock, mac_address in self.socket_connections:
                     if mac_address == target_mac:
@@ -102,8 +122,20 @@ class BlueStalker:
                         self.total_devices_detected += 1
                         continue
                 if not already_connected:
-                    self.stalker_logs.append(f"[*] {target_mac}: {target_name} is not connected, starting seek thread")
-                    search_threads.append(threading.Thread(target=self.seek_device, args=(target_name, target_mac), daemon=True))
+                    if priority:
+                        self.stalker_logs.append(f"[*] {target_mac}: {target_name} is not connected, starting seek thread")
+                        search_threads.append(threading.Thread(target=self.seek_device, args=(target_name, target_mac), daemon=True))
+                        seeked_this_round += 1
+                    else:
+                        index += 1
+                        target_name, target_mac, priority = \
+                            self.non_priority_devices[(index + self.seek_offset) % len(self.non_priority_devices)]
+                        if seeked_this_round < self.max_seek:
+                            self.stalker_logs.append(f"[*] {target_mac}: {target_name} is not connected, starting seek thread")
+                            search_threads.append(threading.Thread(target=self.seek_device, args=(target_name, target_mac), daemon=True))
+                            seeked_this_round += 1
+                        else:
+                            self.stalker_logs.append(f"[*] {target_mac}: {target_name} is not connected, skipping seek thread due to max_seek")
 
             for thread in search_threads:
                 thread.start()

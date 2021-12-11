@@ -47,6 +47,7 @@ class CurrentWeather:
             wind = self.weather_api.current_weather.wind('miles_hour')
             humidity = self.weather_api.current_weather.humidity
             status = self.weather_api.current_weather.detailed_status
+            secondary_status_list = self.weather_api.current_weather.extra_status_info
             sky_icon = self.weather_api.current_weather.weather_icon_name
             visibility = self.weather_api.current_weather.visibility(unit='miles')
             icon_url = f"http://openweathermap.org/img/wn/{sky_icon}@2x.png"
@@ -59,6 +60,7 @@ class CurrentWeather:
             temp = {'temp': 0, 'temp_max': 0, 'temp_min': 0, 'feels_like': 0, 'temp_kf': None}
             wind = {'speed': 0, 'deg': 0}
             status = "No data"
+            secondary_status_list = ["No data"]
             humidity = 0
             visibility = 0
             icon_url = None
@@ -80,11 +82,15 @@ class CurrentWeather:
             top, bottom = float(visibility).as_integer_ratio()
             visibility = f"{top}/{bottom} mi"
 
+        secondary_status_string = ""
+        for secondary_status in secondary_status_list:
+            secondary_status_string += f" & {secondary_status['main']}"
+
         # if self.coordinator.get_temperature() != -9999:
         #     secondary_temp = f"{round(self.coordinator.get_temperature(), 2)}°F"
 
         updated = datetime.datetime.fromtimestamp(updated)
-        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}", True, pallet_one, pallet_four).convert_alpha()
+        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}{secondary_status_string}", True, pallet_one, pallet_four).convert_alpha()
         self.small_info = self.font2.render(f"{secondary_temp}; Clouds: {round(clouds)}%"
                                             f"; Humidity: {humidity}%", True, pallet_three, pallet_four).convert()
         self.small_info2 = self.font2.render(f"Vis: {visibility}; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"

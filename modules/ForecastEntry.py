@@ -10,6 +10,8 @@ import logging as log
 
 from atmos import calculate
 # import metpy.calc as mpcalc
+from Utils import humidity_converter
+
 from OpenWeatherWrapper import OpenWeatherWrapper
 from Utils import buttonGenerator
 
@@ -32,7 +34,7 @@ class FocusedForecast:
         self.open_since = time.time()
         self.lines = []
         ref = self.weather.reference_time()
-        self.delta = int((ref - ref % (3600*1.5)) - (time.time() - time.time() % (3600*1.5)))
+        self.delta = int((ref - ref % (3600 * 1.5)) - (time.time() - time.time() % (3600 * 1.5)))
 
         font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 42)
         font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 18)
@@ -65,10 +67,11 @@ class FocusedForecast:
         pressure = self.weather.pressure['press']
         dew_point = self.weather.dewpoint
         temp_difference = 67 - temp['temp']
-        inside_humidity = humidity / (temp_difference / 20)
-        inside_humidity = "Unknown"
+        temp_c = self.weather.temperature('celsius')['temp']
+        absolute_humidity = calculate('AH', RH=humidity, p=pressure, T=temp_c, p_units='hPa', debug=True)
+        print(absolute_humidity)
+        inside_humidity = humidity_converter.convert_absolute_humidity(absolute_humidity[0], temp['temp'], pressure)
 
-        # absolute_humidity = calculate('AH', RH=humidity, p=pressure, T=temp['temp'], p_units='hPa', T_units='fahrenheit', debug=True)
         # inside_humidity = mpcalc.relative_humidity_from_specific_humidity(
         #     specific_humidity=pint.Quantity(absolute_humidity), temperature=pint.Quantity(67, units="fahrenheit"),
         #     pressure=pint.Quantity(pressure, units="hPa"))

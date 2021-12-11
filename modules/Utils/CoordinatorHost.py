@@ -240,11 +240,6 @@ class CoordinatorHost:
         state = self.coprocessor.get_state(target_arduino=0)
         state_2 = self.coprocessor.get_state(target_arduino=1)
         if self.coprocessor.connected[0] and len(data) > 1:
-            # self.set_object_state("temperature", decode_num(data, 5))
-            # self.set_object_state("humidity", decode_num(data, 6) if decode_num(data, 6) != -9999 else -1)
-            # room_temp = c_f(decode_num(data, 5)) if decode(data, 5) != "Error" else "Error"
-            # room_temp = self.get_object_state("temperature")
-            # room_humidity = self.get_object_state("humidity")
             self.set_object_states("room_sensor_data_displayable",
                                    # room_air_sensor=f"T:{str(room_temp).zfill(5)}°F | H:{str(room_humidity).zfill(4)}%",
                                    carbon_monoxide_sensor=f"{data[1].decode('utf-8')} ppm {'- High!' if float(decode_num(data, 2)) > 25 else ''}",
@@ -439,7 +434,7 @@ class CoordinatorHost:
         if self.get_temperature() <= self.net_client.data['temp_set_point'] - 0.75 and self.get_object_state("big_wind_state") != 0:
             self.set_object_state("big_wind_state", 0)  # If the temperature is 1 degrees below the set point, turn off both fans
             return "big-wind-off"
-        elif self.get_temperature() <= self.net_client.data['temp_set_point'] - 0.25 and self.get_object_state("big_wind_state") == 3:
+        elif self.get_temperature() <= self.net_client.data['temp_set_point'] and self.get_object_state("big_wind_state") == 3:
             self.set_object_state("big_wind_state", 2)  # If the temperature is 0.75 degrees below the set point, turn off the intake fan
             return "big-wind-out"
         elif self.get_temperature() >= self.net_client.data['temp_set_point'] + 1.5 and self.get_object_state("big_wind_state") != 3:

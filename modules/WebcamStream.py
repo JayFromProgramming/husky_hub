@@ -289,12 +289,12 @@ class CampusCams:
                 return
             self.overlay_buffers[page][cam_id] = self.no_image  # If not, then set write the error to the name buffer, log it, and continue
             self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
-            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:30]}")).convert()
+            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:36]}")).convert()
         except socket.timeout:  # If the image reading timed out, then set the overlay to error image and log it
             self.overlay_buffers[page][cam_id] = self.no_image
             self.log.info(f"Cam {page}-{cam_id}: Timeout")
         except Exception as e:  # If the image reading failed for some other reason, then set the overlay to error image and log it
-            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:30]}")).convert()
+            self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:36]}")).convert()
             print(f"Cam {page}-{cam_id} error: {e}")
 
     def resize(self, screen):

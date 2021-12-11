@@ -291,7 +291,7 @@ def resize(screen):
 def process_click(mouse_pos):
     global focused_forecast, display_mode, weather_alert_display, refresh_forecast, forecast, weather_alert_number, selected_loading_hour, \
         slot_position, loading_hour, max_loading_hour, last_forecast_update, last_current_update, failed_current_updates, fps, \
-        low_refresh, was_focused, no_mouse, overheat_halt, weather_alert_number, weather_alert_display, current_icon
+        low_refresh, was_focused, no_mouse, overheat_halt, weather_alert_number, weather_alert_display, current_icon, base_fps
     # This is where we handle mouse clicks.
     alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
     low_refresh = time.time()
@@ -693,8 +693,10 @@ def draw(screen, dt):
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
                 if webcams.resize(screen):
                     occupancy_icon = occupied_green
+                    data_log.condense()
                     if py:
-                        data_log.condense()
+                        pass
+                        # data_log.condense()
                         # stalker.background_stalk()
                     if not py and not tablet:
                         data_log.export()
