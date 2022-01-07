@@ -81,6 +81,8 @@ class WeatherAlert:
         else:
             self.description_lines.append(font3.render(f"---------------------------------------End Alert---------------------------------------",
                                                        True, pallet_one))
+            self.description_lines.append(font3.render(f" ", True, pallet_one))
+            self.description_lines.append(font3.render(f" ", True, pallet_one))
             self.built = True
 
     def draw(self, screen, location):
@@ -97,7 +99,13 @@ class WeatherAlert:
         screen.blit(self.sender_text, (x, y + 45))
         # screen.blit(self.time_range_text, (x, y + 49))
         count = 0  # 17
-        for line in self.description_lines[self.scroll:self.scroll+17]:
+        for value in range(self.scroll, self.scroll + 16):
+            if len(self.description_lines) > 17:
+                line = self.description_lines[value % len(self.description_lines)]
+            elif value < len(self.description_lines):
+                line = self.description_lines[value]
+            else:
+                break
             screen.blit(line, (x, y + 72 + (17 * count)))
             count += 1
 

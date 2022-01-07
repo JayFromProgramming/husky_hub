@@ -84,7 +84,10 @@ class CurrentWeather:
 
         secondary_status_string = ""
         for secondary_status in secondary_status_list:
-            secondary_status_string += f" & {secondary_status['main']}"
+            try:
+                secondary_status_string += f" & {secondary_status['main']}"
+            except TypeError:
+                secondary_status_string += f" & {secondary_status}"
 
         # if self.coordinator.get_temperature() != -9999:
         #     secondary_temp = f"{round(self.coordinator.get_temperature(), 2)}°F"

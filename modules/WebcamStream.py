@@ -117,7 +117,7 @@ class CampusCams:
         """
         self.close_multicast()
         if cam_id is None and self.current_focus is not None:
-            if self.linux: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/bind")
+            # if self.linux: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/bind")
             if self.stream is not None:
                 self.stream.release()
                 self.stream.stop()
@@ -134,7 +134,7 @@ class CampusCams:
             try:
                 thread = threading.Thread(target=self.create_stream, args=(self, self.cameras[self.page][cam_id]))
                 thread.start()
-                if self.linux: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind")
+                # if self.linux: os.system("echo '1-1' |sudo tee /sys/bus/usb/drivers/usb/unbind")
                 self.log.info(f"Created Stream/Focus for cam {self.page}-{cam_id}")
             except Exception as e:
                 self.log.error(f"Attempted to create stream for cam {self.page}-{cam_id}, failed because ({e})")

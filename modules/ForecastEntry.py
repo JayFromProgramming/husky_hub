@@ -69,7 +69,7 @@ class FocusedForecast:
         temp_difference = 67 - temp['temp']
         temp_c = self.weather.temperature('celsius')['temp']
         absolute_humidity = calculate('AH', RH=humidity, p=pressure, T=temp_c, p_units='hPa', debug=True)
-        print(absolute_humidity)
+        # print(absolute_humidity)
         inside_humidity = humidity_converter.convert_absolute_humidity(absolute_humidity[0], temp['temp'], pressure)
 
         # inside_humidity = mpcalc.relative_humidity_from_specific_humidity(

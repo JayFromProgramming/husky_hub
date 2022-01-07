@@ -54,6 +54,32 @@
     [
         [
             0,
+            "https://webcams.mtu.edu/images/webcam34.jpg",
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera34.stream/playlist.m3u8",
+            "Silver Rink"
+        ],
+        [
+            1,
+            "https://webcams.mtu.edu/images/webcam33.jpg",
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera33.stream/playlist.m3u8",
+            "Gold Rink"
+        ],
+        [
+            2,
+            "https://webcams.mtu.edu/images/webcam32.jpg",
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera32.stream/playlist.m3u8",
+            "Black Rink"
+        ],
+        [
+           3,
+            "https://webcams.mtu.edu/webcam31/webcam31.jpg",
+            "https://streamingwebcams.mtu.edu:1935/rtplive/camera031.stream/playlist.m3u8",
+            "Walker Lawn"
+        ]
+    ],
+    [
+        [
+            0,
             "https://webcams.mtu.edu/webcam30/webcam30.jpg",
             "https://streamingwebcams.mtu.edu:1935/rtplive/camera30.stream/playlist.m3u8",
             "Ski Hill"
