@@ -81,7 +81,7 @@ class FocusedForecast:
         self.lines.append(font2.render(f"It will feel like {round(temp['feels_like'])}°F with an expected humidity of {humidity}%",
                                        True, pallet_three))
 
-        self.lines.append(font2.render(f"Calculated inside humidity with outside air will be {inside_humidity}%",
+        self.lines.append(font2.render(f"Calculated inside humidity with outside air will be Not_Implemented",
                                        True, pallet_three))
 
         self.lines.append(font2.render(f"Expected cloud cover of {round(clouds)}%  "

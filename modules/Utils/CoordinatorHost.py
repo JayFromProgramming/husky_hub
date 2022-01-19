@@ -288,10 +288,12 @@ class CoordinatorHost:
 
         if self.occupancy_detector.is_occupied():
             self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
+                                   bt_error=self.occupancy_detector.is_errored(),
                                    occupants=self.occupancy_detector.occupancy_info(), logs=self.occupancy_detector.stalker.stalker_logs)
             return True
         else:
             self.set_object_states("room_occupancy_info", room_occupied=False, last_motion=self.occupancy_detector.last_motion_time,
+                                   bt_error=self.occupancy_detector.is_errored(),
                                    occupants=self.occupancy_detector.occupancy_info(), logs=self.occupancy_detector.stalker.stalker_logs)
             return False
 
@@ -388,11 +390,12 @@ class CoordinatorHost:
                 except json.JSONDecodeError:
                     print("Failed to load data from file, corrupt file")
 
-    def get_object_state(self, object_name, update=True, dampen=False):
+    def get_object_state(self, object_name, update=True, dameon=False):
         """
         Get the state of an object from the coordinator
         :param object_name: The name of the object
         :param update: If True, update the data from the coordinator
+        :param dameon: Unused in this implementation
         :return: The state of the object
         """
         if object_name in self.data:
@@ -468,7 +471,7 @@ class CoordinatorHost:
                 self.set_object_state("little_humid_state", False)
                 return "humid-off"
         elif self.net_client.data['humid_set_point'] <= self.net_client.data['humidity'] <= self.net_client.data['humid_set_point'] + 2:
-            if self._calculate_humid_state() != 1:
+            if self._calculate_humid_state() != 1 and self._calculate_humid_state() != 0:
                 self.set_object_state("big_humid_state", True)
                 self.set_object_state("little_humid_state", False)
                 return "humid-half"

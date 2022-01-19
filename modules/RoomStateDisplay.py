@@ -47,8 +47,12 @@ class Occupancy_display:
             state = "Unoccupied"
 
         self.state_text = font1.render(f"Room State: {state}", True, pallet_one)
-        present = [occupant for occupant in occupancy['occupants'].values() if occupant['present'] is True]
-        absent = [occupant for occupant in occupancy['occupants'].values() if occupant['present'] is False]
+
+        def sort(occupant):
+            return occupant['updated_at']
+
+        present = [occupant for occupant in sorted(occupancy['occupants'].values(), key=sort) if occupant['present'] is True]
+        absent = [occupant for occupant in sorted(occupancy['occupants'].values(), key=sort, reverse=True) if occupant['present'] is False]
         max_present_rjust = max([len(occupant['name']) for occupant in present] if len(present) > 0 else [0])
         max_absent_rjust = max([len(occupant['name']) for occupant in absent] if len(absent) > 0 else [0])
         self.lines.append(font2.render(f"------------Currently Present------------", True, pallet_one, pallet_three).convert())

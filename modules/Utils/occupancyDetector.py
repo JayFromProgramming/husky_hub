@@ -17,6 +17,9 @@ class OccupancyDetector:
     def is_ready(self):
         return self.stalker.ready
 
+    def is_errored(self):
+        return self.stalker.stalk_error
+
     def is_occupied(self):
         self.check_motion()
         if self.stalker.stalk_error:

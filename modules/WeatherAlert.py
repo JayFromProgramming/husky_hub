@@ -65,9 +65,11 @@ class WeatherAlert:
                 self.tags = self.alert['tags']
 
             self.event_text = font1.render(f"Alert {self.number}/{self.total}:"
-                                           f" {self.event}" + (" In Effect" if time_in_range(self.start, self.end, datetime.datetime.now()) else ""),
+                                           f" {self.event}",
                                            True, pallet_one)
-            self.sender_text = font2.render(f"Issued by: {self.alert['sender_name']}", True, pallet_one)
+            self.sender_text = font2.render(f"Issued by: {self.alert['sender_name']}"
+                                            + (" In Effect" if time_in_range(self.start, self.end, datetime.datetime.now()) else ""),
+                                            True, pallet_one)
             self.time_range_text = font2.render(f"In Effect From: ", True, pallet_one)
             self.initialized = True
         if self.built_line == 0:

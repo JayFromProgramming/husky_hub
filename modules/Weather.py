@@ -121,6 +121,8 @@ if not headless:
     splash = pygame.image.load(os.path.join("Assets/Images/splash_background2.jpg")).convert_alpha()
     no_mouse_icon = pygame.image.load(os.path.join("Assets/Images/NoMouse.png")).convert_alpha()
     weather_alert = pygame.image.load(os.path.join("Assets/Images/alert.png")).convert_alpha()
+    weather_warning = pygame.image.load(os.path.join("Assets/Images/warning.png")).convert_alpha()
+    weather_clear = pygame.image.load(os.path.join("Assets/Images/all_clear.png")).convert_alpha()
     no_fan_icon = pygame.image.load(os.path.join("Assets/Images/No_fan.png")).convert_alpha()
     overheat_icon = pygame.image.load(os.path.join("Assets/Images/overheat.png")).convert_alpha()
     down_only_icon = pygame.image.load(os.path.join("Assets/Images/download_only.png")).convert_alpha()
@@ -134,6 +136,8 @@ if not headless:
     blue_error = pygame.image.load(os.path.join("Assets/Images/blueError.png")).convert_alpha()
     unoccupied_green = pygame.image.load(os.path.join("Assets/Images/Unoccupied_green.png")).convert()
     unoccupied_red = pygame.image.load(os.path.join("Assets/Images/Unoccupied_red.png")).convert_alpha()
+    unknown_red = pygame.image.load(os.path.join("Assets/Images/unknown_red.png")).convert_alpha()
+    occupied_red = pygame.image.load(os.path.join("Assets/Images/Occupied_red.png")).convert()
     occupied_green = pygame.image.load(os.path.join("Assets/Images/Occupied_green.png")).convert()
     occupied_yellow = pygame.image.load(os.path.join("Assets/Images/Occupied_yellow.png")).convert()
     net_status: pygame.Surface = None
@@ -166,6 +170,8 @@ was_focused = True
 low_refresh = time.time()
 weather_alert_number = 0
 display_mode = "init"
+alerts = []
+active_alerts = []
 
 # room_button = pygame.Rect(120, 450, 100, 40)
 room_button_text = "Room Control"
@@ -568,7 +574,7 @@ def update(dt, screen):
 def update_weather_data():
     # This function is called every half minute to update the weather data.
     global last_current_update, last_forecast_update, screen_dimmed, failed_current_updates, forecast, refresh_forecast, selected_loading_hour
-    global loading_hour, data_log
+    global loading_hour, data_log, alerts, active_alerts
     # Update Weather Info
     if last_current_update < time.time() - 30:
         log.debug("Requesting Update")
@@ -601,6 +607,8 @@ def update_weather_data():
             selected_loading_hour = 1
             loading_hour = selected_loading_hour
         # webcams.update_all()
+        alerts = weatherAPI.one_call.alerts if weatherAPI.one_call else None
+        active_alerts = [alert for alert in alerts if alert['end'] > time.time() > alert['start']] if alerts else None
         last_current_update = time.time()
 
 
@@ -652,7 +660,7 @@ def draw(screen, dt):
     """
     global refresh_forecast, last_current_update, current_icon, forecast, loading_hour, fps, selected_loading_hour
     global failed_current_updates, screen_dimmed, display_mode, weather_alert_display, overheat_halt, loading_screen
-    global radar, net_status
+    global radar, net_status, alerts, active_alerts
     screen.fill((0, 0, 0))  # Fill the screen with black.
 
     def draw_clock(pallet):
@@ -670,13 +678,12 @@ def draw(screen, dt):
         cpu_averages.pop(0)
     mem = (1 - (avail / total)) * 100
 
-    alert = weatherAPI.one_call.alerts if weatherAPI.one_call else None
-
     if display_mode == "init":
         # This the loading screen method
         loading_screen.draw_progress(screen, (100, 300), 600)
         occupancy_icon = unoccupied_green
         coprocessor.display_splash(line1="Dorminator", line2="Ver: 1.0")
+        screen.blit(weather_warning, weather_alert.get_rect(topleft=(25, 65)))
         if loading_screen.cache_icons():
             occupancy_icon = occupied_yellow
             loading_screen.load_weather()
@@ -688,6 +695,7 @@ def draw(screen, dt):
             loading_screen.loading_status_strings.append(f"Building forecast hour ({loading_hour})")
             # coordinator.coprocessor.set_data_slot_state(5, 1)
             if refresh_forecast is False:
+                screen.blit(weather_alert, weather_alert.get_rect(topleft=(25, 65)))
                 occupancy_icon = unoccupied_red
                 loading_screen.loading_percentage += loading_screen.loading_percent_bias['Webcams'] / 4
                 loading_screen.loading_status_strings.append(f"Loading webcam page ({webcams.page})")
@@ -806,7 +814,12 @@ def draw(screen, dt):
 
     if display_mode != 'init':
         if occupancy_info['room_occupied'] is None or not coordinator.coordinator.net_client.coordinator_available:
-            occupancy_icon = unoccupied_red
+            occupancy_icon = unknown_red  # Display unknown icon if occupancy data is not available
+        elif "bt_error" in occupancy_info and occupancy_info['bt_error']:
+            if occupancy_info['room_occupied']:  # Displayed if BT occupancy detection is not working
+                occupancy_icon = occupied_red
+            else:
+                occupancy_icon = unoccupied_red
         elif occupancy_info['room_occupied']:
             occupancy_icon = occupied_yellow
             for info in dict(occupancy_info['occupants']).values():
@@ -828,9 +841,13 @@ def draw(screen, dt):
         else:
             screen.blit(occupancy_icon, occupancy_icon.get_rect(topleft=(5, 2)))
     if display_mode == "home":
-        if alert:
-            # If a weather alert is active, draw the alert icon
+        if active_alerts:
             screen.blit(weather_alert, weather_alert.get_rect(topleft=(25, 65)))
+        elif alerts:
+            # If a weather alert is active, draw the alert icon
+            screen.blit(weather_warning, weather_alert.get_rect(topleft=(25, 65)))
+        else:
+            screen.blit(weather_clear, weather_alert.get_rect(topleft=(25, 65)))
         if room_control.raincheck:
             # If a raincheck is active, draw the raincheck icon
             screen.blit(no_fan_icon, no_fan_icon.get_rect(topright=(723 - 40, 2)))
@@ -845,12 +862,6 @@ def draw(screen, dt):
             if display_mode == "webcams" and temp > 70:
                 # webcams.focus(None)
                 fps = 0.5
-        if no_mouse:
-            # If the mouse is not detected, draw the mouse icon
-            if alert:
-                screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 37)))
-            else:
-                screen.blit(no_mouse_icon, no_mouse_icon.get_rect(topright=(800, 2)))
 
     # Flip the display so that the things we drew actually show up.
     pygame.display.flip()
