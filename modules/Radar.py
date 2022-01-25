@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import os
 import threading
 from os import listdir
@@ -138,7 +139,7 @@ class Radar:
         self.v1_layers = []
         self.v2_layers = [("CL", 0, "")]
 
-        self.log = log  # Zoom 6
+        self.log = logging.getLogger(__name__)
         self.background_left = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/left.png")), self.scale).convert()  # 15, 22 or 15, 41
         self.background_center = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/center.png")), self.scale).convert()  # 16, 22 or 16, 41
         self.background_right = scale_tile(pygame.image.load(os.path.join("Assets/Tiles/right.png")), self.scale).convert()  # 17, 22 or 17, 41

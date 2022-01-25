@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import threading
 import time
@@ -7,7 +8,10 @@ import datetime
 import socket
 
 api_file = "../APIKey.json"
-temp_file = "Caches/Room_Coordination.json"
+save_file = "Caches/Room_Coordination.json"
+backup_file = "Caches/Room_Coordination_Backup.json"
+
+log = logging.getLogger(__name__)
 
 
 def c_f(celsius):
@@ -39,6 +43,7 @@ class NoCoordinatorConnection(Exception):
         self.message = message
 
     def __str__(self):
+        log.warning(f"Coordinator connection error: {self.message}")
         return f"Coordinator connection error: {self.message}"
 
 
@@ -48,6 +53,7 @@ class NoCoordinatorData(Exception):
         self.message = message
 
     def __str__(self):
+        log.warning(f"No coordinator data error: {self.message}")
         return f"Coordinator data error: {self.message}"
 
 
@@ -57,6 +63,7 @@ class UnknownObjectError(Exception):
         self.message = message
 
     def __str__(self):
+        log.warning(f"Unknown object error: {self.message}")
         return f"Unknown object error: {self.message}"
 
 
@@ -70,6 +77,7 @@ def get_ip():
         IP = '127.0.0.1'
     finally:
         s.close()
+    log.info(f"Hosting coordinator on {IP}")
     return IP
 
 
@@ -92,7 +100,7 @@ class CoordinatorHost:
             self.run_server = True
             ip = get_ip()
             if ip != self.host:
-                print("Coordinator IP not valid")
+                log.warning(f"Coordinator IP address is {ip} but {self.host} was specified in the config file")
                 self.host = ip
                 self.thread = threading.Thread(target=self.run, daemon=True).start()
                 # self.coordinator_available = False
@@ -100,10 +108,10 @@ class CoordinatorHost:
                 self.thread = threading.Thread(target=self.run, daemon=True).start()
 
         def run(self):
-            print(f"Starting Coordinator Websocket on {self.host}:{self.port}")
+            log.debug(f"Starting Coordinator Websocket on {self.host}:{self.port}")
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.bind((self.host, self.port))
-                print(f"Coordinator Websocket on {self.host}:{self.port} started")
+                log.debug(f"Coordinator Websocket on {self.host}:{self.port} started")
                 while self.run_server:
                     s.listen()
                     conn, addr = s.accept()
@@ -111,14 +119,14 @@ class CoordinatorHost:
 
         def connect(self, conn, addr):
             with conn:
-                print('Connected by', addr)
+                log.debug('Connected by', addr)
                 raw_request = conn.recv(1024)
-                print(f"Request: {raw_request}")
+                log.debug(f"Request: {raw_request}")
                 request = json.loads(raw_request.decode())
                 if request["auth"] == self.auth:
-                    print(f"Client {request['client']} has connected and been authenticated")
+                    log.debug(f"Client {request['client']} has connected and been authenticated")
                 else:
-                    print(f"Client {request['client']} has connected but has not been authenticated")
+                    log.debug(f"Client {request['client']} has connected but has not been authenticated")
                     conn.sendall(b'Forbidden: 403')
                     return
 
@@ -134,7 +142,7 @@ class CoordinatorHost:
                     self.upload_in_progress = None
                 elif request['type'] == "upload_state":
                     self.download_in_progress = True
-                    print(f"Client {request['client']} is uploading new state data")
+                    log.debug(f"Client {request['client']} is uploading new state data")
                     conn.sendall(b'up-ready')  # Let the client know that we are ready to receive data
                     data_buff = b''
                     try:
@@ -148,17 +156,17 @@ class CoordinatorHost:
                         for key in data.keys():
                             self.data[key] = data[key]
                         # print(self.data)
-                        print(f"Client {request['client']} has uploaded new room state data")
+                        log.debug(f"Client {request['client']} has uploaded new room state data")
                         # conn.sendall(b'ack')  # Acknowledge the new state data was received and updated
                     except Exception as e:
-                        print(f"Client {request['client']} has failed to upload proper room state data")
-                        print(e)
+                        log.warning(f"Client {request['client']} has failed to upload proper room state data")
+                        log.warning(e)
                         # conn.sendall(b'503: ' + bytes(str(e)))  # Let the client know that the new state data was received but not understood
                     finally:
                         self.download_in_progress = None
                 elif request['type'] == "preform_action":
                     self.download_in_progress = True
-                    print(f"Client {request['client']} is requesting an action to be preformed")
+                    log.debug(f"Client {request['client']} is requesting an action to be preformed")
                     conn.sendall(b'command-ready')
                     data_buff = b''
                     while True:
@@ -169,17 +177,17 @@ class CoordinatorHost:
                     data: dict = json.loads(data_buff.decode())
                     action = self.approved_actions(data['action'])
                     if data['auth'] == action['auth']:
-                        print(f"Client {request['client']} has requested action {action['name']} be preformed")
+                        log.debug(f"Client {request['client']} has requested action {action['name']} be preformed")
                         if action['action_type'] == "internal_code_execution":
                             code = ""
                             for line in action['code']:
                                 code += line + "\n"
                             exec(code)
                 else:
-                    print(f"Client {request['client']} has requested unknown action {request['type']}")
+                    log.warning(f"Client {request['client']} has requested unknown action {request['type']}")
                     conn.sendall(b'404')  # Acknowledge the request was received but not understood
 
-            print(f"Connection with client {request['client']} (action: {request['type']}) has been closed")
+            log.debug(f"Connection with client {request['client']} (action: {request['type']}) has been closed")
 
     def __init__(self, coprocessor):
         """
@@ -320,7 +328,7 @@ class CoordinatorHost:
         Read the data from the local thermostat
         :return:
         """
-        print("Reading data from local thermostat, saving to file")
+        log.debug("Reading data from local thermostat, saving to file")
         # self._load_data()
         self.coprocessor.update_sensors()
         # self._save_data()
@@ -374,7 +382,15 @@ class CoordinatorHost:
         :return:
         """
         self.net_client.data['last_update'] = time.time()
-        with open(temp_file, "w") as f:
+        # Move the last save file to a backup folder
+        if os.path.isfile(save_file) and os.path.isfile(backup_file):
+            try:
+                os.renames(os.path.join(save_file), os.path.join(backup_file))
+            except Exception as e:
+                log.error(f"Failed to rename {save_file} to {backup_file}: {e}")
+        else:
+            log.warning("Files missing, not backing up")
+        with open(save_file, "w") as f:
             json.dump(self.net_client.data, f, indent=2)
 
     def _load_data(self):
@@ -382,13 +398,29 @@ class CoordinatorHost:
         Load the room coordination data from a file for persistent state after a restart
         :return:
         """
-        if os.path.isfile(temp_file):
-            with open(temp_file) as f:
-                # Merge the data from the file with the local data
+        if os.path.isfile(save_file):
+            with open(save_file) as f:
                 try:
                     self.net_client.data = json.load(f)
+                    log.info("Loaded data from main save file")
                 except json.JSONDecodeError:
-                    print("Failed to load data from file, corrupt file")
+                    log.warning("Failed to load data from file, corrupt file or empty file attempting to load backup")
+                    if os.path.isfile(backup_file):
+                        try:
+                            with open(backup_file) as f2:
+                                self.net_client.data = json.load(f2)
+                                log.info("Loaded backup file")
+                        except json.JSONDecodeError:
+                            log.error("Failed to load backup file, corrupt file or empty file")
+        elif os.path.isfile(backup_file):
+            with open(backup_file) as f:
+                try:
+                    self.net_client.data = json.load(f)
+                    log,info("Loaded backup file")
+                except json.JSONDecodeError:
+                    log.error("Failed to load data from backup file, corrupt file or empty file")
+        else:
+            log.error("No primary or backup file found, creating new file")
 
     def get_object_state(self, object_name, update=True, dameon=False):
         """

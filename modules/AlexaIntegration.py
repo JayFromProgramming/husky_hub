@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import os
 import threading
 import time
@@ -398,13 +399,14 @@ class AlexaIntegration:
         self.vertical_scroll_offset = 0
         self.open_since = 0
         self.raincheck = False
+        self.log = logging.getLogger(__name__)
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 apikey = json.load(f)
                 self.api_token = apikey['monkey_token']
                 self.api_secret = apikey['monkey_secret']
         else:
-            log.critical("No api key file found")
+            self.log.critical("No api key file found")
             self.monkeys = {}
             # raise FileNotFoundError("No api key file found")
         if os.path.isfile(monkey_routines):
@@ -412,7 +414,7 @@ class AlexaIntegration:
                 monkey = json.load(f)
                 self.monkeys = monkey
         else:
-            log.critical("No monkey file found")
+            self.log.critical("No monkey file found")
             self.monkeys = {}
             # raise FileNotFoundError("No monkey file found")
 

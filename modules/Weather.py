@@ -40,20 +40,26 @@ if windows:
 
 if py:
     # os.chdir("/home/pi/Downloads/modules")
-    log.basicConfig(filename="../weatherLogs.txt",
-                    level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
+    log.basicConfig(filename="../weatherLogs.log",
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    level=log.INFO, format=r"[%(asctime)s - %(levelname)s - %(threadName)s - %(name)s - %(funcName)s - %(message)s]")
     base_fps = 14
     width, height = 800, 480
 elif tablet:
-    log.basicConfig(filename="../weatherLogs.txt",
-                    level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
+    log.basicConfig(filename="../weatherLogs.log",
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    level=log.INFO, format=r"[%(asctime)s - %(levelname)s - %(threadName)s - %(name)s - %(funcName)s - %(message)s]")
     base_fps = 14
     width, height = 800, 480
 
 else:
-    log.basicConfig(filename="../weatherLogs.txt", level=log.INFO, format="%(levelname)s: %(asctime)s - %(message)s")
+    log.basicConfig(filename="../weatherLogs.log",
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    level=log.INFO, format=r"[%(asctime)s - %(levelname)s - %(threadName)s - %(name)s - %(funcName)s - %(message)s]")
     base_fps = 30
     width, height = 800, 480
+
+log.info("Initializing application, and all modules")
 
 arguments = sys.argv
 headless = False
@@ -85,7 +91,7 @@ def graceful_exit(fatal=False):
     log.info(f"There are currently {threading.active_count()} active threads")
     for thread in threading.enumerate():
         if thread.name != "MainThread":
-            log.info(f"Thread {thread.name} is still active! Attempting to terminate...")
+            log.warning(f"{thread.name} is still active! Attempting to terminate...")
     log.info("Graceful closure complete, attempting to exit")
     sys.exit(1)
 
@@ -261,7 +267,10 @@ def blit_error(error_type, error_message, traceback_text):
 def uncaught(exctype, value, tb):
     if isinstance(exctype, KeyboardInterrupt):
         graceful_exit()
-    log.critical(f"Uncaught Error\nType:{exctype}\nValue:{value}\n{traceback.print_tb(tb)}")
+    log.critical(f"Uncaught Error Type:{exctype}")
+    log.critical(f"Value:{value}")
+    for line in traceback.format_tb(tb):
+        log.critical(f"Traceback:{line}")
     if not headless:
         try:
             pygame.display.flip()
@@ -878,8 +887,8 @@ def run():
 
     # Set up the window.
 
-    log.info(f"Starting piWeather, Platform: {platform.platform()}; OnTablet:{tablet}, OnPi:{py}"
-             f"\nExtended images supported?{pygame.image.get_extended()}")
+    log.info(f"Starting piWeather, Platform: {platform.platform()}; OnTablet:{tablet}, OnPi:{py}")
+    log.info(f"Extended images supported: {pygame.image.get_extended()}")
 
     # Main game loop.
     fps = base_fps

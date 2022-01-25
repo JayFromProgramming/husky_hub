@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import threading
 import time
@@ -8,6 +9,7 @@ import socket
 api_file = "../APIKey.json"
 temp_file = "Caches/Room_Coordination.json"
 
+log = logging.getLogger(__name__)
 
 def celsius_to_fahrenheit(celsius):
     return (float(celsius) * (9 / 5)) + 32
@@ -32,6 +34,7 @@ class NoCoordinatorData(Exception):
         self.message = message
 
     def __str__(self):
+        log.warning(f"Coordinator data error: {self.message}")
         return f"Coordinator data error: {self.message}"
 
 
@@ -41,6 +44,7 @@ class UnknownObjectError(Exception):
         self.message = message
 
     def __str__(self):
+        log.warning(f"Unknown object error: {self.message}")
         return f"Unknown object error: {self.message}"
 
 
@@ -132,7 +136,7 @@ class CoordinatorClient:
                     data = json.loads(data_buff.decode())
                     # print(f"Downloaded state consists as follows {json.dumps(data, indent=2)}")
             except Exception as e:
-                print(f"Error downloading state from coordinator webserver: {e}")
+                log.error(f"Error downloading state from coordinator webserver: {e}")
                 self.download_in_progress = None
                 self.coordinator_available = False
                 self.data['temperature'] = -9999
@@ -145,7 +149,7 @@ class CoordinatorClient:
             return self.data
 
         def upload_state(self, state_data):
-            print("Uploading state change to coordinator webserver")
+            log.debug("Uploading state change to coordinator webserver")
             if self.upload_in_progress:
                 raise ConnectionAbortedError("Upload already in progress")
             if not self.coordinator_available:
@@ -157,13 +161,13 @@ class CoordinatorClient:
                     request = json.dumps({"client": self.client_name, "auth": self.auth, "type": "upload_state"})
                     s.sendall(request.encode())
                     response = s.recv(1024)
-                    print(f"Response from coordinator: {response.decode()}")
+                    log.debug(f"Response from coordinator: {response.decode()}")
                     s.sendall(json.dumps(state_data).encode())
                     # response = s.recv(1024)
                     # print(f"Uploaded state change to coordinator, response: {response.decode()}")
 
             except Exception as e:
-                print(f"Error uploading state change to coordinator webserver: {e}")
+                log.error(f"Error uploading state change to coordinator webserver: {e}")
                 self.upload_in_progress = None
                 raise e
             finally:
@@ -193,7 +197,7 @@ class CoordinatorClient:
                 self.net_client = self.WebserverClient(self.coordinator_server, 47670, "test", self.coordinator_server_auth,
                                                        self.coordinator_server_password, self.tablet, self.data)
         else:
-            print("No API file found, configuring dummy server")
+            log.warning("No API file found, configuring dummy server")
             self.net_client = self.WebserverClient("", 47670, "test", None, None, None, self.data)
             self.net_client.coordinator_available = False
 

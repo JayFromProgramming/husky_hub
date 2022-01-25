@@ -1,4 +1,5 @@
 import datetime
+import logging
 from datetime import time
 import time
 import pygame
@@ -6,6 +7,8 @@ import pygame
 pallet_one = (255, 206, 0)
 pallet_two = (255, 206, 0)
 pallet_three = (0, 0, 0)
+
+log = logging.getLogger(__name__)
 
 
 def celsius_to_fahrenheit(celsius):

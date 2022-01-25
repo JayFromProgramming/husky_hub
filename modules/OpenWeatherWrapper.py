@@ -26,7 +26,7 @@ class OpenWeatherWrapper:
         :param future_weather_refresh_rate: The refresh rate for the OneCall weather api
         :param is_host: Whether or not this is the host which is used to reduce the amount of api calls when using multiple devices
         """
-        self.log: logging = log
+        self.log = logging.getLogger(__name__)
         if os.path.isfile(api_file):
             with open(api_file) as f:
                 keys = json.load(f)
@@ -64,7 +64,7 @@ class OpenWeatherWrapper:
         self.weather_forecast = None
         self.one_call = None
         self.radar_buffer = {}
-        self.log = log
+        self.log = logging.getLogger(__name__)
         self._read_cache()
         self.log.info(f"Weather Wrapper Initialized, GeoLocation is {self.location_address} {self.location_latlng}")
 
@@ -123,7 +123,7 @@ class OpenWeatherWrapper:
         :return: None
         """
         with open(cache_location, 'wb') as outp:
-            self.log.info("Saving current weather to cache")
+            self.log.debug("Saving current weather to cache")
             dill.dump(self, outp)
             outp.close()
 

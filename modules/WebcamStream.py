@@ -2,6 +2,7 @@ import concurrent
 import datetime
 import http.client
 import json
+import logging
 import math
 import os
 import socket
@@ -70,7 +71,7 @@ class CampusCams:
         self.current_focus = None
         self.last_update = 0
         self.update_rate = 45
-        self.log = logs
+        self.log = logging.getLogger(__name__)
         self.cycle_forward = pygame.Rect(690, 430, 100, 40)
         self.cycle_forward_text = "Next"
         self.cycle_backward = pygame.Rect(580, 430, 100, 40)
@@ -229,7 +230,7 @@ class CampusCams:
             # self.multi_cast_threads.append(thread)
             self.stream = stream
 
-    def load_frame(self, ob, camera, select_buffer=None):
+    def load_thumb(self, ob, camera, select_buffer=None):
         """
         This loads the thumbnail images from the webcams
         :param ob: T
@@ -250,6 +251,7 @@ class CampusCams:
                 image_file = io.BytesIO(image_str)  # Load byte string into a bytesIO file
                 raw_frame = pygame.image.load(image_file, "JPG")  # Load into pygame
             except pygame.error:
+                self.log.warning(f"JPG image failed to load for cam {name} converting to PNG")
                 image_file = io.BytesIO(image_str)  # Load byte string into a bytesIO file
                 image = Image.open(image_file)  # Open in Pillow
                 with io.BytesIO() as f:  # This is a really jank way around pygame 32bit not being able to read jpgs
@@ -257,6 +259,7 @@ class CampusCams:
                     f.seek(0)  # Move seek head
                     im = f.getvalue()  # Get file bytes
                     image = io.BytesIO(im)  # load new file into image bytes file
+                self.log.info(f"Converted JPG to PNG for cam {name}")
                 raw_frame = pygame.image.load(image)  # Load into pygame
 
             if self.current_focus is None:  # If there is no current focus, then resize the image to fit 2x2 grid
@@ -269,12 +272,13 @@ class CampusCams:
                         self.updated_buffer[page][cam_id] = time.time()
                         # print(f"New frame {page}-{cam_id}")
                 except Exception as e:  # In the event of an error, log it and continue
-                    print(f"Cam {page}-{cam_id} warning: {e}")
+                    self.log.warning(f"Failed to compare old and new frame for cam {name} because ({e})")
 
                 self.overlay_buffers[page][cam_id] = self.empty_image  # Set the overlay buffer to the empty image
-                self.log.debug(f"Cam {page}-{cam_id}: Updated")
+                self.log.debug(f"Updated cam {name} ({page}-{cam_id})")
                 if self.updated_buffer[page][cam_id] < time.time() - 65 and (page != 3 and cam_id != 3):
                     self.name_buffer[page][cam_id] = self.text(f"{name}: Unavailable").convert()
+                    self.log.warning(f"Cam {name}: Unavailable")
             elif self.current_focus == cam_id:  # If the current focus is the camera, then resize the image to fit the screen
                 self.buffers[page][cam_id] = pygame.transform.scale(raw_frame, (int((self.screen.get_width())),
                                                                                 int((self.screen.get_height() - 35)))).convert()
@@ -282,20 +286,20 @@ class CampusCams:
                 self.log.debug(f"Cam {page}-{cam_id}: Updated and focused")
         except http.client.IncompleteRead:  # If image reading was interrupted, then set overlay to error image and log it
             self.overlay_buffers[page][cam_id] = self.no_image
-            self.log.info(f"Cam {page}-{cam_id}: Incomplete read")
+            self.log.warning(f"Cam {name}: Incomplete read")
         except urllib.error.URLError as e:  # In the event of a url error, check if its a network error
             if str(e) == "<urlopen error [Errno 11001] getaddrinfo failed>":
-                self.log.info(f"Cam {page}-{cam_id}: No network")
+                self.log.info(f"Cam {name}: No network")
                 return
             self.overlay_buffers[page][cam_id] = self.no_image  # If not, then set write the error to the name buffer, log it, and continue
-            self.log.info(f"Cam {page}-{cam_id}: URLError ({e})")
+            self.log.warning(f"Cam {name}: URLError ({e})")
             self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:36]}")).convert()
         except socket.timeout:  # If the image reading timed out, then set the overlay to error image and log it
             self.overlay_buffers[page][cam_id] = self.no_image
-            self.log.info(f"Cam {page}-{cam_id}: Timeout")
+            self.log.warning(f"Cam {name}: Timeout")
         except Exception as e:  # If the image reading failed for some other reason, then set the overlay to error image and log it
             self.name_buffer[page][cam_id] = self.text(str(f"{name}: {str(e)[:36]}")).convert()
-            print(f"Cam {page}-{cam_id} error: {e}")
+            print(f"Cam {name} error: {e}")
 
     def resize(self, screen):
         """
@@ -337,7 +341,7 @@ class CampusCams:
         elif self.last_update < time.time() - self.update_rate:
             self.log.debug("Queueing camera updates")
             for camera in self.cameras[self.page]:
-                thread = threading.Thread(target=self.load_frame, args=(self, camera))
+                thread = threading.Thread(target=self.load_thumb, args=(self, camera))
                 thread.start()
                 self.active_requests.append(thread)
                 if self.multi_cast and self.stream_buffer[camera[0]] is None and self.current_focus is None:
@@ -361,7 +365,7 @@ class CampusCams:
             # Iterate through all pages of cameras
             for camera in page:
                 # Iterate through all cameras on a page and load thumbnails
-                thread = threading.Thread(target=self.load_frame, args=(self, camera, page_num))
+                thread = threading.Thread(target=self.load_thumb, args=(self, camera, page_num))
                 thread.start()
                 self.active_requests.append(thread)
             page_num += 1

@@ -1,11 +1,11 @@
 import io
+import logging
 import os
 
 import pygame
 import datetime
 
 from urllib.request import urlopen
-import logging as log
 
 import Coordinator
 
@@ -13,6 +13,8 @@ pallet_one = (255, 206, 0)
 pallet_two = (255, 206, 0)
 pallet_three = (255, 255, 255)
 pallet_four = (0, 0, 0)
+
+log = logging.getLogger(__name__)
 
 
 class CurrentWeather:
@@ -35,6 +37,7 @@ class CurrentWeather:
         self.current_icon = None
         self.font1 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 42)
         self.font2 = pygame.font.Font("Assets/Fonts/Jetbrains/JetBrainsMono-Bold.ttf", 15)
+        log.debug("New CurrentWeather object created")
         self.update()
 
     def update(self):
@@ -56,7 +59,9 @@ class CurrentWeather:
             clouds = self.weather_api.current_weather.clouds
             updated = self.weather_api.current_weather.reference_time()
             secondary_temp = f"Feels: {round(temp['feels_like'])}°F"
+            log.debug(f"Current weather loaded for {status} last updated {updated}")
         else:
+            log.warning("No weather data available")
             temp = {'temp': 0, 'temp_max': 0, 'temp_min': 0, 'feels_like': 0, 'temp_kf': None}
             wind = {'speed': 0, 'deg': 0}
             status = "No data"
@@ -93,7 +98,8 @@ class CurrentWeather:
         #     secondary_temp = f"{round(self.coordinator.get_temperature(), 2)}°F"
 
         updated = datetime.datetime.fromtimestamp(updated)
-        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}{secondary_status_string}", True, pallet_one, pallet_four).convert_alpha()
+        self.big_info = self.font1.render(f"{round(temp['temp'])}°F {status.capitalize()}{secondary_status_string}", True, pallet_one,
+                                          pallet_four).convert_alpha()
         self.small_info = self.font2.render(f"{secondary_temp}; Clouds: {round(clouds)}%"
                                             f"; Humidity: {humidity}%", True, pallet_three, pallet_four).convert()
         self.small_info2 = self.font2.render(f"Vis: {visibility}; Wind: {self.weather_api.get_angle_arrow(wind['deg'])}{round(wind['speed'], 1)} mph"
