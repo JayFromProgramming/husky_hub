@@ -250,6 +250,7 @@ class CoordinatorHost:
         state = self.coprocessor.get_state(target_arduino=0)
         state_2 = self.coprocessor.get_state(target_arduino=1)
 
+
         if self.get_object_state("tablet_battery_state") is not None \
                 and self.get_object_state("tablet_last_update") + 120 > time.time():
             self.set_object_states("room_sensor_data_displayable",
