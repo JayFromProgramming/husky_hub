@@ -804,8 +804,7 @@ def draw(screen, dt):
     sys_info = sys_info_font.render(
         f"CPU:{str(round(cpu_average, 2)).zfill(5)}%, Mem:{str(round(mem, 2)).zfill(5)}%"
         + (f", Temp:{temp}°C" if py else "")
-        + f", {dt}FPS" + (f", Battery:{datetime.timedelta(seconds=psutil.sensors_battery()[1]) if not True else ''}"
-                          f" {psutil.sensors_battery()[0]}%" if not py else ""), True,
+        + f", {dt}FPS" + (f", Battery:{psutil.sensors_battery()[0]}%" if psutil.sensors_battery() else ""), True,
         pallet_one, pallet_four)
     screen.blit(sys_info, (sys_info.get_rect(midtop=(screen.get_width() / 2, screen.get_height() - 30))))
 

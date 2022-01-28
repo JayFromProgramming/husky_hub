@@ -220,6 +220,7 @@ class CoordinatorHost:
             self.sensor = Adafruit_DHT.DHT22
         except Exception as e:
             self.data['errors'].append(f"Init error: {str(e)}")
+        self.last_save = 0
         self.read_data()
         self._save_data()
 
@@ -267,11 +268,12 @@ class CoordinatorHost:
             self.set_object_states("room_sensor_data_displayable",
                                    radiator_temperature=f"T:{radiator_temp if not isinstance(radiator_temp, float) else round(radiator_temp, 3)}°F",
                                    window_air_sensor=f"T:{wind_temp if not isinstance(wind_temp, float) else str(round(wind_temp, 2)).zfill(5)}°F"
-                                                     f" | H:{str((data_2[2].decode('utf-8')).split('.')[0])}%",
+                                                     f" | H:ERROR%",
                                    infrared_sensor=f"{data_2[3].decode('utf-8')}%",
                                    vibration_sensor=f"{False if decode_num(data_2, 4) != 0 else True}",
                                    sound_sensor=f"{False if decode_num(data_2, 5) != 0 else True} ",
                                    voltage_sensor=f"{data_2[6].decode('utf-8')}V")
+            # {str((data_2[2].decode('utf-8')).split('.')[0])}
         else:
             self.set_object_states("room_sensor_data_displayable", radiator_temperature=None, window_air_sensor=None, sensors_on_bus_b=None,
                                    infrared_sensor=None, vibration_sensor=None, sound_sensor=None, voltage_sensor=None)
@@ -381,17 +383,21 @@ class CoordinatorHost:
         Save the thermostat data to a file to be read by remote thermostats
         :return:
         """
+        if not self.last_save + 30 < time.time():
+            return
         self.net_client.data['last_update'] = time.time()
         # Move the last save file to a backup folder
-        if os.path.isfile(save_file) and os.path.isfile(backup_file):
+        log.debug("Preforming save of room state data...")
+        if os.path.isfile(save_file):
             try:
-                os.renames(os.path.join(save_file), os.path.join(backup_file))
+                os.renames(os.path.join("/home/pi/Downloads/modules", save_file), os.path.join("/home/pi/Downloads/modules", backup_file))
             except Exception as e:
                 log.error(f"Failed to rename {save_file} to {backup_file}: {e}")
         else:
-            log.warning("Files missing, not backing up")
+            log.warning("Main coordination save file missing, cannot backup missing file")
         with open(save_file, "w") as f:
             json.dump(self.net_client.data, f, indent=2)
+        self.last_save = time.time()
 
     def _load_data(self):
         """
@@ -412,13 +418,16 @@ class CoordinatorHost:
                                 log.info("Loaded backup file")
                         except json.JSONDecodeError:
                             log.error("Failed to load backup file, corrupt file or empty file")
+                            log.warning("Rebuilding room data from scratch")
         elif os.path.isfile(backup_file):
+            log.warning("No save file found, attempting to load backup")
             with open(backup_file) as f:
                 try:
                     self.net_client.data = json.load(f)
-                    log,info("Loaded backup file")
+                    log.info("Loaded backup file")
                 except json.JSONDecodeError:
                     log.error("Failed to load data from backup file, corrupt file or empty file")
+                    log.warning("Rebuilding room data from scratch")
         else:
             log.error("No primary or backup file found, creating new file")
 
