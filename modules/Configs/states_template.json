@@ -1,0 +1,54 @@
+{
+  "temperature": -9999,
+  "humidity": -1,
+  "temp_set_point": 65,
+  "humid_set_point": 0,
+  "last_update": 0,
+  "last_read": 0,
+  "big_wind_state": -1,
+  "fan_auto_enable": false,
+  "room_lights_state": {
+    "b": -1,
+    "c": -1
+  },
+  "bed_lights_state": {
+    "b": -1,
+    "c": -1
+  },
+  "room_occupancy_info": {
+    "room_occupied": null,
+    "bt_error": false,
+    "last_motion": 0,
+    "occupants": {}
+  },
+  "room_sensor_data_displayable": {
+    "arduino_connections": "Unknown",
+    "room_air_sensor": null,
+    "window_air_sensor": null,
+    "radiator_temperature": null,
+    "gas_smoke_sensor": null,
+    "combustible_gas_sensor": null,
+    "carbon_monoxide_sensor": null,
+    "motion_sensor": null,
+    "last_motion": null,
+    "lcd_backlight": null,
+    "tablet_battery": null,
+    "vibration_sensor": null,
+    "sound_sensor": null,
+    "light_sensor": null,
+    "infrared_sensor": null,
+    "buzzer_alarm": null,
+    "water_level_sensor": null,
+    "voltage_sensor": null,
+    "pressure_sensor": null,
+    "relay_states": null
+  },
+  "big_humid_state": null,
+  "little_humid_state": null,
+  "bed_fan_state": null,
+  "room_state_auto": null,
+  "room_state": -1,
+  "tablet_last_update": 0,
+  "tablet_battery_state": null,
+  "errors": ["No data"]
+}

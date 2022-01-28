@@ -207,7 +207,8 @@ class CoordinatorHost:
                 self.thermostat_server_path = data['rPi_file_path']
         self.occupancyDetector = None
         self.last_download = time.time()
-        self.net_client = self.WebServerHost(self.coordinator_server, 47670, self.coordinator_server_password, self.data)
+        self.net_client = self.WebServerHost(self.coordinator_server, 47670, self.coordinator_server_password,
+                                             self.data)
         self._load_data()
         self.coprocessor = coprocessor
         self.data = self.net_client.data
@@ -248,19 +249,28 @@ class CoordinatorHost:
         data_2 = self.coprocessor.get_data(target_arduino=1)
         state = self.coprocessor.get_state(target_arduino=0)
         state_2 = self.coprocessor.get_state(target_arduino=1)
+
+        if self.get_object_state("tablet_battery_state") is not None \
+                and self.get_object_state("tablet_last_update") + 120 > time.time():
+            self.set_object_states("room_sensor_data_displayable",
+                                   tablet_battery=self.get_object_state("tablet_battery_state"))
+
         if self.coprocessor.connected[0] and len(data) > 1:
             self.set_object_states("room_sensor_data_displayable",
                                    # room_air_sensor=f"T:{str(room_temp).zfill(5)}°F | H:{str(room_humidity).zfill(4)}%",
                                    carbon_monoxide_sensor=f"{data[1].decode('utf-8')} ppm {'- High!' if float(decode_num(data, 2)) > 25 else ''}",
                                    gas_smoke_sensor=f"{decode(data, 2)} ppm {'- High!' if float(decode_num(data, 2)) > 25 else ''}",
                                    combustible_gas_sensor=f"{decode(data, 3)} ppm {'- High!' if float(decode_num(data, 3)) > 5 else ''}",
-                                   motion_sensor=True if data[4].decode('utf-8') == "1" else False, light_sensor=f"{data[0].decode('utf-8')}%",
+                                   motion_sensor=True if data[4].decode('utf-8') == "1" else False,
+                                   light_sensor=f"{data[0].decode('utf-8')}%",
                                    lcd_backlight="On" if state[4] != 0 else "Off")
         else:
             # self.set_object_state("temperature", -9999)
             # self.set_object_state("humidity", -1)
-            self.set_object_states("room_sensor_data_displayable", room_air_sensor=None, carbon_monoxide_sensor=None, gas_smoke_sensor=None,
-                                   buzzer_alarm=None, light_sensor=None, combustible_gas_sensor=None, motion_sensor=None, lcd_backlight=None)
+            self.set_object_states("room_sensor_data_displayable", room_air_sensor=None, carbon_monoxide_sensor=None,
+                                   gas_smoke_sensor=None,
+                                   buzzer_alarm=None, light_sensor=None, combustible_gas_sensor=None,
+                                   motion_sensor=None, lcd_backlight=None)
 
         if self.coprocessor.connected[1] and len(data_2) > 1:
             radiator_temp = c_f(data_2[0].decode('utf-8')) if data_2[0].decode('utf-8') != "Error" else None
@@ -275,7 +285,8 @@ class CoordinatorHost:
                                    voltage_sensor=f"{data_2[6].decode('utf-8')}V")
             # {str((data_2[2].decode('utf-8')).split('.')[0])}
         else:
-            self.set_object_states("room_sensor_data_displayable", radiator_temperature=None, window_air_sensor=None, sensors_on_bus_b=None,
+            self.set_object_states("room_sensor_data_displayable", radiator_temperature=None, window_air_sensor=None,
+                                   sensors_on_bus_b=None,
                                    infrared_sensor=None, vibration_sensor=None, sound_sensor=None, voltage_sensor=None)
 
         if self.coprocessor.connected[0] and len(data) > 1 and self.coprocessor.connected[1] and len(data_2) > 1:
@@ -289,7 +300,8 @@ class CoordinatorHost:
 
         motion_time_delta = time.time() - self.occupancy_detector.last_motion_time
         # print(f"Motion time delta: {motion_time_delta}")
-        self.set_object_states("room_sensor_data_displayable", last_motion=f"{time_delta_to_str(motion_time_delta)} ago")
+        self.set_object_states("room_sensor_data_displayable",
+                               last_motion=f"{time_delta_to_str(motion_time_delta)} ago")
 
         if motion_time_delta < 30:
             self.coprocessor.update_lcd_backlight_state(override=True, override_state=1)
@@ -297,14 +309,18 @@ class CoordinatorHost:
             self.coprocessor.update_lcd_backlight_state()
 
         if self.occupancy_detector.is_occupied():
-            self.set_object_states("room_occupancy_info", room_occupied=True, last_motion=self.occupancy_detector.last_motion_time,
+            self.set_object_states("room_occupancy_info", room_occupied=True,
+                                   last_motion=self.occupancy_detector.last_motion_time,
                                    bt_error=self.occupancy_detector.is_errored(),
-                                   occupants=self.occupancy_detector.occupancy_info(), logs=self.occupancy_detector.stalker.stalker_logs)
+                                   occupants=self.occupancy_detector.occupancy_info(),
+                                   logs=self.occupancy_detector.stalker.stalker_logs)
             return True
         else:
-            self.set_object_states("room_occupancy_info", room_occupied=False, last_motion=self.occupancy_detector.last_motion_time,
+            self.set_object_states("room_occupancy_info", room_occupied=False,
+                                   last_motion=self.occupancy_detector.last_motion_time,
                                    bt_error=self.occupancy_detector.is_errored(),
-                                   occupants=self.occupancy_detector.occupancy_info(), logs=self.occupancy_detector.stalker.stalker_logs)
+                                   occupants=self.occupancy_detector.occupancy_info(),
+                                   logs=self.occupancy_detector.stalker.stalker_logs)
             return False
 
     def read_data(self):
@@ -390,7 +406,8 @@ class CoordinatorHost:
         log.debug("Preforming save of room state data...")
         if os.path.isfile(save_file):
             try:
-                os.renames(os.path.join("/home/pi/Downloads/modules", save_file), os.path.join("/home/pi/Downloads/modules", backup_file))
+                os.renames(os.path.join("/home/pi/Downloads/modules", save_file),
+                           os.path.join("/home/pi/Downloads/modules", backup_file))
             except Exception as e:
                 log.error(f"Failed to rename {save_file} to {backup_file}: {e}")
         else:
@@ -475,14 +492,20 @@ class CoordinatorHost:
         if self.net_client.data['temp_set_point'] is None or self.net_client.data['temperature'] == -9999 \
                 or not self.get_object_state("fan_auto_enable"):
             return
-        if self.get_temperature() <= self.net_client.data['temp_set_point'] - 0.75 and self.get_object_state("big_wind_state") != 0:
-            self.set_object_state("big_wind_state", 0)  # If the temperature is 1 degrees below the set point, turn off both fans
+        if self.get_temperature() <= self.net_client.data['temp_set_point'] - 0.75 and self.get_object_state(
+                "big_wind_state") != 0:
+            self.set_object_state("big_wind_state",
+                                  0)  # If the temperature is 1 degrees below the set point, turn off both fans
             return "big-wind-off"
-        elif self.get_temperature() <= self.net_client.data['temp_set_point'] and self.get_object_state("big_wind_state") == 3:
-            self.set_object_state("big_wind_state", 2)  # If the temperature is 0.75 degrees below the set point, turn off the intake fan
+        elif self.get_temperature() <= self.net_client.data['temp_set_point'] and self.get_object_state(
+                "big_wind_state") == 3:
+            self.set_object_state("big_wind_state",
+                                  2)  # If the temperature is 0.75 degrees below the set point, turn off the intake fan
             return "big-wind-out"
-        elif self.get_temperature() >= self.net_client.data['temp_set_point'] + 1.5 and self.get_object_state("big_wind_state") != 3:
-            self.set_object_state("big_wind_state", 3)  # If the temperature is 1.5 degrees above the set point, turn on both fans
+        elif self.get_temperature() >= self.net_client.data['temp_set_point'] + 1.5 and self.get_object_state(
+                "big_wind_state") != 3:
+            self.set_object_state("big_wind_state",
+                                  3)  # If the temperature is 1.5 degrees above the set point, turn on both fans
             return "big-wind-on"
 
     def _calculate_humid_state(self):
@@ -511,7 +534,8 @@ class CoordinatorHost:
                 self.set_object_state("big_humid_state", False)
                 self.set_object_state("little_humid_state", False)
                 return "humid-off"
-        elif self.net_client.data['humid_set_point'] <= self.net_client.data['humidity'] <= self.net_client.data['humid_set_point'] + 2:
+        elif self.net_client.data['humid_set_point'] <= self.net_client.data['humidity'] <= self.net_client.data[
+            'humid_set_point'] + 2:
             if self._calculate_humid_state() != 1 and self._calculate_humid_state() != 0:
                 self.set_object_state("big_humid_state", True)
                 self.set_object_state("little_humid_state", False)

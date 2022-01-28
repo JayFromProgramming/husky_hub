@@ -600,6 +600,9 @@ def update_weather_data():
             humid = coordinator.coordinator.maintain_humidity()
             if humid:
                 room_control.run_routine(None, humid)
+        if tablet:
+            coordinator.coordinator.set_object_state("tablet_last_update", time.time())
+            coordinator.coordinator.set_object_state("tablet_battery_state", psutil.sensors_battery()[0])
 
         if weatherAPI.update_current_weather():
             radar.update_radar()
