@@ -7,6 +7,8 @@ import traceback
 import datetime
 import socket
 
+import psutil
+
 api_file = "../APIKey.json"
 save_file = "Caches/Room_Coordination.json"
 backup_file = "Caches/Room_Coordination_Backup.json"
@@ -193,6 +195,7 @@ class CoordinatorHost:
         """
         Initialize the local thermostat reader and server
         """
+        self.start_time = time.time()
         from . import occupancyDetector
         if os.path.isfile("Configs/states_template.json"):
             with open("Configs/states_template.json") as f:
@@ -250,11 +253,16 @@ class CoordinatorHost:
         state = self.coprocessor.get_state(target_arduino=0)
         state_2 = self.coprocessor.get_state(target_arduino=1)
 
+        self.set_object_states("room_sensor_data_displayable", CSERV_uptime=time_delta_to_str(round(time.time() - self.start_time)),
+                               Pi_uptime=time_delta_to_str(int(time.time() - psutil.boot_time())))
 
         if self.get_object_state("tablet_battery_state") is not None \
                 and self.get_object_state("tablet_last_update") + 120 > time.time():
             self.set_object_states("room_sensor_data_displayable",
                                    tablet_battery=self.get_object_state("tablet_battery_state"))
+        else:
+            self.set_object_states("room_sensor_data_displayable",
+                                   tablet_battery=f"Offline- {time_delta_to_str(time.time() - self.get_object_state('tablet_last_update'))} ago")
 
         if self.coprocessor.connected[0] and len(data) > 1:
             self.set_object_states("room_sensor_data_displayable",
@@ -280,10 +288,10 @@ class CoordinatorHost:
                                    radiator_temperature=f"T:{radiator_temp if not isinstance(radiator_temp, float) else round(radiator_temp, 3)}°F",
                                    window_air_sensor=f"T:{wind_temp if not isinstance(wind_temp, float) else str(round(wind_temp, 2)).zfill(5)}°F"
                                                      f" | H:ERROR%",
-                                   infrared_sensor=f"{data_2[3].decode('utf-8')}%",
-                                   vibration_sensor=f"{False if decode_num(data_2, 4) != 0 else True}",
-                                   sound_sensor=f"{False if decode_num(data_2, 5) != 0 else True} ",
-                                   voltage_sensor=f"{data_2[6].decode('utf-8')}V")
+                                   infrared_sensor=f"{data_2[3].decode('utf-8')}% - Floating",
+                                   vibration_sensor=f"{False if decode_num(data_2, 4) != 0 else True} - Floating",
+                                   sound_sensor=f"{False if decode_num(data_2, 5) != 0 else True} - Floating",
+                                   voltage_sensor=f"{data_2[6].decode('utf-8')}V - Floating")
             # {str((data_2[2].decode('utf-8')).split('.')[0])}
         else:
             self.set_object_states("room_sensor_data_displayable", radiator_temperature=None, window_air_sensor=None,

@@ -602,8 +602,12 @@ def update_weather_data():
                 room_control.run_routine(None, humid)
         if tablet:
             coordinator.coordinator.set_object_state("tablet_last_update", time.time())
-            coordinator.coordinator.set_object_state("tablet_battery_state", psutil.sensors_battery()[0])
-
+            if not psutil.sensors_battery().power_plugged:
+                threading.Thread(target=coordinator.coordinator.set_object_state, args=("tablet_battery_state", f"{psutil.sensors_battery()[0]}%"),
+                                 daemon=True).start()
+            else:
+                threading.Thread(target=coordinator.coordinator.set_object_state,
+                                 args=("tablet_battery_state", f"Charging - {psutil.sensors_battery()[0]}%"), daemon=True).start()
         if weatherAPI.update_current_weather():
             radar.update_radar()
             failed_current_updates = 0
@@ -794,13 +798,24 @@ def draw(screen, dt):
 
     if display_mode != "init":
         temperature = round(float(coordinator.coordinator.get_object_state('temperature', False)) * (9 / 5) + 32)
+        set_point = round(float(coordinator.coordinator.get_object_state('temp_set_point', False)))
         humidity = round(coordinator.coordinator.get_object_state('humidity', False))
-        hour = time.localtime().tm_hour % 12
-        minute = time.localtime().tm_min
+        humidity_set_point = round(coordinator.coordinator.get_object_state('humid_set_point', False))
+        auto_mode = coordinator.coordinator.get_object_state('fan_auto_enable', False)
+        current_set = f"{str(round(set_point)).zfill(2)}F" if auto_mode else f"{str(humidity_set_point).zfill(2)}%"
+        try:
+            radiator = float(dataLogger.strip(
+                coordinator.coordinator.get_object_state('room_sensor_data_displayable', False)['radiator_temperature'])[0])
+            radiator = f"{str(round(radiator))}F"
+        except ValueError:
+            radiator = "EROR"
+        except IndexError:
+            radiator = "EROR"
+        # radiator = "EER"
         # 1:  2: 3: 4: 5: 6: 7: 8:
         coprocessor.display(
-            upper_line=f"CPU:{str(round(cpu_average)).zfill(2)}% T:{str(temperature).zfill(2) if -9 < temperature < 99 else '??'}F",
-            lower_line=f"MEM:{str(round(mem)).zfill(2)}% H:{str(humidity).zfill(2) if humidity != -1 else '??'}%", )
+            upper_line=f"RAD:{radiator.ljust(4)}T:{str(temperature).zfill(2) if -9 < temperature < 99 else '??'}F",
+            lower_line=f"SET:{current_set} H:{str(humidity).zfill(2) if humidity != -1 else '??'}%", )
 
     if py:
         temp = round(psutil.sensors_temperatures()['cpu_thermal'][0].current, 2)

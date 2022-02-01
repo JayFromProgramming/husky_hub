@@ -33,15 +33,13 @@
     "last_motion": null,
     "lcd_backlight": null,
     "tablet_battery": null,
+    "CSERV_uptime": null,
+    "Pi_uptime": null,
     "vibration_sensor": null,
     "sound_sensor": null,
     "light_sensor": null,
     "infrared_sensor": null,
-    "buzzer_alarm": null,
-    "water_level_sensor": null,
-    "voltage_sensor": null,
-    "pressure_sensor": null,
-    "relay_states": null
+    "voltage_sensor": null
   },
   "big_humid_state": null,
   "little_humid_state": null,

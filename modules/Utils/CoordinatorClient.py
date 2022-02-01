@@ -287,16 +287,21 @@ class CoordinatorClient:
     def set_object_state(self, object_name, state):
         """
         Set the state of an object on the coordinator
+        :param daemon:
         :param object_name: The name of the object
         :param state: The state to set
         :return:
         """
         self.data[object_name] = state
-        self.net_client.upload_state({object_name: self.data[object_name]})
+        try:
+            self.net_client.upload_state({object_name: self.data[object_name]})
+        except Exception as e:
+            log.error("Failed to upload state: {}".format(e))
 
     def set_object_states(self, object_name, **kwargs):
         """
         Set the state of an object on the coordinator
+        :param daemon:
         :param object_name: The name of the object
         :param states: The state to set
         :return:
