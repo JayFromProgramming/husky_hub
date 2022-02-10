@@ -388,7 +388,7 @@ class CoordinatorHost:
                 if abs(humidity1 - humidity2) > 2:
                     log.warning("Humidity difference is too large")
                     humidity = None
-                if humidity > 100:
+                elif humidity > 100:
                     log.warning("Humidity off scale high")
                 elif humidity < 0:
                     log.warning("Humidity off scale low")

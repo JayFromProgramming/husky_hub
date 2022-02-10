@@ -150,8 +150,8 @@ class BlueStalker:
                 self.failed_attempts += 1
                 if self.failed_attempts > 2:
                     self.room_occupied = False
-            logging.info(f"[*] {self.total_devices_detected} devices detected")
-            logging.info(f"[*] Stalk Completed {datetime.datetime.now()}")
+            logging.debug(f"[*] {self.total_devices_detected} devices detected")
+            logging.debug(f"[*] Stalk Completed {datetime.datetime.now()}")
             self.already_stalking = False
         except Exception as e:
             self.stalk_error = True

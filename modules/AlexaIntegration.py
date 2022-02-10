@@ -440,8 +440,8 @@ class AlexaIntegration:
                     self.run_routine(None, 'away')
                     self.coordinator.set_object_state('room_state', 2)
                     self.coordinator.set_object_state('bed_fan_state', False)
-                    self.coordinator.set_object_states('room_lights_state', b=1, c=1)
-                    self.coordinator.set_object_states('bed_lights_state', b=0, c=1)
+                    self.coordinator.set_object_states('room_lights_state', b=0, c=1)
+                    self.coordinator.set_object_states('bed_lights_state', b=1, c=1)
                     self.run_routine(None, 'away')
 
     def run_queued(self):

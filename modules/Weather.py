@@ -797,10 +797,13 @@ def draw(screen, dt):
         forecast_button_render.blit(screen)
 
     if display_mode != "init":
-        temperature = round(float(coordinator.coordinator.get_object_state('temperature', False)) * (9 / 5) + 32)
-        set_point = round(float(coordinator.coordinator.get_object_state('temp_set_point', False)))
-        humidity = round(coordinator.coordinator.get_object_state('humidity', False))
-        humidity_set_point = round(coordinator.coordinator.get_object_state('humid_set_point', False))
+        try:
+            temperature = round(float(coordinator.coordinator.get_object_state('temperature', False)) * (9 / 5) + 32)
+            set_point = round(float(coordinator.coordinator.get_object_state('temp_set_point', False)))
+            humidity = round(coordinator.coordinator.get_object_state('humidity', False))
+            humidity_set_point = round(coordinator.coordinator.get_object_state('humid_set_point', False))
+        except TypeError:
+            temperature, set_point, humidity, humidity_set_point = (0, 0, 0, 0)
         auto_mode = coordinator.coordinator.get_object_state('fan_auto_enable', False)
         if not auto_mode and humidity_set_point == 0:
             current_set = "OFF"
