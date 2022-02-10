@@ -35,6 +35,7 @@
     "tablet_battery": null,
     "CSERV_uptime": null,
     "Pi_uptime": null,
+    "room_air_sensor_power": null,
     "vibration_sensor": null,
     "sound_sensor": null,
     "light_sensor": null,

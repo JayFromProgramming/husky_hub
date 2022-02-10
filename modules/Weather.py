@@ -24,7 +24,7 @@ from RoomStateDisplay import Occupancy_display
 import pygame
 from pygame.locals import *
 import logging as log
-
+from logging.handlers import RotatingFileHandler
 ################################################################################
 
 py = 'Linux' in platform.platform()
@@ -40,20 +40,20 @@ if windows:
 
 if py:
     # os.chdir("/home/pi/Downloads/modules")
-    log.basicConfig(filename="../weatherLogs.log",
+    log.basicConfig(handlers=[RotatingFileHandler('../logs/weatherLogs.log', maxBytes=5 * 1024 * 1024, backupCount=5)],
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=log.INFO, format=r"[%(asctime)s - %(levelname)s - %(threadName)s - %(name)s - %(funcName)s - %(message)s]")
     base_fps = 14
     width, height = 800, 480
 elif tablet:
-    log.basicConfig(filename="../weatherLogs.log",
+    log.basicConfig(handlers=[RotatingFileHandler('../logs/weatherLogs.log', maxBytes=5 * 1024 * 1024, backupCount=5)],
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=log.INFO, format=r"[%(asctime)s - %(levelname)s - %(threadName)s - %(name)s - %(funcName)s - %(message)s]")
     base_fps = 14
     width, height = 800, 480
 
 else:
-    log.basicConfig(filename="../weatherLogs.log",
+    log.basicConfig(handlers=[RotatingFileHandler('../logs/weatherLogs.log', maxBytes=5 * 1024 * 1024, backupCount=5)],
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=log.INFO, format=r"[%(asctime)s - %(levelname)s - %(threadName)s - %(name)s - %(funcName)s - %(message)s]")
     base_fps = 30
@@ -802,7 +802,10 @@ def draw(screen, dt):
         humidity = round(coordinator.coordinator.get_object_state('humidity', False))
         humidity_set_point = round(coordinator.coordinator.get_object_state('humid_set_point', False))
         auto_mode = coordinator.coordinator.get_object_state('fan_auto_enable', False)
-        current_set = f"{str(round(set_point)).zfill(2)}F" if auto_mode else f"{str(humidity_set_point).zfill(2)}%"
+        if not auto_mode and humidity_set_point == 0:
+            current_set = "OFF"
+        else:
+            current_set = f"{str(set_point).zfill(2)}F" if auto_mode else f"{str(humidity_set_point).zfill(2)}%"
         try:
             radiator = float(dataLogger.strip(
                 coordinator.coordinator.get_object_state('room_sensor_data_displayable', False)['radiator_temperature'])[0])

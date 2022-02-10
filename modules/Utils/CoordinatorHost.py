@@ -9,6 +9,12 @@ import socket
 
 import psutil
 
+try:
+    import Adafruit_DHT
+    import RPi.GPIO as GPIO
+except ImportError:
+    pass
+
 api_file = "../APIKey.json"
 save_file = "Caches/Room_Coordination.json"
 backup_file = "Caches/Room_Coordination_Backup.json"
@@ -216,6 +222,13 @@ class CoordinatorHost:
         self.coprocessor = coprocessor
         self.data = self.net_client.data
         self.data['errors'] = []
+        self.channel = 11
+        log.info("Setting up GPIO to enable power to DHT22 sensor")
+        GPIO.setmode(GPIO.BOARD)
+        GPIO.setup(self.channel, GPIO.OUT)
+        GPIO.output(self.channel, GPIO.HIGH)
+        self.sensor_powered = True
+        self.sensor_restart_time = time.time()
         if os.path.isfile(os.path.join("Configs/occupants.json")):
             with open(os.path.join("Configs/occupants.json"), "r") as f:
                 self.occupancy_detector = occupancyDetector.OccupancyDetector(json.load(f), 24, self)
@@ -254,7 +267,7 @@ class CoordinatorHost:
         state_2 = self.coprocessor.get_state(target_arduino=1)
 
         self.set_object_states("room_sensor_data_displayable", CSERV_uptime=time_delta_to_str(round(time.time() - self.start_time)),
-                               Pi_uptime=time_delta_to_str(int(time.time() - psutil.boot_time())))
+                               Pi_uptime=time_delta_to_str(int(time.time() - psutil.boot_time())), room_air_sensor_power=self.sensor_powered)
 
         if self.get_object_state("tablet_battery_state") is not None \
                 and self.get_object_state("tablet_last_update") + 120 > time.time():
@@ -309,8 +322,11 @@ class CoordinatorHost:
 
         motion_time_delta = time.time() - self.occupancy_detector.last_motion_time
         # print(f"Motion time delta: {motion_time_delta}")
-        self.set_object_states("room_sensor_data_displayable",
-                               last_motion=f"{time_delta_to_str(motion_time_delta)} ago")
+        if self.occupancy_detector.last_motion_time == 0:
+            self.set_object_states("room_sensor_data_displayable", last_motion="Unknown")
+        else:
+            self.set_object_states("room_sensor_data_displayable",
+                                   last_motion=f"{time_delta_to_str(motion_time_delta)} ago")
 
         if motion_time_delta < 30:
             self.coprocessor.update_lcd_backlight_state(override=True, override_state=1)
@@ -358,48 +374,54 @@ class CoordinatorHost:
         log.debug("Reading data from local thermostat, saving to file")
         # self._load_data()
         self.coprocessor.update_sensors()
+        if not self.sensor_powered and self.sensor_restart_time + 10 < time.time():
+            log.info("Sensor is not powered, restarting")
+            GPIO.output(self.channel, GPIO.HIGH)
+            self.sensor_restart_time = time.time()
+            self.sensor_powered = True
         # self._save_data()
         try:
-            import Adafruit_DHT
-
             humidity1, temp1 = Adafruit_DHT.read_retry(self.sensor, 4)
             humidity2, temp2 = Adafruit_DHT.read_retry(self.sensor, 4)
-
             if humidity1 is not None and humidity2 is not None:
                 humidity = (humidity1 + humidity2) / 2
                 if abs(humidity1 - humidity2) > 2:
-                    self.net_client.data['errors'].append("Humidity difference is too large")
+                    log.warning("Humidity difference is too large")
                     humidity = None
                 if humidity > 100:
-                    self.net_client.data['errors'].append("Humidity off scale high")
+                    log.warning("Humidity off scale high")
                 elif humidity < 0:
-                    self.net_client.data['errors'].append("Humidity off scale low")
+                    log.warning("Humidity off scale low")
                 else:
                     self.net_client.data['humidity'] = humidity
                     self.net_client.data['last_read'] = time.time()
             else:
                 self.net_client.data['humidity'] = -1
-                self.net_client.data['errors'].append("Failed to read humidity")
+                log.error("Failed to read humidity")
+                if self.sensor_powered and self.sensor_restart_time + 10 < time.time():
+                    log.warning("Powering off the sensor")
+                    GPIO.output(self.channel, GPIO.LOW)  # Kill power to the sensor to reset it
+                    self.sensor_powered = False
+                    self.sensor_restart_time = time.time()
             if temp1 is not None and temp2 is not None:
                 temp = (temp1 + temp2) / 2
                 if abs(temp1 - temp2) > 2:
-                    self.net_client.data['errors'].append("Temperature difference is too large")
+                    log.warning("Temperature difference is too large")
                     temp = None
                 self.net_client.data['temperature'] = temp
                 self.net_client.data['last_read'] = time.time()
             else:
                 self.net_client.data['temperature'] = -9999
-                self.net_client.data['errors'].append("Failed to read temperature")
-
-            if len(self.data['errors']) > 10:
-                self.net_client.data['errors'] = self.data['errors'][-10:]
-
+                log.error("Failed to read temperature")
+                if self.sensor_powered and self.sensor_restart_time + 10 < time.time():
+                    log.warning("Powering off the sensor")
+                    GPIO.output(self.channel, GPIO.LOW)  # Kill power to the sensor to reset it
+                    self.sensor_powered = False
+                    self.sensor_restart_time = time.time()
         except Exception as e:
-            self.data['errors'].append(f"{str(e)}; Traceback: {traceback.format_exc()}")
-            if len(self.data['errors']) > 10:
-                self.net_client.data['temperature'] = -9999
-                self.net_client.data['humidity'] = -1
-                self.net_client.data['errors'] = self.data['errors'][-10:]
+            log.error("Failed to read data from local thermostat: {}".format(e))
+            # GPIO.output(self.channel, GPIO.LOW)
+            # GPIO.output(self.channel, GPIO.HIGH)
         finally:
             self._save_data()
 
@@ -536,9 +558,13 @@ class CoordinatorHost:
         Maintain the humidity of the room
         :return: The action that should be taken to maintain the humidity
         """
-        if self.net_client.data['humid_set_point'] == 0 or self.net_client.data['humidity'] == -1:
+        if self.net_client.data['humid_set_point'] == 0:
             return
-        if self.net_client.data['humidity'] > self.net_client.data['humid_set_point'] + 2:
+        if self.net_client.data['humidity'] == -1 and self.net_client.data['humid_set_point'] != 0:
+            if self._calculate_humid_state() != 1:
+                self.set_object_state("big_humid_state", True)
+                self.set_object_state("little_humid_state", False)
+        elif self.net_client.data['humidity'] > self.net_client.data['humid_set_point'] + 2:
             if self._calculate_humid_state() != 0:
                 self.set_object_state("big_humid_state", False)
                 self.set_object_state("little_humid_state", False)
