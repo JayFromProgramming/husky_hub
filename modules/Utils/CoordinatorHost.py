@@ -23,7 +23,11 @@ log = logging.getLogger(__name__)
 
 
 def c_f(celsius):
-    return (float(celsius) * (9 / 5)) + 32
+    try:
+        return (float(celsius) * (9 / 5)) + 32
+    except TypeError:
+        log.warning("Celsius value is not a number, returning 0")
+        return 0
 
 
 def fahrenheit_to_celsius(fahrenheit):
@@ -134,8 +138,9 @@ class CoordinatorHost:
                 if request["auth"] == self.auth:
                     log.debug(f"Client {request['client']} has connected and been authenticated")
                 else:
-                    log.debug(f"Client {request['client']} has connected but has not been authenticated")
-                    conn.sendall(b'Forbidden: 403')
+                    log.debug(f"{self.auth} != {request['auth']}")
+                    log.warning(f"Client {request['client']} has connected but has not been authenticated")
+                    conn.sendall(b'{"status": "Forbidden: 403"}')
                     return
 
                 if request['type'] == "download_state":
@@ -212,7 +217,7 @@ class CoordinatorHost:
             with open(api_file) as f:
                 data = json.load(f)
                 self.coordinator_server = data['rPi_address']
-                self.coordinator_server_password = data['rPi_password']
+                self.coordinator_server_password = data['rPi_auth']
                 self.thermostat_server_path = data['rPi_file_path']
         self.occupancyDetector = None
         self.last_download = time.time()
@@ -443,8 +448,12 @@ class CoordinatorHost:
                 log.error(f"Failed to rename {save_file} to {backup_file}: {e}")
         else:
             log.warning("Main coordination save file missing, cannot backup missing file")
-        with open(save_file, "w") as f:
-            json.dump(self.net_client.data, f, indent=2)
+        try:
+            with open(save_file, "w") as f:
+                json.dump(self.net_client.data, f, indent=2)
+            os.chmod(save_file, 0o777)
+        except Exception as e:
+            log.error(f"Failed to save room state data: {e}")
         self.last_save = time.time()
 
     def _load_data(self):
@@ -452,30 +461,35 @@ class CoordinatorHost:
         Load the room coordination data from a file for persistent state after a restart
         :return:
         """
-        if os.path.isfile(save_file):
-            with open(save_file) as f:
+        def load_backup():
+            if os.path.isfile(backup_file):
                 try:
-                    self.net_client.data = json.load(f)
-                    log.info("Loaded data from main save file")
+                    with open(backup_file) as f2:
+                        self.net_client.data = json.load(f2)
+                        log.info("Loaded backup file")
                 except json.JSONDecodeError:
-                    log.warning("Failed to load data from file, corrupt file or empty file attempting to load backup")
-                    if os.path.isfile(backup_file):
-                        try:
-                            with open(backup_file) as f2:
-                                self.net_client.data = json.load(f2)
-                                log.info("Loaded backup file")
-                        except json.JSONDecodeError:
-                            log.error("Failed to load backup file, corrupt file or empty file")
-                            log.warning("Rebuilding room data from scratch")
+                    log.error("Failed to load backup file, corrupt file or empty file")
+                    log.warning("Rebuilding room data from scratch")
+                except Exception as e:
+                    log.error(f"Failed to load backup file: {e}")
+                    log.warning("Rebuilding room data from scratch")
+
+        if os.path.isfile(save_file):
+            try:
+                with open(save_file) as f:
+                    try:
+                        self.net_client.data = json.load(f)
+                        log.info("Loaded data from main save file")
+                    except json.JSONDecodeError:
+                        log.warning("Failed to load data from file, corrupt file or empty file attempting to load backup")
+                        load_backup()
+            except Exception as e:
+                log.error(f"Unable to open main save file because: {e}")
+                log.info("Attempting to load backup file")
+                load_backup()
         elif os.path.isfile(backup_file):
             log.warning("No save file found, attempting to load backup")
-            with open(backup_file) as f:
-                try:
-                    self.net_client.data = json.load(f)
-                    log.info("Loaded backup file")
-                except json.JSONDecodeError:
-                    log.error("Failed to load data from backup file, corrupt file or empty file")
-                    log.warning("Rebuilding room data from scratch")
+            load_backup()
         else:
             log.error("No primary or backup file found, creating new file")
 

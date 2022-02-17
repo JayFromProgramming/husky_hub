@@ -99,7 +99,7 @@ class BlueStalker:
 
     def stalk(self):
         self.stalker_logs = []
-        logging.info(f"[*] Starting stalk: {datetime.datetime.now()}")
+        logging.debug(f"[*] Starting stalk: {datetime.datetime.now()}")
         logging.debug(f"[*] Targets: {self.targets}")
         logging.debug(f"[*] Temp Targets: {self.temp_targets}")
         self.ready = True

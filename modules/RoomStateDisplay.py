@@ -12,7 +12,10 @@ log = logging.getLogger(__name__)
 
 
 def celsius_to_fahrenheit(celsius):
-    return (float(celsius) * (9 / 5)) + 32
+    try:
+        return (float(celsius) * (9 / 5)) + 32
+    except TypeError:
+        return 0
 
 
 class Occupancy_display:

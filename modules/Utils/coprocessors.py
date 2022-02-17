@@ -4,7 +4,9 @@ import time
 import traceback
 
 import serial
+import logging
 
+log = logging.getLogger(__name__)
 
 class Coprocessor:
 
@@ -40,13 +42,13 @@ class Coprocessor:
     def establish_connection(self, target_arduino=0):
         if not self.should_connect:
             return
-        print(f"[*] Establishing connection to arduino {target_arduino} on {self.port[target_arduino]}")
+        log.info(f"[*] Establishing connection to arduino {target_arduino} on {self.port[target_arduino]}")
         try:
             self.arduino[target_arduino] = serial.Serial(self.port[target_arduino], self.baudrate[target_arduino], timeout=0.25)
             self.connected[target_arduino] = True
-            print(f"[*] Connection established to arduino {target_arduino} on {self.port[target_arduino]}")
+            log.info(f"[*] Connection established to arduino {target_arduino} on {self.port[target_arduino]}")
         except Exception as e:
-            print(f"[!] Failed to establish connection to arduino {target_arduino} on {self.port[target_arduino]} {e}\n{traceback.format_exc()}")
+            log.warning(f"[!] Failed to establish connection to arduino {target_arduino} on {self.port[target_arduino]} {e}\n{traceback.format_exc()}")
             self.connected[target_arduino] = False
 
     def close_all(self):
@@ -106,10 +108,10 @@ class Coprocessor:
                     self.data_slots[target_arduino][8] = i
                     self._send(immediately=True, target_arduino=target_arduino)
                     time.sleep(0.1)
-                    print(f"Sending image {i}", end="\r")
+                    log.info(f"Sending image {i}")
                     for _ in range(8):
                         data = f.read(1)
-                        print(f"-{i}: {data}", end="")
+                        log.debug(f"-{i}: {data}")
                         self.arduino[target_arduino].write(data)
                     self.arduino[target_arduino].read(self.arduino[target_arduino].inWaiting())
                     self.data_slots[target_arduino][2] = 11
@@ -168,7 +170,7 @@ class Coprocessor:
                     else:
                         self.establish_connection(target_arduino=target_arduino)
                 except Exception as e:
-                    print(f"Arduino {target_arduino} serial error: {e}\n{traceback.format_exc()}")
+                    log.error(f"Arduino {target_arduino} serial error: {e}\n{traceback.format_exc()}")
                     self.connected[target_arduino] = False
 
             time.sleep(0.25)
@@ -200,14 +202,14 @@ class Coprocessor:
         try:
             self.arduino[target_arduino].write(data)
         except serial.SerialException as e:
-            print(f"Arduino {target_arduino} write error: {e}\n{traceback.format_exc()}")
+            log.error(f"Arduino {target_arduino} write error: {e}\n{traceback.format_exc()}")
             self.last_update[target_arduino] = time.time() + 35
         try:
             returned_data = self.arduino[target_arduino].read(self.arduino[target_arduino].inWaiting()).split(b'\a')[:-1]
             if len(returned_data) == 8:
                 self.returned_data[target_arduino] = returned_data
         except Exception as e:
-            print(f"Arduino {target_arduino} read error: {e}\n{traceback.format_exc()}")
+            log.error(f"Arduino {target_arduino} read error: {e}\n{traceback.format_exc()}")
             self.connected[target_arduino] = False
             # for i in range(0, 8):
             #     self.returned_data[target_arduino][i] = None
